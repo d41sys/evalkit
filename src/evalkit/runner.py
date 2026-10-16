@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import threading
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +14,7 @@ from .aggregate import (
     ModelSummary,
     bootstrap_macro_ci,
     build_pairwise_matches,
+    compare_pairs,
     compute_elo_ratings,
 )
 from .metrics.calibration import brier_score, expected_calibration_error
@@ -220,7 +221,30 @@ def generate_leaderboard(records: Sequence[EvalRecord]) -> LeaderboardReport:
 
     # Sort descending by macro_mean then elo_rating
     model_summaries.sort(key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
+    assign_tie_groups(model_summaries, by_example)
     return LeaderboardReport(models=model_summaries)
+
+
+def assign_tie_groups(
+    ranked: Sequence[ModelSummary], by_example: Mapping[str, Mapping[str, float]]
+) -> None:
+    """Set ``tie_group`` on ranked models: a model starts a new group only when it is
+    resolved from the model ranked directly above it (Holm over the adjacent pairs)."""
+    if len(ranked) < 2:
+        for m in ranked:
+            m.tie_group = 1
+        return
+    scores: dict[str, dict[object, float]] = {m.model_name: {} for m in ranked}
+    for key, per_model in by_example.items():
+        for model, score in per_model.items():
+            scores[model][key] = score
+    pairs = [(ranked[i].model_name, ranked[i + 1].model_name) for i in range(len(ranked) - 1)]
+    group = 1
+    ranked[0].tie_group = group
+    for nxt, res in zip(ranked[1:], compare_pairs(scores, pairs), strict=True):
+        if res.resolved:
+            group += 1
+        nxt.tie_group = group
 
 
 def run(

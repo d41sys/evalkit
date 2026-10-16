@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from statistics import NormalDist
 
 import numpy as np
 
@@ -159,6 +160,8 @@ class ModelSummary:
     brier: float = 0.0
     total_examples: int = 0
     per_task_means: dict[str, float] = field(default_factory=dict)
+    # 1-based; models in the same group are not resolved from their ranked neighbour.
+    tie_group: int | None = None
 
 
 @dataclass
@@ -166,26 +169,38 @@ class LeaderboardReport:
     models: list[ModelSummary]
 
     def to_markdown(self) -> str:
+        # Sort models descending by macro_mean then elo_rating
+        ranked = sorted(self.models, key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
+        grouped = any(m.tie_group is not None for m in ranked)
         lines: list[str] = [
             "# Evaluation Leaderboard",
             "",
             (
                 "| Rank | Model | Macro Mean | 95% CI | Win Rate | Elo Rating | "
-                "ECE (15 bins) | Brier | Tasks Evaluated |"
+                "ECE (15 bins) | Brier | Tasks Evaluated |" + (" Tie group |" if grouped else "")
             ),
             (
                 "|------|-------|------------|--------|----------|------------|"
-                "---------------|-------|-----------------|"
+                "---------------|-------|-----------------|" + ("------------|" if grouped else "")
             ),
         ]
-        # Sort models descending by macro_mean then elo_rating
-        ranked = sorted(self.models, key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
         for rank, m in enumerate(ranked, start=1):
             ci_str = f"[{m.ci_lower:.3f}, {m.ci_upper:.3f}]"
             tasks_count = len(m.per_task_means)
+            group_cell = f" {m.tie_group if m.tie_group is not None else '-'} |" if grouped else ""
             lines.append(
                 f"| {rank} | {m.model_name} | {m.macro_mean:.3f} | {ci_str} | {m.win_rate:.3f} | "
-                f"{m.elo_rating:.1f} | {m.ece:.3f} | {m.brier:.3f} | {tasks_count} |"
+                f"{m.elo_rating:.1f} | {m.ece:.3f} | {m.brier:.3f} | {tasks_count} |" + group_cell
+            )
+        if grouped:
+            lines.extend(
+                [
+                    "",
+                    "Tie group: a model joins the group of the model ranked directly "
+                    "above it unless the paired randomisation test on their per-example "
+                    "differences is resolved (Holm-adjusted p < 0.05 over the adjacent pairs). "
+                    "Models sharing a group are not separated by this data.",
+                ]
             )
 
         if ranked and ranked[0].per_task_means:
@@ -262,3 +277,189 @@ def paired_comparison(
         ties=int(a.size) - wins - losses,
         sign_p=sign_test_p(wins, losses),
     )
+
+
+def randomization_test_p(
+    diffs: Sequence[float] | np.ndarray,
+    num_draws: int = 10000,
+    seed: int = 0,
+    exact_max_nonzero: int = 20,
+) -> float:
+    """Two-sided paired randomisation (sign-flip) test of mean(diffs) = 0.
+
+    Under the null each per-example difference is equally likely to carry either
+    sign, so the reference distribution of the sum is the sum over all 2^k sign
+    assignments of the k nonzero differences (zeros never change the sum).
+    p = P(|sum with random signs| >= |observed sum|).
+
+    * k <= ``exact_max_nonzero`` (20): exact enumeration of all 2^k assignments.
+    * k larger: Monte Carlo with ``num_draws`` seeded draws and the
+      (count + 1) / (draws + 1) estimator, which is never 0 and is a valid p-value
+      (Phipson & Smyth 2010).
+
+    Smucker, Allan & Carterette (2007) recommend this test, or the bootstrap,
+    over the sign and Wilcoxon tests for comparing retrieval/IR systems.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    d = d[np.abs(d) > 1e-12]
+    k = int(d.size)
+    if k == 0:
+        return 1.0
+    tol = 1e-9 * float(np.abs(d).sum())
+    observed = abs(float(d.sum()))
+    if k <= exact_max_nonzero:
+        sums = np.zeros(1, dtype=np.float64)
+        for x in d:
+            sums = np.concatenate((sums + x, sums - x))
+        return float(np.count_nonzero(np.abs(sums) >= observed - tol)) / sums.size
+    rng = np.random.default_rng(seed)
+    hits = 0
+    done = 0
+    chunk = max(1, 2_000_000 // k)  # bound the (draws x k) sign matrix to ~16 MB
+    while done < num_draws:
+        m = min(chunk, num_draws - done)
+        signs = rng.integers(0, 2, size=(m, k)).astype(np.float64) * 2.0 - 1.0
+        hits += int(np.count_nonzero(np.abs(signs @ d) >= observed - tol))
+        done += m
+    return (hits + 1) / (num_draws + 1)
+
+
+def holm_bonferroni(p_values: Sequence[float]) -> list[float]:
+    """Holm (1979) step-down adjusted p-values, returned in the input order.
+
+    Sort ascending p_(1) <= ... <= p_(m); adj_(i) = max_{j<=i} min(1, (m - j + 1) p_(j)).
+    Controls the family-wise error rate without any independence assumption.
+    """
+    m = len(p_values)
+    order = sorted(range(m), key=lambda i: p_values[i])
+    adjusted = [0.0] * m
+    running = 0.0
+    for rank, idx in enumerate(order):
+        running = max(running, min(1.0, (m - rank) * p_values[idx]))
+        adjusted[idx] = running
+    return adjusted
+
+
+def _z_sum(alpha: float, power: float) -> float:
+    nd = NormalDist()
+    return nd.inv_cdf(1.0 - alpha / 2.0) + nd.inv_cdf(power)
+
+
+def minimum_detectable_effect(
+    sd_diff: float, n: int, alpha: float = 0.05, power: float = 0.8
+) -> float:
+    """Smallest true mean paired difference detectable with the given power.
+
+    Normal approximation for a two-sided paired test with the SD of the
+    per-example differences ``sd_diff``:
+
+        MDE = (z_{1 - alpha/2} + z_{power}) * sd_diff / sqrt(n)
+
+    (power analysis for paired model comparisons as recommended by Miller 2024,
+    "Adding Error Bars to Evals", arXiv 2411.00640, sec. 4; standard result, see
+    e.g. Cohen 1988.) With alpha = 0.05, power = 0.8 the multiplier is 2.8016.
+    """
+    if n <= 0:
+        return math.inf
+    return _z_sum(alpha, power) * sd_diff / math.sqrt(n)
+
+
+def required_sample_size(
+    sd_diff: float, effect: float, alpha: float = 0.05, power: float = 0.8
+) -> int:
+    """Examples needed to detect a mean paired difference of ``effect``.
+
+    Same normal approximation as :func:`minimum_detectable_effect`, solved for n:
+
+        n = ceil(((z_{1 - alpha/2} + z_{power}) * sd_diff / effect)^2)
+
+    (Miller 2024, arXiv 2411.00640.) At least 2, since a paired SD needs two
+    examples. ``effect`` must be nonzero.
+    """
+    if effect == 0:
+        raise ValueError("effect must be nonzero")
+    n = math.ceil((_z_sum(alpha, power) * sd_diff / abs(effect)) ** 2)
+    return max(2, n)
+
+
+@dataclass(frozen=True)
+class PairResolution:
+    """One model pair: paired statistics, corrected p-value, power, verdict."""
+
+    model_a: str
+    model_b: str
+    n: int
+    mean_a: float
+    mean_b: float
+    diff: float
+    diff_ci_lo: float
+    diff_ci_hi: float
+    wins: int
+    losses: int
+    ties: int
+    sign_p: float
+    rand_p: float
+    holm_p: float
+    sd_diff: float
+    mde: float
+    n_needed: int | None  # None when the target effect is 0
+    resolved: bool
+
+
+def compare_pairs(
+    scores: Mapping[str, Mapping[object, float]],
+    pairs: Sequence[tuple[str, str]],
+    alpha: float = 0.05,
+    power: float = 0.8,
+    effect: float | None = None,
+    num_resamples: int = 10000,
+    num_draws: int = 10000,
+    seed: int = 0,
+) -> list[PairResolution]:
+    """Paired resolvability analysis for ``pairs`` (A, B) of models.
+
+    ``scores[model][example_key]`` is the per-example score. Each pair is analysed on
+    the examples both models were scored on (micro average over those examples).
+    Holm-Bonferroni runs over exactly the pairs passed in, so the family is the
+    caller's choice. ``effect`` is the target difference for ``n_needed`` (default:
+    the observed |mean difference|; None result when that is 0). A pair is
+    ``resolved`` when its Holm-adjusted randomisation p < ``alpha``.
+    """
+    partial: list[tuple[PairedComparison, float, float]] = []
+    for a_name, b_name in pairs:
+        sa, sb = scores[a_name], scores[b_name]
+        keys = sorted((k for k in sa if k in sb), key=repr)
+        va = [sa[k] for k in keys]
+        vb = [sb[k] for k in keys]
+        c = paired_comparison(va, vb, num_resamples=num_resamples, seed=seed)
+        diffs = np.asarray(va, dtype=np.float64) - np.asarray(vb, dtype=np.float64)
+        p = randomization_test_p(diffs, num_draws=num_draws, seed=seed)
+        sd = float(diffs.std(ddof=1)) if diffs.size > 1 else 0.0
+        partial.append((c, p, sd))
+    holm = holm_bonferroni([p for _, p, _ in partial])
+    out: list[PairResolution] = []
+    for (a_name, b_name), (c, p, sd), hp in zip(pairs, partial, holm, strict=True):
+        target = abs(c.diff) if effect is None else abs(effect)
+        out.append(
+            PairResolution(
+                model_a=a_name,
+                model_b=b_name,
+                n=c.n,
+                mean_a=c.mean_a,
+                mean_b=c.mean_b,
+                diff=c.diff,
+                diff_ci_lo=c.diff_ci_lo,
+                diff_ci_hi=c.diff_ci_hi,
+                wins=c.wins,
+                losses=c.losses,
+                ties=c.ties,
+                sign_p=c.sign_p,
+                rand_p=p,
+                holm_p=hp,
+                sd_diff=sd,
+                mde=minimum_detectable_effect(sd, c.n, alpha, power),
+                n_needed=required_sample_size(sd, target, alpha, power) if target > 1e-12 else None,
+                resolved=hp < alpha,
+            )
+        )
+    return out

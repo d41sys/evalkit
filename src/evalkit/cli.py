@@ -6,7 +6,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .aggregate import paired_comparison
+from .aggregate import PairResolution, compare_pairs, paired_comparison
 from .models import Model, get_model
 from .runner import EvalRecord, generate_leaderboard, run
 from .spec import SpecError, TaskSpec
@@ -119,8 +119,83 @@ def _read_scores(path: Path, model: str) -> dict[tuple[str, str], float]:
     return scores
 
 
+def _read_all_scores(path: Path) -> dict[str, dict[object, float]]:
+    """model -> {(task, example_id): score}, models in order of first appearance."""
+    scores: dict[str, dict[object, float]] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            scores.setdefault(row["model"], {})[(str(row["task"]), str(row["example_id"]))] = float(
+                row["score"]
+            )
+    return scores
+
+
+def _verdict(r: PairResolution) -> str:
+    if r.resolved:
+        return "resolved"
+    if r.n_needed is None:
+        return "unresolved (observed diff = 0)"
+    return f"unresolved (needs n≈{r.n_needed})"
+
+
+def compare_all_pairs_command(args: argparse.Namespace) -> int:
+    """All model pairs on shared examples, Holm-corrected over the whole family."""
+    if args.a or args.b or args.results_b:
+        sys.stderr.write("Error: --all-pairs cannot be combined with --a/--b/--results-b\n")
+        return 1
+    all_scores = _read_all_scores(Path(args.results))
+    if args.models:
+        names = [m.strip() for m in args.models.split(",") if m.strip()]
+        missing = [m for m in names if m not in all_scores]
+        if missing:
+            sys.stderr.write(f"Error: models not in results: {missing}\n")
+            return 1
+    else:
+        names = list(all_scores)
+    if len(names) < 2:
+        sys.stderr.write("Error: --all-pairs needs at least two models\n")
+        return 1
+    pairs = [(names[i], names[j]) for i in range(len(names)) for j in range(i + 1, len(names))]
+    for a_name, b_name in pairs:
+        if not set(all_scores[a_name]) & set(all_scores[b_name]):
+            sys.stderr.write(f"Error: no shared (task, example_id) for {a_name!r} and {b_name!r}\n")
+            return 1
+    rows = compare_pairs(all_scores, pairs, effect=args.effect, seed=args.seed)
+    print(f"\n### All pairs ({len(pairs)} comparisons, pooled over tasks, A - B)\n")
+    print(
+        "| A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | "
+        "randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |"
+    )
+    print("|---|---|---|---|---|---|---|---|---|---|---|")
+    for r in rows:
+        needed = "n/a" if r.n_needed is None else str(r.n_needed)
+        print(
+            f"| {r.model_a} vs {r.model_b} | {r.n} | {r.diff:+.3f} | "
+            f"[{r.diff_ci_lo:+.3f}, {r.diff_ci_hi:+.3f}] | {r.wins} / {r.losses} / {r.ties} | "
+            f"{r.sign_p:.3g} | {r.rand_p:.3g} | {r.holm_p:.3g} | {r.mde:.3f} | {needed} | "
+            f"{_verdict(r)} |"
+        )
+    target = "the observed |A - B|" if args.effect is None else f"|A - B| = {args.effect}"
+    print(
+        "\nrandomisation p: two-sided paired sign-flip test (exact for <= 20 nonzero "
+        "differences, else 10,000 seeded Monte Carlo draws). Holm p: Holm-Bonferroni over "
+        f"these {len(pairs)} pairs; resolved = Holm p < 0.05. MDE and n use alpha = 0.05, "
+        f"power 0.8, normal approximation with the observed SD of the differences; n is for "
+        f"{target}. The sign test is shown for reference only.\n"
+    )
+    return 0
+
+
 def compare_command(args: argparse.Namespace) -> int:
     """Paired comparison of two models on the examples both were scored on."""
+    if args.all_pairs:
+        return compare_all_pairs_command(args)
+    if not (args.a and args.b):
+        sys.stderr.write("Error: give --a and --b, or --all-pairs\n")
+        return 1
     file_a = Path(args.results)
     file_b = Path(args.results_b) if args.results_b else file_a
     a = _read_scores(file_a, args.a)
@@ -199,8 +274,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     # compare command
     cmp_parser = subparsers.add_parser("compare", help="Paired comparison of two models")
     cmp_parser.add_argument("results", type=str, help="results.jsonl containing model A")
-    cmp_parser.add_argument("--a", required=True, help="Model A name as stored in results")
-    cmp_parser.add_argument("--b", required=True, help="Model B name as stored in results")
+    cmp_parser.add_argument("--a", default=None, help="Model A name as stored in results")
+    cmp_parser.add_argument("--b", default=None, help="Model B name as stored in results")
+    cmp_parser.add_argument(
+        "--all-pairs",
+        action="store_true",
+        help="Compare every model pair with randomisation p, Holm correction, MDE and power",
+    )
+    cmp_parser.add_argument(
+        "--models", default=None, help="With --all-pairs: comma-separated model subset"
+    )
+    cmp_parser.add_argument(
+        "--effect",
+        type=float,
+        default=None,
+        help="With --all-pairs: target |A - B| for 'n for 80%% power' (default: observed)",
+    )
     cmp_parser.add_argument(
         "--results-b", default=None, help="results.jsonl for model B (default: same file)"
     )

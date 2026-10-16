@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from evalkit.cli import main
 from evalkit.models import NoisyModel, OracleModel, RandomModel
-from evalkit.runner import run
+from evalkit.runner import EvalRecord, generate_leaderboard, run
 from evalkit.spec import TaskSpec
 
 
@@ -103,3 +104,48 @@ def test_compare_pairs_only_shared_examples(tmp_path, capsys) -> None:  # type: 
     assert "paired on 2 examples" in out
     assert "| ALL | 2 | 1.000 | 0.500 | +0.500 |" in out
     assert main(["compare", str(path), "--a", "A", "--b", "missing"]) == 1
+
+
+def _write_results(path, rows) -> None:  # type: ignore[no-untyped-def]
+    with open(path, "w", encoding="utf-8") as f:
+        for model, ex, score in rows:
+            f.write(
+                json.dumps({"task": "t", "model": model, "example_id": ex, "score": score}) + "\n"
+            )
+
+
+def test_compare_all_pairs_cli(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "results.jsonl"
+    rows = []
+    for i in range(30):
+        rows += [("hi", f"e{i}", 1.0), ("mid", f"e{i}", 1.0 if i else 0.0), ("lo", f"e{i}", 0.0)]
+    _write_results(path, rows)
+
+    assert main(["compare", str(path), "--all-pairs"]) == 0
+    out = capsys.readouterr().out
+    assert "3 comparisons" in out
+    assert "| hi vs lo | 30 |" in out and "| hi vs mid | 30 |" in out
+    assert "| mid vs lo | 30 |" in out
+    assert "unresolved (needs n≈" in out
+    assert out.count("| resolved |") == 2
+
+    assert main(["compare", str(path), "--all-pairs", "--models", "hi,lo"]) == 0
+    out = capsys.readouterr().out
+    assert "1 comparisons" in out and "mid" not in out
+
+    assert main(["compare", str(path), "--all-pairs", "--models", "hi,nope"]) == 1
+    assert main(["compare", str(path), "--all-pairs", "--a", "hi"]) == 1
+    assert main(["compare", str(path)]) == 1
+
+
+def test_leaderboard_tie_groups() -> None:
+    def rec(model: str, ex: int, score: float) -> EvalRecord:
+        return EvalRecord("t", model, f"e{ex}", score, {}, "", [], 0.5, int(score))
+
+    records = []
+    for i in range(30):
+        records += [rec("hi", i, 1.0), rec("mid", i, 1.0 if i else 0.0), rec("lo", i, 0.0)]
+    board = generate_leaderboard(records)
+    groups = {m.model_name: m.tie_group for m in board.models}
+    assert groups == {"hi": 1, "mid": 1, "lo": 2}
+    assert "Tie group" in board.to_markdown()
