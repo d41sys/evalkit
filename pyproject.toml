@@ -21,6 +21,10 @@ plot = [
 llm = [
     "anthropic>=0.20",
 ]
+hf = [
+    "torch>=2.4",
+    "transformers>=4.56",
+]
 
 [project.scripts]
 evalkit = "evalkit.cli:main"

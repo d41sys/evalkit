@@ -13,9 +13,13 @@ class Prediction:
     confidence: float = 0.5
     logprobs: list[float] = field(default_factory=list)
     token_nll: float = 0.0
+    # Real tokenizer token count when known; otherwise token_count falls back to whitespace words.
+    n_tokens: int | None = None
 
     @property
     def token_count(self) -> int:
+        if self.n_tokens is not None:
+            return self.n_tokens
         return max(1, len(self.text.split()))
 
 
@@ -298,4 +302,9 @@ def get_model(spec_str: str, **kwargs: Any) -> Model:
         parts = raw.split(":", 1)
         model_id = parts[1] if len(parts) > 1 else "claude-3-5-sonnet-20241022"
         return AnthropicModel(model_id=model_id, **kwargs)
+    if raw.startswith("hf:"):
+        from .hf import HFModel, parse_descriptor
+
+        model_id, revision = parse_descriptor(raw[len("hf:") :])
+        return HFModel(model_id, revision=revision, **kwargs)
     raise ValueError(f"Unknown model descriptor: {spec_str}")

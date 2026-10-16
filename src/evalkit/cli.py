@@ -58,6 +58,10 @@ def run_command(args: argparse.Namespace) -> int:
 
     print(f"Loaded {len(specs)} task specs from {tasks_path}")
     print(f"Loaded {len(models)} models: {[m.name for m in models]}")
+    for m in models:
+        revision = getattr(m, "revision", None)
+        if revision:
+            print(f"  {m.name}: resolved revision {revision}")
     print(f"Executing evaluations -> {out_dir}")
 
     summary = run(specs, models, out_dir, max_workers=args.workers)
