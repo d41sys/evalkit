@@ -4,13 +4,15 @@ Selected with ``hf:<model_id>`` or ``hf:<model_id>@<revision>``.
 
 How each task type is answered
 ------------------------------
-* ``generation`` / ``code``: the prompt is wrapped in the model's chat template with a short
-  task-type instruction appended, then decoded greedily (no sampling, no repetition penalty).
+* ``generation`` / ``reasoning`` / ``code``: the prompt is wrapped in the model's chat template
+  with a short task-type instruction appended, then decoded greedily (no sampling, no repetition
+  penalty).
   ``Prediction.logprobs`` are the *raw* (pre-processor) log-probabilities of the generated
   tokens, ``token_nll`` is their negated sum, and ``confidence`` is the geometric-mean token
   probability ``exp(mean(logprobs))``. That confidence is a heuristic derived from real
   log-probs; it is not a calibrated probability (the ECE the leaderboard reports measures how
-  far off it is).
+  far off it is). ``reasoning`` is free generation with a longer token budget and no adapter
+  instruction: the task prompt asks for step-by-step work and fixes the answer format.
 * ``multiple_choice`` / ``classification``: no free-form generation. Every option in the label
   set is scored as the assistant's reply (sum of token log-probs, rank classification) and the
   argmax is returned, so the output is always a member of the label set, exactly like the
@@ -36,7 +38,7 @@ CODE_INSTRUCTION = (
 )
 CHOICE_INSTRUCTION = "Reply with exactly one of the following options and nothing else: "
 
-DEFAULT_MAX_NEW_TOKENS = {"generation": 48, "code": 384}
+DEFAULT_MAX_NEW_TOKENS = {"generation": 48, "reasoning": 256, "code": 384}
 
 
 def build_user_message(prompt: str, task_type: str, choices: Sequence[str] | None = None) -> str:
@@ -45,6 +47,8 @@ def build_user_message(prompt: str, task_type: str, choices: Sequence[str] | Non
         return f"{prompt}\n\n{CHOICE_INSTRUCTION}{', '.join(choices)}"
     if task_type == "code":
         return f"{prompt}\n\n{CODE_INSTRUCTION}"
+    if task_type == "reasoning":
+        return prompt  # the task prompt itself asks for step-by-step work and the answer format
     return f"{prompt}\n\n{GENERATION_INSTRUCTION}"
 
 
@@ -82,12 +86,17 @@ class HFModel:
         device: str | None = None,
         max_new_tokens: dict[str, int] | None = None,
         name: str | None = None,
+        batch_size: int = 1,
         *,
         tokenizer: Any = None,
         model: Any = None,
     ) -> None:
         """Load ``model_id``. ``tokenizer``/``model`` may be injected (used by offline tests)."""
         self.model_id = model_id
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {batch_size}")
+        # How many free-generation prompts the runner may decode together (``predict_batch``).
+        self.batch_size = batch_size
         self.max_new_tokens = {**DEFAULT_MAX_NEW_TOKENS, **(max_new_tokens or {})}
         self._lock = threading.Lock()  # one model instance; torch/MPS calls are serialised
 
@@ -173,6 +182,51 @@ class HFModel:
             ]
         return new_ids, logps
 
+    def _generate_ids_batch(
+        self, prompts_ids: list[list[int]], max_new_tokens: int
+    ) -> list[tuple[list[int], list[float]]]:
+        """Greedy decode a left-padded batch. Per prompt: new token ids (up to and including
+        the first EOS) and the raw-logit log-prob of each."""
+        import torch
+
+        pad = getattr(self.tokenizer, "pad_token_id", None)
+        pad = int(pad) if pad is not None else 0
+        eos = self._eos_ids()
+        width = max(len(p) for p in prompts_ids)
+        ids = torch.tensor([[pad] * (width - len(p)) + p for p in prompts_ids], device=self.device)
+        mask = torch.tensor(
+            [[0] * (width - len(p)) + [1] * len(p) for p in prompts_ids], device=self.device
+        )
+        with self._lock, torch.inference_mode():
+            out = self.model.generate(
+                input_ids=ids,
+                attention_mask=mask,
+                do_sample=False,
+                max_new_tokens=max_new_tokens,
+                temperature=None,
+                top_p=None,
+                top_k=None,
+                repetition_penalty=1.0,
+                return_dict_in_generate=True,
+                output_logits=True,
+                pad_token_id=pad,
+            )
+            new = out.sequences[:, width:]
+            step_lps = torch.stack(
+                [
+                    torch.log_softmax(logits.float(), dim=-1).gather(1, new[:, i : i + 1])[:, 0]
+                    for i, logits in enumerate(out.logits)
+                ],
+                dim=1,
+            )
+            new_rows = new.tolist()
+            lp_rows = step_lps.tolist()
+        results: list[tuple[list[int], list[float]]] = []
+        for toks, lps in zip(new_rows, lp_rows, strict=True):
+            cut = next((i + 1 for i, t in enumerate(toks) if t in eos), len(toks))
+            results.append(([int(t) for t in toks[:cut]], [float(v) for v in lps[:cut]]))
+        return results
+
     def _continuation_logprobs(self, prefix_ids: list[int], cont_ids: list[int]) -> list[float]:
         """Log-prob of each token of ``cont_ids`` given ``prefix_ids`` (one forward pass)."""
         import torch
@@ -186,16 +240,19 @@ class HFModel:
 
     # -- Model protocol ---------------------------------------------------------------------
 
-    def _generate(self, prompt: str, task_type: str) -> tuple[str, list[float]]:
-        prompt_ids = self._encode(self.render_chat(prompt, task_type, None))
-        limit = self.max_new_tokens.get(task_type, self.max_new_tokens["generation"])
-        new_ids, logps = self._generate_ids(prompt_ids, limit)
+    def _finish_generation(self, new_ids: list[int], logps: list[float]) -> tuple[str, list[float]]:
         eos = self._eos_ids()
         while new_ids and new_ids[-1] in eos:  # drop the stop token(s) from text and log-probs
             new_ids.pop()
             logps.pop()
         text = str(self.tokenizer.decode(new_ids, skip_special_tokens=True)).strip()
         return text, logps
+
+    def _generate(self, prompt: str, task_type: str) -> tuple[str, list[float]]:
+        prompt_ids = self._encode(self.render_chat(prompt, task_type, None))
+        limit = self.max_new_tokens.get(task_type, self.max_new_tokens["generation"])
+        new_ids, logps = self._generate_ids(prompt_ids, limit)
+        return self._finish_generation(new_ids, logps)
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
         return self._generate(prompt, str(kwargs.get("task_type", "generation")))[0]
@@ -229,11 +286,19 @@ class HFModel:
             per_choice = self._score_choices(prompt, task_type, choices)
             totals = [sum(lp) for lp in per_choice]
             best = max(range(len(choices)), key=totals.__getitem__)
-            text, lps = choices[best], per_choice[best]
-            confidence = softmax(totals)[best]
-        else:
-            text, lps = self._generate(prompt, task_type)
-            confidence = math.exp(sum(lps) / len(lps)) if lps else 0.0
+            lps = per_choice[best]
+            return Prediction(
+                text=choices[best],
+                confidence=float(softmax(totals)[best]),
+                logprobs=lps,
+                token_nll=float(-sum(lps)),
+                n_tokens=max(1, len(lps)),
+            )
+        return self._generation_prediction(*self._generate(prompt, task_type))
+
+    @staticmethod
+    def _generation_prediction(text: str, lps: list[float]) -> Prediction:
+        confidence = math.exp(sum(lps) / len(lps)) if lps else 0.0
         return Prediction(
             text=text,
             confidence=float(confidence),
@@ -241,3 +306,18 @@ class HFModel:
             token_nll=float(-sum(lps)),
             n_tokens=max(1, len(lps)),
         )
+
+    def predict_batch(self, prompts: Sequence[str], task_type: str) -> list[Prediction]:
+        """Free-generation ``predict`` for several prompts decoded together (left-padded).
+
+        Same prompts, greedy decoding and token budget as ``predict``; only the batch
+        composition differs. Batched bf16 kernels are not bit-identical to batch size 1, so a
+        greedy continuation can differ from the unbatched one (and between batch sizes).
+        """
+        limit = self.max_new_tokens.get(task_type, self.max_new_tokens["generation"])
+        prompts_ids = [self._encode(self.render_chat(p, task_type, None)) for p in prompts]
+        preds: list[Prediction] = []
+        for new_ids, logps in self._generate_ids_batch(prompts_ids, limit):
+            text, lps = self._finish_generation(new_ids, logps)
+            preds.append(self._generation_prediction(text, lps))
+        return preds

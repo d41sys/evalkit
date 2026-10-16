@@ -1,0 +1,11 @@
+name: gsm8k
+version: "1.0.0"
+type: reasoning
+dataset: data.jsonl
+prompt_template: "Solve the following math word problem. Reason step by step but keep it brief (a few short lines, no headings, do not restate the problem), then end your reply with a final line of the form \"The answer is <number>\".\n\nProblem: {question}"
+metrics:
+  - numeric_match
+few_shot: 0
+metadata:
+  source: https://github.com/openai/grade-school-math
+  licence: MIT (Copyright (c) 2021 OpenAI), see LICENSE-GSM8K

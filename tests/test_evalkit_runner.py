@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 from evalkit.cli import main
-from evalkit.models import NoisyModel, OracleModel, RandomModel
+from evalkit.models import NoisyModel, OracleModel, Prediction, RandomModel
 from evalkit.runner import EvalRecord, generate_leaderboard, run
 from evalkit.spec import TaskSpec
 
@@ -149,3 +150,34 @@ def test_leaderboard_tie_groups() -> None:
     groups = {m.model_name: m.tie_group for m in board.models}
     assert groups == {"hi": 1, "mid": 1, "lo": 2}
     assert "Tie group" in board.to_markdown()
+
+
+def test_runner_decodes_free_generation_in_batches(tmp_path: Path) -> None:
+    class BatchOracle(OracleModel):
+        def __init__(self) -> None:
+            super().__init__(name="batch_oracle")
+            self.batch_size = 3
+            self.batches: list[list[str]] = []
+
+        def predict_batch(self, prompts: Sequence[str], task_type: str) -> list[Prediction]:
+            self.batches.append(list(prompts))
+            # answer = the number in "Question: N + 0" -> N
+            return [Prediction(text=f"The answer is {p.split()[1]}") for p in prompts]
+
+    task_dir = tmp_path / "tasks" / "echo"
+    task_dir.mkdir(parents=True)
+    rows = [{"id": f"e{i}", "question": f"{i} + 0", "target": str(i)} for i in range(7)]
+    (task_dir / "data.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (task_dir / "spec.yaml").write_text(
+        "name: echo\ntype: reasoning\ndataset: data.jsonl\n"
+        'prompt_template: "Question: {question}"\nmetrics: [numeric_match]\n'
+    )
+    spec = TaskSpec.from_yaml(task_dir / "spec.yaml")
+    model = BatchOracle()
+    summary = run([spec], [model], tmp_path / "out", max_workers=1)
+    assert sorted(len(b) for b in model.batches) == [1, 3, 3]
+    assert summary.total_evaluated == 7
+    assert {r.example_id: r.score for r in summary.records} == {f"e{i}": 1.0 for i in range(7)}
+    # resume: nothing left to evaluate, nothing decoded
+    again = run([spec], [model], tmp_path / "out", max_workers=1)
+    assert (again.total_evaluated, again.total_skipped) == (0, 7)

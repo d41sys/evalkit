@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import threading
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,7 @@ from .aggregate import (
 from .metrics.calibration import brier_score, expected_calibration_error
 from .metrics.classical import score_classical
 from .metrics.code_exec import run_code_exec
-from .models import Model
+from .models import BatchModel, Model, Prediction
 from .spec import TaskSpec
 
 
@@ -93,6 +94,10 @@ def _extract_targets(example: dict[str, Any]) -> list[str]:
     return []
 
 
+# Task types answered by free generation, which a BatchModel may decode several at a time.
+_BATCHABLE_TYPES = frozenset({"generation", "reasoning"})
+
+
 def _evaluate_single(
     spec: TaskSpec,
     model: Model,
@@ -102,16 +107,41 @@ def _evaluate_single(
 ) -> EvalRecord:
     prompt = spec.render_prompt(example)
     choices = example.get("choices") or labels
-    targets = _extract_targets(example)
 
-    # Use model prediction
     pred = model.predict(
         prompt,
         task_type=spec.type,
         choices=choices,
         example=example,
     )
+    return _score_prediction(spec, model.name, example, example_id, pred)
 
+
+def _evaluate_one(
+    spec: TaskSpec,
+    model: Model,
+    example: dict[str, Any],
+    example_id: str,
+    labels: Sequence[str] | None,
+) -> list[EvalRecord]:
+    return [_evaluate_single(spec, model, example, example_id, labels)]
+
+
+def _evaluate_batch(
+    spec: TaskSpec, model: BatchModel, batch: Sequence[tuple[dict[str, Any], str]]
+) -> list[EvalRecord]:
+    prompts = [spec.render_prompt(row) for row, _ in batch]
+    preds = model.predict_batch(prompts, spec.type)
+    return [
+        _score_prediction(spec, model.name, row, ex_id, pred)
+        for (row, ex_id), pred in zip(batch, preds, strict=True)
+    ]
+
+
+def _score_prediction(
+    spec: TaskSpec, model_name: str, example: dict[str, Any], example_id: str, pred: Prediction
+) -> EvalRecord:
+    targets = _extract_targets(example)
     metrics_dict: dict[str, float] = {}
 
     if spec.type == "code":
@@ -135,7 +165,7 @@ def _evaluate_single(
 
     return EvalRecord(
         task=spec.name,
-        model=model.name,
+        model=model_name,
         example_id=example_id,
         score=primary_score,
         metrics=metrics_dict,
@@ -306,25 +336,40 @@ def run(
     file_lock = threading.Lock()
 
     if work_items:
-        workers = max(1, min(max_workers, len(work_items)))
+        # Batch-capable models decode free-generation items together; everything else runs
+        # one item per task.
+        jobs: list[Callable[[], list[EvalRecord]]] = []
+        grouped: dict[tuple[str, str], list[tuple[dict[str, Any], str]]] = {}
+        batch_models: dict[tuple[str, str], tuple[TaskSpec, BatchModel]] = {}
+        for spec, model, row, ex_id, labels in work_items:
+            if (
+                isinstance(model, BatchModel)
+                and model.batch_size > 1
+                and spec.type in _BATCHABLE_TYPES
+            ):
+                group_key = (spec.name, model.name)
+                batch_models[group_key] = (spec, model)
+                grouped.setdefault(group_key, []).append((row, ex_id))
+            else:
+                jobs.append(partial(_evaluate_one, spec, model, row, ex_id, labels))
+        for group_key, group in grouped.items():
+            spec, batch_model = batch_models[group_key]
+            for start in range(0, len(group), batch_model.batch_size):
+                chunk = group[start : start + batch_model.batch_size]
+                jobs.append(partial(_evaluate_batch, spec, batch_model, chunk))
+
+        workers = max(1, min(max_workers, len(jobs)))
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            future_to_item = {
-                executor.submit(_evaluate_single, spec, model, row, ex_id, labels): (
-                    spec.name,
-                    model.name,
-                    ex_id,
-                )
-                for spec, model, row, ex_id, labels in work_items
-            }
+            futures = [executor.submit(job) for job in jobs]
 
             with open(results_file, "a", encoding="utf-8") as out_f:
-                for future in as_completed(future_to_item):
-                    rec = future.result()
-                    new_records.append(rec)
-                    newly_evaluated += 1
-                    with file_lock:
-                        out_f.write(json.dumps(rec.to_dict()) + "\n")
-                        out_f.flush()
+                for future in as_completed(futures):
+                    for rec in future.result():
+                        new_records.append(rec)
+                        newly_evaluated += 1
+                        with file_lock:
+                            out_f.write(json.dumps(rec.to_dict()) + "\n")
+                            out_f.flush()
 
     all_records = existing_records + new_records
     leaderboard = generate_leaderboard(all_records)

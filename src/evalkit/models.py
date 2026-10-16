@@ -43,6 +43,15 @@ class Model(Protocol):
     ) -> Prediction: ...
 
 
+@runtime_checkable
+class BatchModel(Model, Protocol):
+    """A model that can decode several free-generation prompts at once (``batch_size`` > 1)."""
+
+    batch_size: int
+
+    def predict_batch(self, prompts: Sequence[str], task_type: str) -> list[Prediction]: ...
+
+
 def _get_target_from_example(example: dict[str, Any] | None) -> str:
     if not example:
         return ""

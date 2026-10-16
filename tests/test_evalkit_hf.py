@@ -73,6 +73,17 @@ class ScriptedHF(HFModel):
         ids = [*self.tokenizer.encode(self.reply, add_special_tokens=False), EOS]
         return ids, [self.per_char_lp] * len(ids)
 
+    def _generate_ids_batch(
+        self, prompts_ids: list[list[int]], max_new_tokens: int
+    ) -> list[tuple[list[int], list[float]]]:
+        self.seen_limits.append(max_new_tokens)
+        out: list[tuple[list[int], list[float]]] = []
+        for prompt_ids in prompts_ids:
+            self.seen_prefixes.append(self.tokenizer.decode(prompt_ids))
+            ids = [*self.tokenizer.encode(self.reply, add_special_tokens=False), EOS]
+            out.append((ids, [self.per_char_lp] * len(ids)))
+        return out
+
     def _continuation_logprobs(self, prefix_ids: list[int], cont_ids: list[int]) -> list[float]:
         self.seen_prefixes.append(self.tokenizer.decode(prefix_ids))
         text = self.tokenizer.decode(cont_ids)
@@ -188,3 +199,21 @@ def test_real_model_end_to_end() -> None:  # pragma: no cover - needs torch + do
     assert pred.text in {"negative", "positive"}
     assert 0.5 <= pred.confidence <= 1.0
     assert pred.logprobs and all(lp <= 0.0 for lp in pred.logprobs)
+
+
+def test_predict_batch_matches_single_predict_for_free_generation() -> None:
+    m = ScriptedHF(reply=" The answer is 18 ", per_char_lp=-0.25)
+    single = m.predict("Q1", "reasoning")
+    batch = m.predict_batch(["Q1", "Q2"], "reasoning")
+    assert len(batch) == 2
+    assert batch[0] == single  # same text, log-probs, confidence, token count
+    assert batch[0].text == "The answer is 18"
+    assert m.seen_limits == [256, 256]  # reasoning budget; one call for the whole batch
+    # the reasoning prompt is sent as is, with no "final answer only" instruction
+    assert m.seen_prefixes[-1] == "<user>Q2</s><assistant>"
+
+
+def test_batch_size_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        HFModel("fake/model", batch_size=0, tokenizer=FakeTokenizer(), model=FakeLM())
+    assert ScriptedHF().batch_size == 1

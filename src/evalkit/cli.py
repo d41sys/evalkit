@@ -45,15 +45,18 @@ def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
     return specs
 
 
-def parse_models(models_str: str) -> list[Model]:
+def parse_models(models_str: str, hf_batch_size: int = 1) -> list[Model]:
     model_names = [m.strip() for m in models_str.split(",") if m.strip()]
-    return [get_model(name) for name in model_names]
+    return [
+        get_model(name, batch_size=hf_batch_size) if name.startswith("hf:") else get_model(name)
+        for name in model_names
+    ]
 
 
 def run_command(args: argparse.Namespace) -> int:
     tasks_path = Path(args.tasks)
     specs = find_task_specs(tasks_path)
-    models = parse_models(args.models)
+    models = parse_models(args.models, args.hf_batch_size)
     out_dir = Path(args.out)
 
     print(f"Loaded {len(specs)} task specs from {tasks_path}")
@@ -256,6 +259,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         default=4,
         help="Number of worker threads (default 4)",
+    )
+    run_parser.add_argument(
+        "--hf-batch-size",
+        type=int,
+        default=1,
+        help="hf: models decode up to this many free-generation prompts together (default 1)",
     )
 
     # leaderboard command

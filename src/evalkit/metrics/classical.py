@@ -31,6 +31,48 @@ def exact_match(prediction: str, targets: Sequence[str] | str) -> float:
     return 1.0 if any(norm_pred == normalize_text(t) for t in target_list) else 0.0
 
 
+# A number: optional minus (not glued to a preceding word/digit, so "3-4" is 3 and 4), integer part
+# with or without thousands commas, optional decimals. A trailing "." is sentence punctuation.
+_NUMBER_RE = re.compile(r"(?<![\w.])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|(?<![\w.])-?\.\d+")
+# An explicit "this is my answer" marker; the number that follows the last one wins.
+_ANSWER_MARKER_RE = re.compile(r"####|\\boxed\s*\{|answer\s*(?:is|:)", re.IGNORECASE)
+
+
+def _parse_number(token: str) -> float:
+    return float(token.replace(",", ""))
+
+
+def extract_final_number(text: str) -> float | None:
+    """The final numeric answer in free-form model output, or ``None`` if there is no number.
+
+    If the text contains an explicit marker (``#### 18``, ``\\boxed{18}``, ``The answer is 18``),
+    the first number after the *last* marker is used; otherwise the last number in the text.
+    Thousands commas are stripped (``1,234`` -> 1234), units and currency symbols are ignored
+    (``$18 dollars`` -> 18), ``18.0`` equals ``18``. Not handled: spelled-out numbers
+    (``eighteen``), fractions (``1/2`` yields 2) and scientific notation.
+    """
+    markers = list(_ANSWER_MARKER_RE.finditer(text))
+    if markers:
+        after = _NUMBER_RE.search(text, markers[-1].end())
+        if after is not None:
+            return _parse_number(after.group())
+    found = _NUMBER_RE.findall(text)
+    return _parse_number(found[-1]) if found else None
+
+
+def numeric_match(prediction: str, targets: Sequence[str] | str) -> float:
+    """1.0 if :func:`extract_final_number` of the prediction equals a target number."""
+    target_list = [targets] if isinstance(targets, str) else list(targets)
+    pred = extract_final_number(prediction)
+    if pred is None:
+        return 0.0
+    for target in target_list:
+        value = extract_final_number(target)
+        if value is not None and math.isclose(pred, value, rel_tol=0.0, abs_tol=1e-6):
+            return 1.0
+    return 0.0
+
+
 def accuracy(prediction: str, targets: Sequence[str] | str) -> float:
     """Accuracy alias for exact match on single/multiple targets."""
     return exact_match(prediction, targets)
@@ -239,6 +281,8 @@ def score_classical(metric_name: str, prediction: str, targets: Sequence[str] | 
     name = metric_name.lower().strip()
     if name in ("exact_match", "em"):
         return exact_match(prediction, targets)
+    if name in ("numeric_match", "numeric"):
+        return numeric_match(prediction, targets)
     if name in ("accuracy", "acc"):
         return accuracy(prediction, targets)
     if name in ("f1", "token_f1"):

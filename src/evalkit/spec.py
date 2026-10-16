@@ -13,7 +13,7 @@ class SpecError(Exception):
     """Raised when a task specification or its dataset fails validation."""
 
 
-TaskType = Literal["generation", "multiple_choice", "code", "classification"]
+TaskType = Literal["generation", "reasoning", "multiple_choice", "code", "classification"]
 
 
 def extract_template_variables(template: str) -> set[str]:
