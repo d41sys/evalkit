@@ -36,7 +36,7 @@ flowchart TD
 
 ```bash
 # Run evaluations across bundled tasks
-uv run evalkit run --tasks packages/evalkit/tasks --models oracle,noisy:0.3,random --out runs/demo
+uv run evalkit run --tasks tasks --models oracle,noisy:0.3,random --out runs/demo
 
 # View leaderboard
 uv run evalkit leaderboard runs/demo

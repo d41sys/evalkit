@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+
 from evalkit.aggregate import (
     bootstrap_macro_ci,
     bootstrap_mean_ci,

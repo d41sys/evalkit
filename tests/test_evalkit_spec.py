@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from evalkit.spec import SpecError, TaskSpec, extract_template_variables
 
 

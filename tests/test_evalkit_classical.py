@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import pytest
+
 from evalkit.metrics.classical import (
     accuracy,
     chrf,
