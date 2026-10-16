@@ -49,6 +49,10 @@ uv run evalkit compare runs/demo/results.jsonl --all-pairs
 
 # Real local models (needs the [hf] extra: torch + transformers)
 uv run --extra hf evalkit run --tasks tasks --models oracle,random,hf:Qwen/Qwen2.5-0.5B-Instruct --workers 1
+
+# Harder task (GSM8K subset, numeric answers); the Qwen runs are in "Harder task" below
+uv run evalkit run --tasks tasks_hard --models oracle,random --out runs/gsm8k-mock
+uv run --extra hf evalkit run --tasks tasks_hard --models hf:Qwen/Qwen2.5-1.5B-Instruct --workers 1 --hf-batch-size 16
 ```
 
 ## Results
@@ -200,12 +204,118 @@ Per task: score and, for the real models, the Wilson 95% interval of the pass ra
 
 ### Caveats
 
-- **Tiny, easy task sets** (35 / 35 / 10 / 35). The 1.5B and 3B models sit near the ceiling, so this suite cannot separate them (see compare table). It is a harness demo, not a model ranking; these are not standard benchmarks and the numbers are not comparable to published scores. Whether the item sets appear in the models' training data has not been checked.
+- **Tiny, easy task sets** (35 / 35 / 10 / 35). The 1.5B and 3B models sit near the ceiling, so this suite cannot separate them (see compare table). It is a harness demo, not a model ranking; these are not standard benchmarks and the numbers are not comparable to published scores. Whether the item sets appear in the models' training data has not been checked. The harder GSM8K task below does separate them.
 - **Strict exact-match scoring penalises format.** Of the misses: 0.5B answered `96 / 8 = 12` and `256 / 16 = 16` (correct number, wrong format; arith_004, arith_028); 3B answered `14.0` for `196 / 14` (arith_024); 1.5B answered `14.071428571428571` for the same item (a genuine error). These are scored 0 as measured; the metric was not loosened.
 - **The one 3B code failure is a real behavioural miss, not an extraction bug**: for code_008 (`count_vowels`) it wrote `vowels = "aeiou"`, which fails the bundled test `count_vowels('AEIOU') == 5`. The docstring ("a, e, i, o, u") is ambiguous about case.
 - **Generated code is really executed.** `code_humaneval` runs model output in the subprocess sandbox (`python -I`, temp cwd, 5 s CPU limit). That is not a security boundary: there is no network or filesystem isolation, and the 512 MB address-space limit is skipped on macOS. Only run it on models and tasks you trust.
 - **Rank classification is not free generation**: on sentiment and MCQ the model cannot answer off the label set, which makes those tasks easier than a free-text protocol. Win Rate / Elo are relative to this set of five rows, with oracle and random included.
 - **Reproducibility**: a repeat of the full command into a fresh directory gave a byte-identical `leaderboard.md` and 0 / 575 differing predictions (max confidence difference 0.0), on the same machine and library versions. bfloat16 on MPS is not guaranteed to match other hardware.
+
+## Harder task: GSM8K subset (`tasks_hard/gsm8k`)
+
+The bundled `tasks/` leave 1.5B vs 3B unresolved (113 of 115 examples tie). `tasks_hard/gsm8k` is a seeded 240-problem subset of the GSM8K test set (grade-school math word problems, Cobbe et al. 2021, [arXiv 2110.14168](https://arxiv.org/abs/2110.14168)) scored by numeric answer. It lives in its own directory so that `--tasks tasks` still reproduces every number above.
+
+**Source and licence.** [openai/grade-school-math](https://github.com/openai/grade-school-math), MIT licence, Copyright (c) 2021 OpenAI (the Hugging Face card for `openai/gsm8k` also says `mit`). MIT permits redistribution with the licence notice, so the 240 rows (71.5 KB) are vendored in `tasks_hard/gsm8k/data.jsonl` with the licence text in `tasks_hard/gsm8k/LICENSE-GSM8K`. The full raw files go to the gitignored `data/raw/`.
+
+```bash
+mkdir -p data/raw
+B=https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data
+curl -sL $B/test.jsonl -o data/raw/gsm8k_test.jsonl     # 1319 rows, sha256 3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14
+curl -sL $B/train.jsonl -o data/raw/gsm8k_train.jsonl   # 7473 rows, used only for the pilot below
+uv run python scripts/build_gsm8k_subset.py --split test --n 240 --seed 0 --out tasks_hard/gsm8k/data.jsonl
+shasum -a 256 tasks_hard/gsm8k/data.jsonl               # 719e263409cea077d2c52d8ed1648aa8fc64fcc3abb7b1059371c5dbf5c7e04f
+```
+
+The subset is the first 240 rows of a seed-0 permutation of the test set; `id` keeps the original row index (`gsm8k_test_1101`). `target` is the number after `####` with thousands commas removed.
+
+**Task definition.** Task type `reasoning` (free generation, greedy, at most 256 new tokens, no adapter instruction appended). The prompt asks for brief step-by-step work ending in `The answer is <number>` (see `spec.yaml`). Metric `numeric_match`: `extract_final_number` takes the first number after the last `The answer is` / `answer:` / `####` / `\boxed{` marker, else the last number in the text; thousands commas are stripped, units and `$` ignored, `18.0` equals `18`, a trailing `.` is punctuation. Not handled: spelled-out numbers, fractions (`1/2` yields 2), scientific notation. `tests/test_evalkit_numeric.py` pins this on a 23-row fixture. Scoring is exact numeric equality (tolerance 1e-6), so `5.10` for a target of `5` is wrong.
+
+### Protocol (committed in `1777f06` before the test set was scored)
+
+1. **Pilot on the train split only**, for sizing and prompt choice. 48 problems (first 48 of the seed-0 train permutation), the three Qwen models, `--hf-batch-size 16`, final prompt. Test problems were not run before the protocol was fixed.
+2. **Size by the repo's power calculation.** SD of the paired per-example differences, 1.5B vs 3B, on the pilot: 0.5586. `required_sample_size(0.5586, 0.05)` = **980 examples** for 80% power at effect 0.05 (alpha 0.05, two-sided). The pilot ran 48 examples x 3 models in 117.6 s (2.45 s per example for all three), so 980 examples is about 40 minutes.
+3. **Cap at about 10 minutes**, so N = 240 (about 9.8 minutes predicted). The MDE at n = 240 with SD 0.5586 is 0.101, so by construction this run can resolve a gap of about 0.10 but not 0.05 (power at a true 0.05 would be 0.28; at a true 0.10, 0.79).
+4. One scored run. Prompt, token budget, batch size and N were not changed after seeing test scores.
+
+Pilot commands (outputs in `runs/`, gitignored):
+
+```bash
+mkdir -p data/raw/pilot/gsm8k_train
+uv run python scripts/build_gsm8k_subset.py --split train --n 48 --seed 0 --out data/raw/pilot/gsm8k_train/data.jsonl
+sed 's/^name: gsm8k/name: gsm8k_pilot_train/' tasks_hard/gsm8k/spec.yaml > data/raw/pilot/gsm8k_train/spec.yaml
+uv run --extra hf evalkit run --tasks data/raw/pilot --workers 1 --hf-batch-size 16 --out runs/pilot-train --models "$MODELS"
+# sizing: SD of the per-example (1.5B - 3B) score differences in runs/pilot-train/results.jsonl, then
+uv run python -c "from evalkit.aggregate import required_sample_size as n; print(n(0.5586, 0.05))"
+```
+
+`$MODELS` is the three pinned `hf:` descriptors from the previous section. What the pilot also showed (train split, all measured, none of it scored on test):
+
+| Pilot variant (48 train problems unless noted) | 0.5B | 1.5B | 3B | Decision |
+|---|---|---|---|---|
+| Direct answer (type `generation`, "reply with only the final answer"), 96 problems | 0.094 | 0.104 | 0.115 | Not used: all three at floor, no separation |
+| Step-by-step, verbose prompt, 320-token budget, batch 16 | 0.479 | 0.708 | 0.812 | Replaced: mean 243-269 output tokens, 21-33% hit the cap |
+| Step-by-step, brief prompt, 256-token budget, batch 16 (final) | 0.500 | 0.688 | 0.854 | Used. 3B-1.5B gap +0.167 on 48, SD 0.5586 |
+
+A batch size of 32 was also tried on the brief prompt and did not finish within 20 minutes on the shared machine (128 of 144 pairs done when killed), so 16 was used. Timings on this Mac are noisy: other jobs were running (1-minute load average 3.7 to 6.3 when sampled during the pilots, 1.7 right after the scored run).
+
+### Scored run
+
+```bash
+MODELS="oracle,random,hf:Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775,hf:Qwen/Qwen2.5-1.5B-Instruct@989aa7980e4cf806f80c7fef2b1adb7bc71aa306,hf:Qwen/Qwen2.5-3B-Instruct@aa8e72537993ba99e69dfaafa59ed015b17504d1"
+time uv run --extra hf evalkit run --tasks tasks_hard --workers 1 --hf-batch-size 16 --out runs/gsm8k --models "$MODELS"
+uv run evalkit compare runs/gsm8k/results.jsonl --all-pairs
+```
+
+Same machine and versions as the previous section (M4 Pro 24 GB, torch 2.14.1 MPS bfloat16). Wall time **9 min 21 s** for 1200 example x model pairs including model loading from the warm cache. `--workers 1` as before; `--hf-batch-size 16` makes the Qwen models decode 16 problems per call (left-padded), see caveats.
+
+| Rank | Model | Accuracy (k/240) | Wilson 95% | 95% CI (bootstrap) | ECE (15 bins) | Brier | Tie group | Mean output tokens | Hit 256-token cap |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | oracle | 1.000 (240) | [0.984, 1.000] | [1.000, 1.000] | 0.010 | 0.000 | 1 | n/a | n/a |
+| 2 | Qwen2.5-3B-Instruct | 0.729 (175) | [0.670, 0.781] | [0.675, 0.783] | 0.146 | 0.210 | 2 | 98 | 1 |
+| 3 | Qwen2.5-1.5B-Instruct | 0.617 (148) | [0.554, 0.676] | [0.558, 0.675] | 0.235 | 0.277 | 3 | 107 | 6 |
+| 4 | Qwen2.5-0.5B-Instruct | 0.375 (90) | [0.316, 0.438] | [0.312, 0.438] | 0.490 | 0.470 | 4 | 223 | 111 |
+| 5 | random | 0.000 (0) | [0.000, 0.016] | [0.000, 0.000] | 0.321 | 0.108 | 5 | n/a | n/a |
+
+(Wilson interval: same formula as above, applied to the per-model sums in `runs/gsm8k/results.jsonl`. Tokens and cap hits count `token_count >= 256` for the Qwen rows. Each model sits alone in its tie group: every adjacent pair is resolved.)
+
+`uv run evalkit compare runs/gsm8k/results.jsonl --all-pairs` (Holm over 10 comparisons; `0.5B` = `hf:Qwen/Qwen2.5-0.5B-Instruct@7ae55760`, `1.5B` = `...1.5B-Instruct@989aa798`, `3B` = `...3B-Instruct@aa8e7253`):
+
+| A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |
+|---|---|---|---|---|---|---|---|---|---|---|
+| random vs oracle | 240 | -1.000 | [-1.000, -1.000] | 0 / 240 / 0 | 1.13e-72 | 0.0001 | 0.001 | 0.000 | 2 | resolved |
+| random vs 0.5B | 240 | -0.375 | [-0.438, -0.312] | 0 / 90 / 150 | 1.62e-27 | 0.0001 | 0.001 | 0.088 | 14 | resolved |
+| random vs 1.5B | 240 | -0.617 | [-0.679, -0.554] | 0 / 148 / 92 | 5.61e-45 | 0.0001 | 0.001 | 0.088 | 5 | resolved |
+| random vs 3B | 240 | -0.729 | [-0.783, -0.671] | 0 / 175 / 65 | 4.18e-53 | 0.0001 | 0.001 | 0.081 | 3 | resolved |
+| oracle vs 0.5B | 240 | +0.625 | [+0.562, +0.688] | 150 / 0 / 90 | 1.4e-45 | 0.0001 | 0.001 | 0.088 | 5 | resolved |
+| oracle vs 1.5B | 240 | +0.383 | [+0.321, +0.446] | 92 / 0 / 148 | 4.04e-28 | 0.0001 | 0.001 | 0.088 | 13 | resolved |
+| oracle vs 3B | 240 | +0.271 | [+0.217, +0.329] | 65 / 0 / 175 | 5.42e-20 | 0.0001 | 0.001 | 0.081 | 22 | resolved |
+| 0.5B vs 1.5B | 240 | -0.242 | [-0.317, -0.171] | 18 / 76 / 146 | 1.18e-09 | 0.0001 | 0.001 | 0.105 | 45 | resolved |
+| 0.5B vs 3B | 240 | -0.354 | [-0.425, -0.283] | 11 / 96 / 133 | 4.3e-18 | 0.0001 | 0.001 | 0.103 | 21 | resolved |
+| 1.5B vs 3B | 240 | -0.113 | [-0.183, -0.042] | 27 / 54 / 159 | 0.0036 | 0.0038 | 0.0038 | 0.103 | 203 | resolved |
+
+**Result: 1.5B vs 3B is now resolved.** The 3B model scores 0.113 higher (paired bootstrap CI [+0.042, +0.183] for 3B - 1.5B), wins 54 problems to the 1.5B's 27 with 159 ties, randomisation p = 0.0038, Holm p = 0.0038. Before and after:
+
+| Pair | Suite | n | A - B (1.5B - 3B) | Randomisation p | Verdict |
+|---|---|---|---|---|---|
+| 1.5B vs 3B | bundled `tasks/` (4 tasks) | 115 | +0.000 | 1 | unresolved (observed diff = 0) |
+| 1.5B vs 3B | `tasks_hard/gsm8k` | 240 | -0.113 | 0.0038 | resolved |
+
+What "resolved" does and does not say here:
+
+- The run was sized for effect 0.05 and could not afford it: `compare --all-pairs --models <1.5B>,<3B> --effect 0.05` on this run gives **n = 1025** for 80% power (observed SD of the differences), against the pilot's 980, and 240 examples. At n = 240 the MDE is 0.103. The observed gap (0.113) is above that, so the test rejects, but a true gap of 0.05 would be detected with only about 28% power and the CI's upper end (3B - 1.5B up to +0.183, lower end +0.042) does not exclude it. Read "3B > 1.5B on this prompt, gap probably between 4 and 18 points", not "gap = 0.113".
+- The pilot gap on 48 train problems was 0.167 against 0.113 here; both are noisy.
+- Resolution holds for this prompt, token budget and decoding setup only.
+- Unlike the bundled suite, the oracle is now separated from both models (oracle vs 3B is 65 / 0 / 175, resolved).
+
+### Caveats (GSM8K)
+
+- **Contamination risk.** GSM8K test has been public since 2021 and is a standard benchmark that Qwen reports on, so these models may have seen it or close variants. The Qwen2.5 technical report ([arXiv 2412.15115](https://arxiv.org/abs/2412.15115)) says training data was filtered against test sets with a 13-token longest-common-subsequence match (also at least 60% of the shorter sequence); that removes near-verbatim copies, not paraphrases or synthetic variants, and I did not test these weights for memorisation. The scores here (0.375 / 0.617 / 0.729) are below the numbers Qwen publishes for the Instruct models (49.6 / 73.2 / 86.7, [Qwen2.5 blog](https://qwenlm.github.io/blog/qwen2.5-llm/); the page does not state the prompt or decoding), which gives no sign of inflation, but a lower score is not evidence of no contamination and the prompts differ. Treat the absolute accuracies as possibly inflated by exposure, and the 1.5B/3B comparison as being about this benchmark, not about reasoning in general.
+- **0.5B is partly truncated.** 111 of its 240 answers hit the 256-token cap (and 136 contain no `The answer is` marker, so the last number in the text is scored). Its 0.375 mixes wrong reasoning with budget exhaustion; the 0.5B rows are resolved from every other row regardless. 1.5B hit the cap on 6, 3B on 1.
+- **Extraction audit.** Of the 3B model's 65 misses, 7 contain the target number somewhere in the reply; I read all 7 and each is a genuine wrong final answer (for example 5.10 for a target of 5, or an intermediate value reported as the answer). I did not read the 1.5B (13 such) or 0.5B (27) replies.
+- **Batching changes numerics.** Batched bf16 generation is not bit-identical to batch size 1, so a greedy continuation can differ between `--hf-batch-size` values. The existing `tasks/` numbers above were produced unbatched and are unchanged. The scored GSM8K run was not repeated.
+- **Random is at floor by construction**: it answers a random integer in 0-100 and 162 of the 240 targets lie in that range, so the expected number of hits is 162/101 = 1.6 and 0 observed is unremarkable; oracle returns the target. Neither says anything about GSM8K difficulty.
+- **n = 240 of 1319.** Scoring the whole test set would take about 54 minutes (1319 x 2.45 s, extrapolated from the pilot, not run).
+- The confidence and ECE columns for the Qwen models come from the geometric-mean token probability of a long reasoning chain, a heuristic, and say little about answer-level calibration.
 
 ## Design Decisions
 
