@@ -200,3 +200,65 @@ class LeaderboardReport:
                 lines.append(f"| {m.model_name} | " + " | ".join(task_cells) + " |")
 
         return "\n".join(lines)
+
+
+def sign_test_p(wins: int, losses: int) -> float:
+    """Two-sided exact sign test on paired outcomes; ties must be dropped by the caller.
+
+    p = min(1, 2 * P(X <= min(wins, losses))) with X ~ Binomial(wins + losses, 0.5).
+    """
+    n = wins + losses
+    if n == 0:
+        return 1.0
+    k = min(wins, losses)
+    tail: float = sum(math.comb(n, i) for i in range(k + 1)) / 2**n
+    return min(1.0, 2.0 * tail)
+
+
+@dataclass(frozen=True)
+class PairedComparison:
+    """Model A vs model B on the same examples."""
+
+    n: int
+    mean_a: float
+    mean_b: float
+    diff: float
+    diff_ci_lo: float
+    diff_ci_hi: float
+    wins: int
+    losses: int
+    ties: int
+    sign_p: float
+
+
+def paired_comparison(
+    scores_a: Sequence[float],
+    scores_b: Sequence[float],
+    num_resamples: int = 10000,
+    seed: int = 0,
+) -> PairedComparison:
+    """Paired bootstrap CI on mean(A - B) plus an exact sign test.
+
+    Resampling the per-example differences keeps the pairing, so example difficulty
+    cancels out instead of widening the interval.
+    """
+    if len(scores_a) != len(scores_b):
+        raise ValueError("paired scores must have the same length")
+    a = np.asarray(scores_a, dtype=np.float64)
+    b = np.asarray(scores_b, dtype=np.float64)
+    diffs = a - b
+    diff, lo, hi = bootstrap_mean_ci(diffs.tolist(), num_resamples=num_resamples, seed=seed)
+    wins = int((diffs > 0).sum())
+    losses = int((diffs < 0).sum())
+    return PairedComparison(
+        n=int(a.size),
+        mean_a=float(a.mean()) if a.size else 0.0,
+        mean_b=float(b.mean()) if b.size else 0.0,
+        diff=diff,
+        diff_ci_lo=lo,
+        diff_ci_hi=hi,
+        wins=wins,
+        losses=losses,
+        ties=int(a.size) - wins - losses,
+        sign_p=sign_test_p(wins, losses),
+    )

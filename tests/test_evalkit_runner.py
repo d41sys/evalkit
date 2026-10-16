@@ -81,3 +81,25 @@ def test_classification_mock_models_pick_from_label_set(tmp_path: Path) -> None:
     assert {r["prediction"] for r in records} <= set(labels)
     noisy = [r for r in records if r["model"].startswith("noisy")]
     assert all(r["score"] == 0.0 for r in noisy)
+
+
+def test_compare_pairs_only_shared_examples(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+    import json as _json
+
+    from evalkit.cli import main
+
+    rows = [
+        {"task": "t", "model": "A", "example_id": "1", "score": 1.0},
+        {"task": "t", "model": "A", "example_id": "2", "score": 1.0},
+        {"task": "t", "model": "A", "example_id": "3", "score": 0.0},
+        {"task": "t", "model": "B", "example_id": "1", "score": 0.0},
+        {"task": "t", "model": "B", "example_id": "2", "score": 1.0},
+    ]
+    path = tmp_path / "results.jsonl"
+    path.write_text("\n".join(_json.dumps(r) for r in rows) + "\n")
+
+    assert main(["compare", str(path), "--a", "A", "--b", "B"]) == 0
+    out = capsys.readouterr().out
+    assert "paired on 2 examples" in out
+    assert "| ALL | 2 | 1.000 | 0.500 | +0.500 |" in out
+    assert main(["compare", str(path), "--a", "A", "--b", "missing"]) == 1

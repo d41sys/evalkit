@@ -40,6 +40,9 @@ uv run evalkit run --tasks tasks --models oracle,noisy:0.3,random --out runs/dem
 
 # View leaderboard
 uv run evalkit leaderboard runs/demo
+
+# Paired comparison of two models on the same examples
+uv run evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random
 ```
 
 ## Results
@@ -63,6 +66,22 @@ Per-task means:
 Random sits at chance on the 2-label sentiment task (0.514) and the 4-option MCQ (0.200). Rerunning the same command reports `Evaluated: 0, Skipped: 345` (full resume), and a fresh run reproduces `leaderboard.md` byte for byte.
 
 Headline: **oracle macro mean = 1.000 > noisy:0.3 = 0.714 > random = 0.179**.
+
+### Paired comparison
+
+The leaderboard CIs are per model. Whether two models differ is a paired question: both answered the same examples, so `evalkit compare` resamples the per-example differences (10,000 resamples) and adds an exact two-sided sign test on wins/losses (ties dropped).
+
+`evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random`:
+
+| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |
+|---|---|---|---|---|---|---|---|
+| arithmetic_qa | 35 | 0.714 | 0.000 | +0.714 | [+0.571, +0.857] | 25 / 0 / 10 | 5.96e-08 |
+| code_humaneval | 10 | 0.800 | 0.000 | +0.800 | [+0.500, +1.000] | 8 / 0 / 2 | 0.00781 |
+| sentiment | 35 | 0.657 | 0.514 | +0.143 | [-0.086, +0.371] | 12 / 7 / 16 | 0.359 |
+| trivia_mcq | 35 | 0.686 | 0.200 | +0.486 | [+0.257, +0.686] | 20 / 3 / 12 | 0.000488 |
+| ALL | 115 | 0.696 | 0.217 | +0.478 | [+0.357, +0.591] | 65 / 10 / 40 | 5.15e-11 |
+
+On sentiment the 0.14 gap between noisy:0.3 and random is not distinguishable from zero at n = 35 (CI crosses 0, p = 0.36), although the leaderboard shows 0.657 vs 0.514. p-values are not corrected for the four tasks.
 
 ## Design Decisions
 

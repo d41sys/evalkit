@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from evalkit.aggregate import (
     bootstrap_macro_ci,
@@ -10,6 +11,8 @@ from evalkit.aggregate import (
     build_pairwise_matches,
     compute_elo_ratings,
     macro_average,
+    paired_comparison,
+    sign_test_p,
 )
 
 
@@ -78,3 +81,36 @@ def test_build_pairwise_matches() -> None:
     # ex1: (noisy, oracle, 0.0), (noisy, random, 1.0), (oracle, random, 1.0)
     # ex2: (noisy, oracle, 0.5), (noisy, random, 1.0), (oracle, random, 1.0)
     assert len(matches) == 6
+
+
+def test_sign_test_hand_computed() -> None:
+    assert sign_test_p(8, 0) == pytest.approx(2 / 2**8)  # 0.0078125
+    assert sign_test_p(3, 3) == 1.0
+    assert sign_test_p(0, 0) == 1.0
+    # n = 10, k = 2: P(X <= 2) = (1 + 10 + 45) / 1024
+    assert sign_test_p(8, 2) == pytest.approx(2 * 56 / 1024)
+
+
+def test_paired_comparison_counts_and_degenerate_ci() -> None:
+    c = paired_comparison([1, 1, 0, 1], [0, 1, 0, 0])
+    assert (c.wins, c.losses, c.ties) == (2, 0, 2)
+    assert c.diff == pytest.approx(0.5)
+    assert c.diff_ci_lo <= 0.5 <= c.diff_ci_hi
+
+    same = paired_comparison([1.0] * 5, [0.0] * 5)
+    assert (same.diff_ci_lo, same.diff_ci_hi) == (1.0, 1.0)
+
+
+def test_paired_comparison_pairing_shrinks_ci() -> None:
+    # B = A - 0.1 on every example: unpaired spread is large, paired difference is constant.
+    rng = np.random.default_rng(1)
+    a = rng.uniform(0.2, 1.0, size=50).tolist()
+    b = [x - 0.1 for x in a]
+    c = paired_comparison(a, b)
+    assert c.diff == pytest.approx(0.1)
+    assert c.diff_ci_hi - c.diff_ci_lo < 1e-9
+
+
+def test_paired_comparison_rejects_unequal_lengths() -> None:
+    with pytest.raises(ValueError):
+        paired_comparison([1.0], [1.0, 0.0])

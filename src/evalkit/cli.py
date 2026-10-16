@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from .aggregate import paired_comparison
 from .models import Model, get_model
 from .runner import EvalRecord, generate_leaderboard, run
 from .spec import SpecError, TaskSpec
@@ -101,6 +102,49 @@ def leaderboard_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_scores(path: Path, model: str) -> dict[tuple[str, str], float]:
+    """(task, example_id) -> score for one model in a results.jsonl file."""
+    scores: dict[tuple[str, str], float] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if row["model"] == model:
+                scores[(str(row["task"]), str(row["example_id"]))] = float(row["score"])
+    return scores
+
+
+def compare_command(args: argparse.Namespace) -> int:
+    """Paired comparison of two models on the examples both were scored on."""
+    file_a = Path(args.results)
+    file_b = Path(args.results_b) if args.results_b else file_a
+    a = _read_scores(file_a, args.a)
+    b = _read_scores(file_b, args.b)
+    shared = sorted(set(a) & set(b))
+    if not shared:
+        sys.stderr.write(f"Error: no shared (task, example_id) for {args.a!r} and {args.b!r}\n")
+        return 1
+
+    tasks = sorted({task for task, _ in shared})
+    print(f"\n### {args.a} (A) vs {args.b} (B), paired on {len(shared)} examples\n")
+    print("| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |")
+    print("|---|---|---|---|---|---|---|---|")
+    for task in [*tasks, "ALL"]:
+        keys = shared if task == "ALL" else [k for k in shared if k[0] == task]
+        c = paired_comparison([a[k] for k in keys], [b[k] for k in keys], seed=args.seed)
+        print(
+            f"| {task} | {c.n} | {c.mean_a:.3f} | {c.mean_b:.3f} | {c.diff:+.3f} | "
+            f"[{c.diff_ci_lo:+.3f}, {c.diff_ci_hi:+.3f}] | {c.wins} / {c.losses} / {c.ties} | "
+            f"{c.sign_p:.3g} |"
+        )
+    print(
+        "\nALL pools examples across tasks (micro average). "
+        "p-values are not corrected for the number of tasks.\n"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="evalkit",
@@ -148,12 +192,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Recompute leaderboard from results.jsonl",
     )
 
+    # compare command
+    cmp_parser = subparsers.add_parser("compare", help="Paired comparison of two models")
+    cmp_parser.add_argument("results", type=str, help="results.jsonl containing model A")
+    cmp_parser.add_argument("--a", required=True, help="Model A name as stored in results")
+    cmp_parser.add_argument("--b", required=True, help="Model B name as stored in results")
+    cmp_parser.add_argument(
+        "--results-b", default=None, help="results.jsonl for model B (default: same file)"
+    )
+    cmp_parser.add_argument("--seed", type=int, default=0)
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
         return run_command(args)
     elif args.subcommand == "leaderboard":
         return leaderboard_command(args)
+    elif args.subcommand == "compare":
+        return compare_command(args)
     else:
         parser.print_help()
         return 1
