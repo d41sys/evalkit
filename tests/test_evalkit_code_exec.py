@@ -79,3 +79,24 @@ def test_code_exec_timeout_within_12_seconds() -> None:
 
     assert status == "timeout"
     assert elapsed < 12.0
+
+
+def test_child_cpu_limit_fires_before_wall_timeout() -> None:
+    # Wall timeout 30 s; the child's own RLIMIT_CPU (soft 5 s) must stop the loop first.
+    code = "while True:\n    pass"
+    t0 = time.time()
+    status = execute_code(code, ["assert True"], timeout_s=30.0)
+
+    assert status == "timeout"
+    assert time.time() - t0 < 15.0
+
+
+def test_code_exec_from_thread_pool() -> None:
+    # The runner uses a thread pool; sandboxed runs must work from worker threads.
+    from concurrent.futures import ThreadPoolExecutor
+
+    jobs = [("def f():\n    return 1", ["assert f() == 1"]), ("x = 1", ["assert x == 2"])] * 4
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        statuses = list(pool.map(lambda j: execute_code(j[0], j[1], timeout_s=10.0), jobs))
+
+    assert statuses == ["pass", "fail"] * 4

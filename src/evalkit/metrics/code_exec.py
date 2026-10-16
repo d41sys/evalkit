@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import contextlib
-import os
 import re
 import signal
 import subprocess
@@ -10,13 +8,7 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
-
-try:
-    import resource
-except ImportError:
-    resource = None  # type: ignore[assignment]
-
+from typing import Literal
 
 ExecStatus = Literal["pass", "fail", "timeout", "error"]
 
@@ -48,9 +40,30 @@ class CodeExecResult:
         return self.status == "pass"
 
 
+# The child sets its own resource limits before running untrusted code. Doing this in
+# the child (instead of subprocess's preexec_fn) is safe when the parent runs a thread
+# pool: preexec_fn runs between fork and exec and can deadlock in threaded parents.
 _RUNNER_TEMPLATE = r"""
 import sys
 
+def _limit_resources():
+    try:
+        import resource
+    except ImportError:
+        return
+    try:
+        # Soft 5 s raises SIGXCPU (classified as timeout). With soft == hard, Linux
+        # sends SIGKILL instead, which is indistinguishable from other kills.
+        resource.setrlimit(resource.RLIMIT_CPU, (5, 6))
+    except (ValueError, OSError, AttributeError):
+        pass
+    if sys.platform != "darwin":  # RLIMIT_AS is unreliable on macOS
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
+        except (ValueError, OSError, AttributeError):
+            pass
+
+_limit_resources()
 def main():
     candidate_code = __CANDIDATE_CODE__
     test_suite = __TEST_SUITE__
@@ -100,26 +113,6 @@ if __name__ == "__main__":
 """
 
 
-def _make_preexec_fn() -> Any:
-    """Apply CPU and address space limits in child process."""
-    if resource is None or os.name == "nt":
-        return None
-
-    def _set_limits() -> None:
-        with contextlib.suppress(ValueError, OSError, AttributeError):
-            # Soft 5 s raises SIGXCPU (classified as timeout). With soft == hard, Linux
-            # sends SIGKILL instead, which is indistinguishable from other kills.
-            resource.setrlimit(resource.RLIMIT_CPU, (5, 6))
-
-        # Skip RLIMIT_AS on macOS (unsupported or causes immediate SIGSEGV during python init)
-        if sys.platform != "darwin":
-            with contextlib.suppress(ValueError, OSError, AttributeError):
-                as_limit = 512 * 1024 * 1024  # 512 MB
-                resource.setrlimit(resource.RLIMIT_AS, (as_limit, as_limit))
-
-    return _set_limits
-
-
 def run_code_exec(
     candidate_code: str,
     tests: Sequence[str] | str,
@@ -140,7 +133,6 @@ def run_code_exec(
         runner_file = Path(tmp_dir) / "run_eval.py"
         runner_file.write_text(script_content, encoding="utf-8")
 
-        preexec = _make_preexec_fn()
         try:
             proc = subprocess.run(
                 [sys.executable, "-I", str(runner_file)],
@@ -148,7 +140,6 @@ def run_code_exec(
                 capture_output=True,
                 text=True,
                 timeout=timeout_s,
-                preexec_fn=preexec,
             )
             stdout = proc.stdout
             stderr = proc.stderr
