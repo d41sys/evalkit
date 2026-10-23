@@ -376,7 +376,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--ci-method",
         choices=CI_METHODS,
         default="auto",
-        help="paired bootstrap CI: auto (BCa below 400 examples, else percentile), "
+        help="paired bootstrap CI: auto (studentized below 400 examples, else percentile), "
         "percentile, bca or studentized",
     )
 

@@ -13,7 +13,7 @@ SMALL_N_CI = 400
 
 At n = 400 the percentile interval's normal-theory coverage shortfall (Hesterberg 2015:
 narrowness factor sqrt((n-1)/n) and z instead of t) is 0.1 percentage point."""
-SMALL_N_METHOD = "bca"
+SMALL_N_METHOD = "studentized"
 
 
 def jackknife_acceleration(arr: np.ndarray) -> float:
@@ -356,7 +356,7 @@ def paired_comparison(
 
     Resampling the per-example differences keeps the pairing, so example difficulty
     cancels out instead of widening the interval. ``ci_method`` is passed to
-    :func:`bootstrap_mean_ci` (default ``auto``: BCa below 400 examples).
+    :func:`bootstrap_mean_ci` (default ``auto``: bootstrap-t below 400 examples).
     """
     if len(scores_a) != len(scores_b):
         raise ValueError("paired scores must have the same length")
