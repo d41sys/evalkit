@@ -143,15 +143,18 @@ def coverage_table(a: dict[str, list[Row]], b: dict[str, list[Row]]) -> list[str
         }
 
     x, y = index(section(a, "Bootstrap CI coverage")), index(section(b, "Bootstrap CI coverage"))
-    head = "| kind | tie rate | " + " | ".join(f"n = {n}" for n in GRID_NS) + " |"
-    lines = [head, "|---|---|" + "---|" * len(GRID_NS)]
+    ns = sorted({k[2] for k in x} & {k[2] for k in y})
+    head = "| kind | tie rate | " + " | ".join(f"n = {n}" for n in ns) + " |"
+    lines = [head, "|---|---|" + "---|" * len(ns)]
     for kind in ("binary", "continuous", "skewed"):
         for tie in sorted({k[1] for k in x}):
             cells = [
                 f"{fmt(x[(kind, tie, n)]['coverage'])} -> {fmt(y[(kind, tie, n)]['coverage'])}"
-                for n in GRID_NS
+                for n in ns
+                if (kind, tie, n) in x and (kind, tie, n) in y
             ]
-            lines.append(f"| {kind} | {tie:g} | " + " | ".join(cells) + " |")
+            if cells:
+                lines.append(f"| {kind} | {tie:g} | " + " | ".join(cells) + " |")
     return lines
 
 
