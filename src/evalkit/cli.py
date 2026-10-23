@@ -199,10 +199,10 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
     methods = sorted({r.ci_method for r in rows})
     kinds = {r.binary for r in rows}
     power_note = {
-        frozenset({True}): "McNemar design formula (Connor 1987) at the observed discordant rate",
+        frozenset({True}): "exact McNemar power (Duffy 1984) at the observed discordant rate",
         frozenset({False}): "normal approximation with the observed SD of the differences",
         frozenset({True, False}): (
-            "McNemar design formula (Connor 1987) at the observed discordant rate for 0/1 "
+            "exact McNemar power (Duffy 1984) at the observed discordant rate for 0/1 "
             "scores, normal approximation with the observed SD of the differences otherwise"
         ),
     }[frozenset(kinds)]

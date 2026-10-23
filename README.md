@@ -82,41 +82,41 @@ Headline: **oracle macro mean = 1.000 > noisy:0.3 = 0.714 > random = 0.179**.
 
 ### Paired comparison
 
-The leaderboard CIs are per model. Whether two models differ is a paired question: both answered the same examples, so `evalkit compare` resamples the per-example differences (10,000 resamples) and adds an exact two-sided sign test on wins/losses (ties dropped).
+The leaderboard CIs are per model. Whether two models differ is a paired question: both answered the same examples, so `evalkit compare` resamples the per-example differences (10,000 resamples) and adds an exact two-sided sign test on wins/losses (ties dropped). The interval is a bootstrap-t (studentized) interval when n < 400 and at most half the pairs tie, and the percentile interval otherwise (`--ci-method` overrides; `percentile`, `bca` and `studentized` are available). The reasons and the Monte Carlo evidence are in "Do the statistics hold up?" below.
 
 `evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random`:
 
 | Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |
 |---|---|---|---|---|---|---|---|
-| arithmetic_qa | 35 | 0.714 | 0.000 | +0.714 | [+0.571, +0.857] | 25 / 0 / 10 | 5.96e-08 |
-| code_humaneval | 10 | 0.800 | 0.000 | +0.800 | [+0.500, +1.000] | 8 / 0 / 2 | 0.00781 |
-| sentiment | 35 | 0.657 | 0.514 | +0.143 | [-0.086, +0.371] | 12 / 7 / 16 | 0.359 |
-| trivia_mcq | 35 | 0.686 | 0.200 | +0.486 | [+0.257, +0.686] | 20 / 3 / 12 | 0.000488 |
-| ALL | 115 | 0.696 | 0.217 | +0.478 | [+0.357, +0.591] | 65 / 10 / 40 | 5.15e-11 |
+| arithmetic_qa | 35 | 0.714 | 0.000 | +0.714 | [+0.530, +0.845] | 25 / 0 / 10 | 5.96e-08 |
+| code_humaneval | 10 | 0.800 | 0.000 | +0.800 | [+0.667, +1.000] | 8 / 0 / 2 | 0.00781 |
+| sentiment | 35 | 0.657 | 0.514 | +0.143 | [-0.113, +0.382] | 12 / 7 / 16 | 0.359 |
+| trivia_mcq | 35 | 0.686 | 0.200 | +0.486 | [+0.223, +0.683] | 20 / 3 / 12 | 0.000488 |
+| ALL | 115 | 0.696 | 0.217 | +0.478 | [+0.352, +0.591] | 65 / 10 / 40 | 5.15e-11 |
 
 On sentiment the 0.14 gap between noisy:0.3 and random is not distinguishable from zero at n = 35 (CI crosses 0, p = 0.36), although the leaderboard shows 0.657 vs 0.514. p-values are not corrected for the four tasks.
 
 ### Resolvability: all pairs, Holm correction, power
 
-Smucker, Allan & Carterette (2007, [CIKM](https://ciir-publications.cs.umass.edu/getpdf.php?id=744)) recommend the randomisation (permutation) test or the bootstrap over the sign test and Wilcoxon test for comparing systems on the same items: the sign test throws away the size of each difference and has poor power. `evalkit compare --all-pairs` therefore uses a paired randomisation test as the p-value that decides, and keeps the sign test only as a reported column. Miller (2024, [arXiv 2411.00640](https://arxiv.org/abs/2411.00640)) recommends paired differences and power analysis; the MDE and sample-size columns use that normal approximation.
+Smucker, Allan & Carterette (2007, [CIKM](https://ciir-publications.cs.umass.edu/getpdf.php?id=744)) recommend the randomisation (permutation) test or the bootstrap over the sign test and Wilcoxon test for comparing systems on the same items: the sign test throws away the size of each difference and has poor power. `evalkit compare --all-pairs` therefore uses a paired randomisation test as the p-value that decides, and keeps the sign test only as a reported column. Miller (2024, [arXiv 2411.00640](https://arxiv.org/abs/2411.00640)) recommends paired differences and power analysis; for continuous scores the MDE and sample-size columns use that normal approximation, and for 0/1 scores the exact McNemar power, because `evalkit stats-check` found the normal approximation optimistic there (Round 2 below). The randomisation test assumes each difference is symmetric around 0 under H0; the output lists the pairs where `n < 25 * skewness^2` (Cochran's rule) as a warning that its p-value is approximate.
 
 Per pair (all examples both models were scored on, pooled over tasks, `A - B`):
 
 - **Randomisation p**: two-sided sign-flip test on the per-example differences. Exact enumeration of all 2^k sign patterns when k (nonzero differences) <= 20; otherwise 10,000 seeded Monte Carlo draws with the (hits + 1) / (draws + 1) estimator, so the smallest value it can report is 1/10001 ≈ 0.0001 (printed `0.0001`, read it as "< 1e-4", not as an exact value).
 - **Holm p**: Holm-Bonferroni over every pair printed (3 pairs for the demo, 10 for the five-model run), i.e. family-wise error control without independence assumptions.
-- **MDE (80%)**: smallest true mean difference detectable with 80% power at alpha 0.05: `(z_0.975 + z_0.8) * SD(diffs) / sqrt(n)` = `2.8016 * SD / sqrt(n)`.
-- **n for 80% power**: `ceil((2.8016 * SD / |effect|)^2)` for the observed |A - B| (or `--effect X`). SD is the sample SD of the per-example differences from this very run, so with few nonzero differences it is itself very noisy; treat n as an order of magnitude.
+- **MDE (80%)**: smallest true mean difference detectable with 80% power at alpha 0.05. For 0/1 scores (both models' per-example scores all 0 or 1, as for exact-match tasks) it is solved from the exact conditional McNemar power (`paired_binary_power_exact`; Duffy 1984) at the observed discordant rate psi = (wins + losses) / n; `unattainable` means that even every discordant pair favouring one model would not reach 80% power at this n. Otherwise it is the normal approximation `(z_0.975 + z_0.8) * SD(diffs) / sqrt(n)` = `2.8016 * SD / sqrt(n)`.
+- **n for 80% power**: for 0/1 scores the first n whose exact power reaches 80% for the observed |A - B| (or `--effect X`) at the observed discordant rate (psi is raised to |effect| if it is smaller, so with few discordant pairs the number is a lower bound; Connor's 1987 closed form is available as `required_sample_size_binary(..., exact=False)`); otherwise `ceil((2.8016 * SD / |effect|)^2)`. The rate and the SD are estimated from this very run, so with few nonzero differences they are themselves very noisy; treat n as an order of magnitude.
 - **Verdict**: `resolved` if Holm p < 0.05, else `unresolved (needs n≈X)`; if the observed difference is exactly 0 no n makes it resolvable, so the verdict says `unresolved (observed diff = 0)` and `--effect X` gives the n needed to resolve a difference of X.
 
 `uv run evalkit compare runs/demo/results.jsonl --all-pairs` (demo run regenerated with the Quickstart `run` command):
 
 | A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
-| oracle vs noisy:0.3 | 115 | +0.304 | [+0.226, +0.391] | 35 / 0 / 80 | 5.82e-11 | 0.0001 | 0.0003 | 0.121 | 19 | resolved |
-| oracle vs random | 115 | +0.783 | [+0.704, +0.852] | 90 / 0 / 25 | 1.62e-27 | 0.0001 | 0.0003 | 0.108 | 3 | resolved |
-| noisy:0.3 vs random | 115 | +0.478 | [+0.357, +0.591] | 65 / 10 / 40 | 5.15e-11 | 0.0001 | 0.0003 | 0.171 | 15 | resolved |
+| oracle vs noisy:0.3 | 115 | +0.304 | [+0.226, +0.391] | 35 / 0 / 80 | 5.82e-11 | 0.0001 | 0.0003 | 0.149 | 25 | resolved |
+| oracle vs random | 115 | +0.783 | [+0.702, +0.853] | 90 / 0 / 25 | 1.62e-27 | 0.0001 | 0.0003 | 0.236 | 9 | resolved |
+| noisy:0.3 vs random | 115 | +0.478 | [+0.352, +0.591] | 65 / 10 / 40 | 5.15e-11 | 0.0001 | 0.0003 | 0.216 | 23 | resolved |
 
-All three demo pairs are resolved.
+All three demo pairs are resolved. The MDE and n columns changed from the first version of this table (MDE 0.121 / 0.108 / 0.171, n 19 / 3 / 15) because 0/1 scores now use the exact McNemar power at the observed discordant rate instead of a normal approximation with the SD of the differences (see Round 2 below). For oracle vs random the MDE column now answers "at the observed 90 discordant pairs of 115, how lopsided a win/loss split must the exact sign test see to reject with 80% power", which is 0.236 in mean-difference terms; the old 0.108 was `2.8016 * SD / sqrt(n)` with SD = 0.41. The CI column uses the bootstrap-t interval where at most half the pairs tie (oracle vs random, noisy:0.3 vs random) and the percentile interval otherwise (oracle vs noisy:0.3 ties 80 of 115); the last line of the printed output names the methods used.
 
 **Tie groups** (leaderboard column): walking down the ranking, a model joins the group of the model ranked directly above it unless the randomisation test between the two is resolved (Holm over the adjacent pairs). Models that share a group are not separated by this data. The relation is not transitive (A ~ B and B ~ C does not imply A ~ C), and the test is on the pooled per-example difference while the ranking is by macro mean, so the two can disagree; the column is a warning against over-reading ranks, not a second ranking.
 
@@ -175,7 +175,7 @@ Per task: score and, for the real models, the Wilson 95% interval of the pass ra
 | trivia_mcq | 35 | 0.971 | 1.000 | -0.029 | [-0.086, +0.000] | 0 / 1 / 34 | 1 |
 | ALL | 115 | 0.983 | 0.983 | +0.000 | [-0.026, +0.026] | 1 / 1 / 113 | 1 |
 
-**Result: 1.5B vs 3B is unresolved.** 113 of 115 examples tie; the 1.5B model wins one (code_008, see below) and loses one (mcq_006), so the pooled difference is exactly 0 (randomisation p = 1, Holm p = 1) and the macro-mean ranking in the leaderboard (0.986 vs 0.968) comes only from the 10-example code task, where one failure moves the task mean by 0.1. Do not read "1.5B beats 3B" out of the leaderboard. Because the observed difference is 0, "n needed" has no value at the observed effect; for a stated effect, `--models <1.5B>,<3B> --effect 0.05` gives **n ≈ 56** and `--effect 0.02` gives **n ≈ 345** examples for 80% power (alpha 0.05), against n = 115 here (MDE at n = 115 is 0.035). Those n use the SD of the differences observed here (2 nonzero of 115), which is itself a rough estimate. Honest reading: the suite is too easy to produce disagreement between the two, so it cannot tell whether a 2-point gap exists.
+**Result: 1.5B vs 3B is unresolved.** 113 of 115 examples tie; the 1.5B model wins one (code_008, see below) and loses one (mcq_006), so the pooled difference is exactly 0 (randomisation p = 1, Holm p = 1) and the macro-mean ranking in the leaderboard (0.986 vs 0.968) comes only from the 10-example code task, where one failure moves the task mean by 0.1. Do not read "1.5B beats 3B" out of the leaderboard. Because the observed difference is 0, "n needed" has no value at the observed effect; for a stated effect, `--models <1.5B>,<3B> --effect 0.05` gives **n ≈ 157** and `--effect 0.02` gives **n ≈ 394** examples for 80% power (alpha 0.05; the first version of this paragraph said 56 and 345 from a normal approximation with the SD of the differences), against n = 115 here. These come from the exact McNemar power at the observed discordant rate; with 2 discordant pairs of 115 (1.7%) that rate is below both target effects, so it is raised to the effect (every discordant pair favouring one model) and the numbers are lower bounds. The MDE at n = 115 is `unattainable` for the same reason. Honest reading: the suite is too easy to produce disagreement between the two, so it cannot tell whether a 2-point gap exists.
 
 ### All pairs (Holm over 10 comparisons)
 
@@ -183,18 +183,18 @@ Per task: score and, for the real models, the Wilson 95% interval of the pass ra
 
 | A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
-| oracle vs random | 115 | +0.783 | [+0.704, +0.852] | 90 / 0 / 25 | 1.62e-27 | 0.0001 | 0.001 | 0.108 | 3 | resolved |
-| oracle vs 0.5B | 115 | +0.209 | [+0.139, +0.287] | 24 / 0 / 91 | 1.19e-07 | 0.0001 | 0.001 | 0.107 | 31 | resolved |
-| oracle vs 1.5B | 115 | +0.017 | [+0.000, +0.043] | 2 / 0 / 113 | 0.5 | 0.5 | 1 | 0.034 | 448 | unresolved (needs n≈448) |
-| oracle vs 3B | 115 | +0.017 | [+0.000, +0.043] | 2 / 0 / 113 | 0.5 | 0.5 | 1 | 0.034 | 448 | unresolved (needs n≈448) |
-| random vs 0.5B | 115 | -0.574 | [-0.678, -0.470] | 5 / 71 / 39 | 5.25e-16 | 0.0001 | 0.001 | 0.151 | 8 | resolved |
-| random vs 1.5B | 115 | -0.765 | [-0.843, -0.687] | 1 / 89 / 25 | 1.47e-25 | 0.0001 | 0.001 | 0.116 | 3 | resolved |
-| random vs 3B | 115 | -0.765 | [-0.835, -0.687] | 0 / 88 / 27 | 6.46e-27 | 0.0001 | 0.001 | 0.111 | 3 | resolved |
-| 0.5B vs 1.5B | 115 | -0.191 | [-0.261, -0.122] | 0 / 22 / 93 | 4.77e-07 | 0.0001 | 0.001 | 0.103 | 34 | resolved |
-| 0.5B vs 3B | 115 | -0.191 | [-0.270, -0.122] | 1 / 23 / 91 | 2.98e-06 | 0.0001 | 0.001 | 0.109 | 38 | resolved |
-| 1.5B vs 3B | 115 | +0.000 | [-0.026, +0.026] | 1 / 1 / 113 | 1 | 1 | 1 | 0.035 | n/a | unresolved (observed diff = 0) |
+| oracle vs random | 115 | +0.783 | [+0.702, +0.853] | 90 / 0 / 25 | 1.62e-27 | 0.0001 | 0.001 | 0.236 | 9 | resolved |
+| oracle vs 0.5B | 115 | +0.209 | [+0.139, +0.287] | 24 / 0 / 91 | 1.19e-07 | 0.0001 | 0.001 | 0.123 | 37 | resolved |
+| oracle vs 1.5B | 115 | +0.017 | [+0.000, +0.043] | 2 / 0 / 113 | 0.5 | 0.5 | 1 | unattainable | 454 | unresolved (needs n≈454) |
+| oracle vs 3B | 115 | +0.017 | [+0.000, +0.043] | 2 / 0 / 113 | 0.5 | 0.5 | 1 | unattainable | 454 | unresolved (needs n≈454) |
+| random vs 0.5B | 115 | -0.574 | [-0.674, -0.461] | 5 / 71 / 39 | 5.25e-16 | 0.0001 | 0.001 | 0.218 | 15 | resolved |
+| random vs 1.5B | 115 | -0.765 | [-0.839, -0.675] | 1 / 89 / 25 | 1.47e-25 | 0.0001 | 0.001 | 0.236 | 9 | resolved |
+| random vs 3B | 115 | -0.765 | [-0.837, -0.686] | 0 / 88 / 27 | 6.46e-27 | 0.0001 | 0.001 | 0.234 | 9 | resolved |
+| 0.5B vs 1.5B | 115 | -0.191 | [-0.261, -0.122] | 0 / 22 / 93 | 4.77e-07 | 0.0001 | 0.001 | 0.117 | 40 | resolved |
+| 0.5B vs 3B | 115 | -0.191 | [-0.270, -0.122] | 1 / 23 / 91 | 2.98e-06 | 0.0001 | 0.001 | 0.123 | 44 | resolved |
+| 1.5B vs 3B | 115 | +0.000 | [-0.026, +0.026] | 1 / 1 / 113 | 1 | 1 | 1 | unattainable | n/a | unresolved (observed diff = 0) |
 
-0.5B is resolved from every other model (Holm p < 0.05 in all four of its pairs); 1.5B and 3B are not resolved from each other nor from the oracle: oracle vs either is 2 wins in 115, p = 0.5, and 448 examples would be needed to resolve a 1.7-point gap at the observed SD. The sign test and the randomisation test give the same resolved / unresolved call on every row. Randomisation p of `0.0001` is the Monte Carlo floor (k > 20), not an exact value. Reproduce 1.5B vs 3B with a target effect: `uv run evalkit compare runs/hf-leaderboard/results.jsonl --all-pairs --models "hf:Qwen/Qwen2.5-1.5B-Instruct@989aa798,hf:Qwen/Qwen2.5-3B-Instruct@aa8e7253" --effect 0.05`.
+0.5B is resolved from every other model (Holm p < 0.05 in all four of its pairs); 1.5B and 3B are not resolved from each other nor from the oracle: oracle vs either is 2 wins in 115, p = 0.5. For those three pairs the MDE is `unattainable`: with only 2 discordant pairs of 115 (1.7%), even if every discordant pair favoured one model the exact test could not reach 80% power at n = 115, and the 454 in the oracle rows is the n for a 1.7-point gap *if the discordant rate stayed at the observed 2 in 115* (a lower bound that rests on 2 observations). The output also prints a skewness warning for the two oracle rows (skewness +7.38, n < 25 * skewness^2): the randomisation test's p = 0.5 is approximate there. The sign test and the randomisation test give the same resolved / unresolved call on every row. Randomisation p of `0.0001` is the Monte Carlo floor (k > 20), not an exact value. Reproduce 1.5B vs 3B with a target effect: `uv run evalkit compare runs/hf-leaderboard/results.jsonl --all-pairs --models "hf:Qwen/Qwen2.5-1.5B-Instruct@989aa798,hf:Qwen/Qwen2.5-3B-Instruct@aa8e7253" --effect 0.05`.
 
 ### How the adapter answers (`src/evalkit/hf.py`)
 
@@ -285,16 +285,16 @@ Same machine and versions as the previous section (M4 Pro 24 GB, torch 2.14.1 MP
 
 | A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
-| random vs oracle | 240 | -1.000 | [-1.000, -1.000] | 0 / 240 / 0 | 1.13e-72 | 0.0001 | 0.001 | 0.000 | 2 | resolved |
-| random vs 0.5B | 240 | -0.375 | [-0.438, -0.312] | 0 / 90 / 150 | 1.62e-27 | 0.0001 | 0.001 | 0.088 | 14 | resolved |
-| random vs 1.5B | 240 | -0.617 | [-0.679, -0.554] | 0 / 148 / 92 | 5.61e-45 | 0.0001 | 0.001 | 0.088 | 5 | resolved |
-| random vs 3B | 240 | -0.729 | [-0.783, -0.671] | 0 / 175 / 65 | 4.18e-53 | 0.0001 | 0.001 | 0.081 | 3 | resolved |
-| oracle vs 0.5B | 240 | +0.625 | [+0.562, +0.688] | 150 / 0 / 90 | 1.4e-45 | 0.0001 | 0.001 | 0.088 | 5 | resolved |
-| oracle vs 1.5B | 240 | +0.383 | [+0.321, +0.446] | 92 / 0 / 148 | 4.04e-28 | 0.0001 | 0.001 | 0.088 | 13 | resolved |
-| oracle vs 3B | 240 | +0.271 | [+0.217, +0.329] | 65 / 0 / 175 | 5.42e-20 | 0.0001 | 0.001 | 0.081 | 22 | resolved |
-| 0.5B vs 1.5B | 240 | -0.242 | [-0.317, -0.171] | 18 / 76 / 146 | 1.18e-09 | 0.0001 | 0.001 | 0.105 | 45 | resolved |
-| 0.5B vs 3B | 240 | -0.354 | [-0.425, -0.283] | 11 / 96 / 133 | 4.3e-18 | 0.0001 | 0.001 | 0.103 | 21 | resolved |
-| 1.5B vs 3B | 240 | -0.113 | [-0.183, -0.042] | 27 / 54 / 159 | 0.0036 | 0.0038 | 0.0038 | 0.103 | 203 | resolved |
+| random vs oracle | 240 | -1.000 | [-1.000, -1.000] | 0 / 240 / 0 | 1.13e-72 | 0.0001 | 0.001 | 0.183 | 6 | resolved |
+| random vs 0.5B | 240 | -0.375 | [-0.438, -0.312] | 0 / 90 / 150 | 1.62e-27 | 0.0001 | 0.001 | 0.114 | 20 | resolved |
+| random vs 1.5B | 240 | -0.617 | [-0.678, -0.552] | 0 / 148 / 92 | 5.61e-45 | 0.0001 | 0.001 | 0.145 | 12 | resolved |
+| random vs 3B | 240 | -0.729 | [-0.784, -0.671] | 0 / 175 / 65 | 4.18e-53 | 0.0001 | 0.001 | 0.158 | 10 | resolved |
+| oracle vs 0.5B | 240 | +0.625 | [+0.560, +0.686] | 150 / 0 / 90 | 1.4e-45 | 0.0001 | 0.001 | 0.146 | 11 | resolved |
+| oracle vs 1.5B | 240 | +0.383 | [+0.321, +0.446] | 92 / 0 / 148 | 4.04e-28 | 0.0001 | 0.001 | 0.115 | 20 | resolved |
+| oracle vs 3B | 240 | +0.271 | [+0.217, +0.329] | 65 / 0 / 175 | 5.42e-20 | 0.0001 | 0.001 | 0.096 | 28 | resolved |
+| 0.5B vs 1.5B | 240 | -0.242 | [-0.317, -0.171] | 18 / 76 / 146 | 1.18e-09 | 0.0001 | 0.001 | 0.116 | 55 | resolved |
+| 0.5B vs 3B | 240 | -0.354 | [-0.425, -0.283] | 11 / 96 / 133 | 4.3e-18 | 0.0001 | 0.001 | 0.124 | 28 | resolved |
+| 1.5B vs 3B | 240 | -0.113 | [-0.183, -0.042] | 27 / 54 / 159 | 0.0036 | 0.0038 | 0.0038 | 0.108 | 221 | resolved |
 
 **Result: 1.5B vs 3B is now resolved.** The 3B model scores 0.113 higher (paired bootstrap CI [+0.042, +0.183] for 3B - 1.5B), wins 54 problems to the 1.5B's 27 with 159 ties, randomisation p = 0.0038, Holm p = 0.0038. Before and after:
 
@@ -305,7 +305,7 @@ Same machine and versions as the previous section (M4 Pro 24 GB, torch 2.14.1 MP
 
 What "resolved" does and does not say here:
 
-- The run was sized for effect 0.05 and could not afford it: `compare --all-pairs --models <1.5B>,<3B> --effect 0.05` on this run gives **n = 1025** for 80% power (observed SD of the differences), against the pilot's 980, and 240 examples. At n = 240 the MDE is 0.103. The observed gap (0.113) is above that, so the test rejects, but a true gap of 0.05 would be detected with only about 28% power and the CI's upper end (3B - 1.5B up to +0.183, lower end +0.042) does not exclude it. Read "3B > 1.5B on this prompt, gap probably between 4 and 18 points", not "gap = 0.113".
+- The run was sized for effect 0.05 and could not afford it: `compare --all-pairs --models <1.5B>,<3B> --effect 0.05` on this run gives **n = 1093** for 80% power (exact McNemar power at the observed discordant rate 81 / 240; the first version of this sentence said 1025 from a normal approximation with the SD of the differences, and Connor's closed form, `required_sample_size_binary(81/240, 0.05, exact=False)`, gives 1058), against the pilot's 980 (the pre-registered sizing below used the SD-based formula) and 240 examples. At n = 240 the MDE is 0.108 (was 0.103). The observed gap (0.113) is above that, so the test rejects, but a true gap of 0.05 would be detected with only about 23% power (`uv run python -c "from evalkit.aggregate import paired_binary_power_exact as p; print(p(240, 0.05, 81/240))"` = 0.229; the normal approximation gave 28%) and the CI's upper end (3B - 1.5B up to +0.183, lower end +0.042) does not exclude it. Read "3B > 1.5B on this prompt, gap probably between 4 and 18 points", not "gap = 0.113".
 - The pilot gap on 48 train problems was 0.167 against 0.113 here; both are noisy.
 - Resolution holds for this prompt, token budget and decoding setup only.
 - Unlike the bundled suite, the oracle is now separated from both models (oracle vs 3B is 65 / 0 / 175, resolved).
@@ -350,9 +350,9 @@ Decision rule. Every proportion carries a Wilson 99% interval over replications.
 
 Every flagged cell is reported, not only the failures. The rules, grid and replication counts are not changed after seeing results. A real bug gets a fix and a regression test; a known limitation of an approximation (a normal-approximation power formula, a percentile bootstrap) is reported as a finding and documented, not patched, unless it is a defect in the code rather than in the method.
 
-### Results
+### Results (round 1)
 
-Commands (the protocol was committed in `9e6d53f` before either was run; seed 0, 8 worker processes on a 12-core Apple-silicon laptop):
+*Round 1: the shipped functions as of `4ef9c97`. Round 2 re-ran the same grid after the changes described below; `runs/stats-check/report-round1.md` is this section's source.* Commands (the protocol was committed in `9e6d53f` before either was run; seed 0, 8 worker processes on a 12-core Apple-silicon laptop):
 
 ```bash
 uv run evalkit stats-check --out runs/stats-check/report.md                       # 103 s wall; full tables
@@ -449,9 +449,9 @@ The compact tables below are generated from `runs/stats-check/report.md`, which 
 | continuous | all-pairs | 6 | 0.041 (0.209) | 0.039 (0.206) |
 | continuous | all-pairs | 10 | 0.043 (0.295) | 0.041 (0.276) |
 
-### Verdict
+### Verdict (round 1)
 
-No defect in the code was found, so there is no bug fix and no regression test. The shipped functions are correct implementations; what the simulation shows is where the methods behave differently from the nominal numbers they print. Every flagged cell is in the report; the ones that matter:
+*Round-1 verdict, written against the shipped functions at commit `4ef9c97`; items 3 and 4 and the skewed part of item 1 are what Round 2 revisits, with the numbers in "Round 2 results".* No defect in the code was found, so there is no bug fix and no regression test. The shipped functions are correct implementations; what the simulation shows is where the methods behave differently from the nominal numbers they print. Every flagged cell is in the report; the ones that matter:
 
 1. **Randomisation test: valid for symmetric differences, anti-conservative for asymmetric ones.** For binary and symmetric continuous scores the type-I error is 0.042 to 0.053 for continuous scores (except 0.008 at n = 20, t = 0.8, where too few differences are nonzero to ever reject) and 0.004 to 0.045 for binary scores, with no anti-conservative cell. For the skewed generator (mean zero, asymmetric) it is anti-conservative in 9 of 12 cells: 0.056 to 0.089, worst at small n (0.089 at n = 20, t = 0.5), falling to 0.052 to 0.064 at n = 240. The sign-flip reference distribution assumes each difference is symmetric around zero; with asymmetric differences it is only asymptotically right for the mean.
 2. **Sign test: valid and conservative for scores it tests correctly, wrong question for the mean.** On binary scores it equals the randomisation test (0.004 to 0.046; every difference is +/-1). On continuous scores it is flagged conservative in 6 cells (0.005 to 0.042) and its power is 0.49 to 0.78 where the randomisation test's is 0.70 to 0.91. On the skewed generator it rejects 0.067 to 0.984 of true nulls in 11 of 12 cells because it tests whether wins and losses are equally likely (the median), not whether the mean is zero. It is a reported column, and the decision uses the randomisation test, so this does not affect the verdicts, but do not read a small sign-test p as evidence about the mean.
@@ -468,7 +468,7 @@ Robustness check (protocol item 4): going from 2000 to 10000 bootstrap resamples
 - The simulated worlds are simple: one tie structure, independent examples, N(0, 0.25) / shifted-exponential differences, binary scores with equal both-right/both-wrong ties. Real eval differences are clustered by topic and have their own SD, which will differ.
 - The power cells hand the formula the exact true SD of the differences. In real use `n_needed` takes the SD estimated from the data, which adds error that is not measured here.
 - With a 99% interval, about 1% of cells would be flagged by chance even if the method were exact; the flags above are far more numerous and systematic than that and replicate in the second run, but isolated cells at the edge (for example the single 0.936 vs 0.940 coverage cell) should not be over-read.
-- The percentile-bootstrap undercoverage and the binary power shortfall are properties of the methods (percentile intervals; a normal-approximation power formula applied to discrete data). Per the protocol they are reported and documented, not patched; a bias-corrected or studentised bootstrap and a simulation-based n for binary scores would be the fixes.
+- The three miscalibrations were first reported, not patched (a known limitation of an approximation is a finding under the protocol). Round 2 then changed the code for them; see "Round 2" above for what moved and what did not (binary power fixed; coverage fixed only when few pairs tie; skewed type-I error not fixed, a warning added).
 - The Holm check covers all-null families only; it says nothing about power loss from the correction.
 
 ## Round 2: fixing the three findings (protocol committed before any re-scoring)
@@ -523,6 +523,69 @@ Round-2b amendments, made after seeing round 2a (the second is **not** pre-regis
 
 The 2b final run overwrites `report.md` and `robustness-10000-resamples.md` with the same commands, grid, seed and decision rules as above. Pass criteria are unchanged. Binary power is evaluated at the new n\*. The H0 data are identical to round 1 and 2a (the cell ids did not change), so any coverage change is the interval method.
 
+### Round 2 results (final run: seed 0, same grid, replications and decision rules as round 1)
+
+```bash
+uv run evalkit stats-check --out runs/stats-check/report.md                       # 204 s wall; full tables
+uv run evalkit stats-check --ns 20,50 --ties 0.5 --fwer-ns 50 --fixed-effects "" \
+  --resamples 10000 --out runs/stats-check/robustness-10000-resamples.md           # 48 s wall; protocol item 4
+uv run python scripts/stats_check_compare.py runs/stats-check/report-round1.md runs/stats-check/report.md
+```
+
+The last command prints the before/after tables below (it parses the two markdown reports). Reports kept in `runs/stats-check/`: `report-round1.md` (before), `report-connor.md` (round 2a: Connor + unguarded bootstrap-t), `report-2b-unclipped.md` (first 2b run), `report.md` (final), the dev-seed reports, and the matching `robustness-*` files. Wall times are 8 workers; the exact-power search is cheap (`mde_scenario` and `n_star` for the whole grid take under a second).
+
+| target | metric | round 1 | round 2a (Connor, bootstrap-t) | **round 2 final** |
+|---|---|---|---|---|
+| binary power at n\* | binary power cells flagged `optimistic` (of 14) | 13 | 11 | **0** |
+| | empirical power of the randomisation test at n\*, range over the 14 cells (target 0.80) | 0.637 to 0.790 | 0.748 to 0.794 | **0.790 to 0.813** |
+| bootstrap coverage | `undercovers` cells (of 26), binary / continuous / skewed | 4 / 17 / 24 | 3 / 7 / 7 | **1 / 13 / 18** |
+| | `overcovers` cells (of 26), binary / continuous / skewed | 0 / 0 / 0 | 2 / 2 / 0 | **1 / 0 / 0** |
+| | H0 coverage at tie rate 0, n = 20 / 50, continuous | 0.924 / 0.943 | 0.947 / 0.952 | **0.947 / 0.952** |
+| | H0 coverage at tie rate 0, n = 20 / 50, skewed | 0.906 / 0.929 | 0.947 / 0.948 | **0.947 / 0.948** |
+| | H0 coverage at tie rate 0.8, n = 20 / 50, continuous | 0.932 / 0.918 | 0.880 / 0.889 | **0.932 / 0.918** (percentile again) |
+| skewed type-I | randomisation type-I error in the 9 cells flagged `anti-conservative` | 0.056 to 0.089 | 0.056 to 0.089 | **0.056 to 0.089 (unchanged: same test, same data)** |
+| | warning fire rate in those 9 cells | n/a | 0.198 to 0.726 | **0.198 to 0.726** |
+
+The script's output has every before/after cell for H0 coverage and type-I error, and the final report has every cell with its interval. Binary power at n\* (first n with exact power 0.80; the "before" columns are the round-1 formula's n\*):
+
+| tie rate | n (mde) / effect (fixed) | n\* before | power before | n\* after | power after |
+|---|---|---|---|---|---|
+| 0 | 20 | 21 | 0.637o | 20 | 0.801 |
+| 0 | 50 | 51 | 0.724o | 49 | 0.813 |
+| 0 | 115 | 116 | 0.752o | 112 | 0.790 |
+| 0 | 240 | 241 | 0.775o | 240 | 0.795 |
+| 0.5 | 20 | 21 | 0.654o | 20 | 0.804 |
+| 0.5 | 50 | 51 | 0.708o | 50 | 0.800 |
+| 0.5 | 115 | 115 | 0.744o | 115 | 0.796 |
+| 0.5 | 240 | 240 | 0.775o | 240 | 0.805 |
+| 0.8 | 50 | 50 | 0.708o | 50 | 0.800 |
+| 0.8 | 115 | 116 | 0.740o | 115 | 0.799 |
+| 0.8 | 240 | 241 | 0.769o | 240 | 0.808 |
+| 0.6 (fixed) | 0.05 | 1248 | 0.790 | 1291 | 0.806 |
+| 0.6 (fixed) | 0.10 | 307 | 0.771o | 329 | 0.793 |
+| 0.6 (fixed) | 0.20 | 71 | 0.732o | 84 | 0.802 |
+
+(`o` = flagged optimistic. The two columns test the formula at the same nominal n but at different true effects, because the MDE moved with the formula; they are not the same data. The same 11 binary MDE cells ran as in round 1: binary n = 20, t = 0.8 is still unattainable.)
+
+**Pass criteria (fixed before scoring, evaluated on the final run):**
+
+| criterion | result |
+|---|---|
+| no binary power cell flagged `optimistic` | **pass**: 0 of 14 (round 1: 13) |
+| `undercovers` cells fall for continuous and for skewed, do not rise for binary | **pass on the counts**: 17 to 13, 24 to 18, 4 to 1. Not a clean win: see below |
+| warning fires in at least 50% of replications in every round-1 anti-conservative skewed H0 cell | **fail**: 8 of 9 cells (0.516 to 0.726); the ninth, tie rate 0.5, n = 240, fires in 19.8% |
+| warning fires in at most 10% of replications in every binary and continuous H0 cell | **fail**: 5 of 24 cells exceed it (continuous t = 0.5 n = 20: 0.388; t = 0.8 n = 20 / 50 / 115: 0.780 / 0.517 / 0.153; binary t = 0.8 n = 20: 0.214) |
+
+**What the fixes did and did not do**
+
+1. **Binary power is fixed at the n\* the function returns.** Connor's closed form (round 2a) moved empirical power from 0.64 to 0.79 up to 0.75 to 0.79 but left 11 of 14 cells flagged, because it is a normal approximation to a discrete test whose type-I error is below 0.05. Exact conditional power gives 0.790 to 0.813 in all 14 cells, with no `optimistic` and no `pessimistic` flag. The price is a larger n (1291 vs 1248 for effect 0.05 at tie rate 0.6; 84 vs 71 for effect 0.20). Connor's formula and the published examples (n = 234, n = 82) stay in the unit tests as `exact=False`. The exact search is capped at n = 5000 (closed form above; within 1 percentage point of exact power there).
+2. **Bootstrap coverage is fixed where few pairs tie, not elsewhere.** With no tied pairs (tie rate 0) every continuous and skewed H0 cell now covers at 0.947 to 0.952 (round 1: 0.906 to 0.949), and all 10 continuous and skewed coverage cells (5 H0, 5 MDE) that were flagged at tie rate 0 are gone. At tie rates 0.5 and 0.8 `auto` mostly uses the percentile interval (bootstrap-t only for replications whose observed tie share is at most 50%), so those H0 cells stay close to round 1 (continuous tie rate 0.5, n = 20 / 50: 0.910 / 0.932 before, 0.911 / 0.930 after) and 13 continuous and 18 skewed coverage cells still `undercovers`, all at tie rates 0.5 to 0.8 (continuous H0 0.911 to 0.943 and skewed 0.875 to 0.944 among the flagged ones). The guard exists because bootstrap-t and BCa were worse than percentile at tie rate 0.8 (round 2a, n = 20 / 50: continuous 0.880 / 0.889 against 0.932 / 0.918; skewed 0.838 / 0.849 against 0.907 / 0.875). Neither second-order method fixed the high-tie regime and I did not find one that does; it is the regime that matters most for model comparisons on easy suites (113 of 115 pairs tie for 1.5B vs 3B). BCa on its own did little: 43 undercovering cells on the dev seed against 20 for bootstrap-t, consistent with its acceleration being skewness / (6 sqrt(n)) (zero for symmetric data; the unit tests show BCa is close to percentile there) and with the shortfall at small n being mostly the narrowness and z-for-t effect of Hesterberg (2015), which bootstrap-t corrects.
+3. **One binary coverage cell got worse and one now overcovers.** Binary H1 at tie rate 0, n\* = 20, true effect 0.597: coverage 0.782 (round 1 at n\* = 21, effect 0.531: 0.929). Binary n\* = 49 covers at 0.971 (`overcovers`). With a large true effect and 20 pairs the differences are about 80% wins, and the resampled standard error is small and unstable, which is the likely reason bootstrap-t is erratic there [INFERENCE, not tested]. For large effects at n of about 20, the percentile interval is the better choice (`--ci-method percentile`). The H0 binary cells are fine (0.952 to 0.962 at tie rate 0; 0.951 to 0.957 elsewhere).
+4. **Skewed type-I error is not fixed and no test was changed.** The randomisation test is anti-conservative in the same 9 of 12 skewed cells, at the same values (0.056 to 0.089), because the data and the test are identical; this follows from the symmetry assumption documented in `randomization_test_p` and Round 2 item 3. What shipped is a warning (`n < 25 * skewness^2`, Cochran 1977), printed by `compare --all-pairs` for the pairs it fires on. It catches 8 of the 9 failing cells in at least half the replications but it also fires on well-behaved data: continuous and binary cells with many ties, where the test is conservative or valid (probably because a zero-inflated difference has a large sample skewness [INFERENCE, not tested]). It is a screen to read, not a validity test. A studentized sign-flip statistic (Romano 1990; Chung and Romano 2013) is the literature's repair and is not implemented.
+5. **Robustness run (10,000 resamples, n = 20 / 50, tie rate 0.5):** coverage flags 1 to 0 (binary), 3 to 3 (continuous), 4 to 4 (skewed); binary power `optimistic` 2 to 0; type-I verdicts unchanged.
+
+Caveats for round 2: the tie-guard cut (0.5) and the range clip were decided after seeing round 2a (disclosed above), and the final run is the second 2b scoring run (the clip changed one reported number, a mean CI width, and no verdict); the grid has only tie rates 0, 0.5 and 0.8, so the 0.5 threshold is a midpoint, not an estimate. The 8000- and 3000-replication intervals are the same as in round 1.
+
 ## Design Decisions
 
 - **Zero-Dependency Core Metrics**: Metrics are implemented directly with NumPy and standard library to ensure mathematical transparency and prevent external library drift.
@@ -532,5 +595,5 @@ The 2b final run overwrites `report.md` and `robustness-10000-resamples.md` with
 - **Classification as constrained choice**: the label set is every distinct target in the dataset, and models pick from it the same way they pick MCQ options.
 - **Per-prompt RNG in mock models**: each prediction seeds its own `random.Random(f"{seed}:{prompt}")`, so results don't depend on thread scheduling under the 4-worker pool.
 - **CI matches the statistic**: the 95% CI is a stratified bootstrap of the macro mean (resample within each task, then average), not a pooled micro mean.
-- **Randomisation over sign test for decisions**: the verdict uses a paired randomisation test with Holm correction (Smucker et al. 2007); the sign test stays as a reported column. Power numbers use the normal approximation (Miller 2024); no dependency beyond numpy (the normal quantile comes from `statistics.NormalDist`).
+- **Randomisation over sign test for decisions**: the verdict uses a paired randomisation test with Holm correction (Smucker et al. 2007); the sign test stays as a reported column. Power numbers: the exact conditional McNemar power for 0/1 scores and the normal approximation (Miller 2024) otherwise (see Round 2); no dependency beyond numpy (the normal quantile comes from `statistics.NormalDist`).
 - **Elo over interleaved matches**: games are played in example order. Grouping them by model pair let `noisy` out-rate `oracle` purely because of the order the games were played.
