@@ -116,6 +116,7 @@ def bootstrap_mean_ci(
     * ``bca``: bias-corrected and accelerated (Efron 1987), second-order accurate.
     * ``studentized``: bootstrap-t (Efron & Tibshirani 1993); falls back to the
       percentile interval when the data have no spread or most resamples do not.
+      ``bca`` and ``studentized`` endpoints are clipped to the range of the scores.
     * ``auto`` (default): :data:`SMALL_N_METHOD` when ``n < SMALL_N_CI`` (400),
       percentile otherwise.
     """
@@ -145,6 +146,10 @@ def bootstrap_mean_ci(
         else:
             lo = float(np.percentile(resample_means, 100.0 * (alpha / 2.0)))
             hi = float(np.percentile(resample_means, 100.0 * (1.0 - alpha / 2.0)))
+    if method != "percentile":
+        # a second-order endpoint can leave the data's range (+1.04 for a 0/1 difference);
+        # no resampled mean can, so clip to [min, max] of the scores
+        lo, hi = max(lo, float(arr.min())), min(hi, float(arr.max()))
     return (mean_val, lo, hi)
 
 

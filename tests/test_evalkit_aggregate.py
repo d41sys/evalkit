@@ -306,6 +306,13 @@ def test_resolve_ci_method_tie_guard() -> None:
     assert resolve_ci_method("bca", 400, 0.9) == "bca"
 
 
+def test_second_order_intervals_stay_inside_the_data_range() -> None:
+    diffs = [1.0] * 8 + [0.0] * 2  # 8 wins, 2 ties: a difference of 0/1 scores cannot exceed 1
+    for method in ("studentized", "bca"):
+        _, lo, hi = bootstrap_mean_ci(diffs, num_resamples=2000, method=method)
+        assert 0.0 <= lo < 0.8 < hi <= 1.0
+
+
 def test_sign_test_cutoff_matches_sign_test_p_on_both_code_paths() -> None:
     for m in (60, 400, 401, 900):  # integer path up to 400, log-space floats above
         c = _sign_test_cutoff(m, 0.05)
