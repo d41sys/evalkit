@@ -350,6 +350,127 @@ Decision rule. Every proportion carries a Wilson 99% interval over replications.
 
 Every flagged cell is reported, not only the failures. The rules, grid and replication counts are not changed after seeing results. A real bug gets a fix and a regression test; a known limitation of an approximation (a normal-approximation power formula, a percentile bootstrap) is reported as a finding and documented, not patched, unless it is a defect in the code rather than in the method.
 
+### Results
+
+Commands (the protocol was committed in `9e6d53f` before either was run; seed 0, 8 worker processes on a 12-core Apple-silicon laptop):
+
+```bash
+uv run evalkit stats-check --out runs/stats-check/report.md                       # 103 s wall; full tables
+uv run evalkit stats-check --ns 20,50 --ties 0.5 --fwer-ns 50 --fixed-effects "" \
+  --resamples 10000 --out runs/stats-check/robustness-10000-resamples.md           # 29 s wall; protocol item 4
+```
+
+The compact tables below are generated from `runs/stats-check/report.md`, which has every cell with its interval and verdict (the skewed power cells are in the file only). Flagged cells under the decision rule (every cell is in the report; there are 12 H0 cells and 26 coverage cells (12 H0 + 14 H1), 14 power cells and 12 FWER cells per kind; 3 MDE cells per kind had no attainable effect and were skipped):
+
+| flag | binary | continuous | skewed |
+|---|---|---|---|
+| type-I anti-conservative (randomisation / sign) | 0 / 0 | 0 / 0 | 9 / 11 |
+| type-I conservative (randomisation / sign) | 6 / 6 | 1 / 6 | 1 / 1 |
+| CI undercovers (of 26) | 4 | 17 | 24 |
+| power optimistic (of 14) | 13 | 2 | 1 |
+| power pessimistic (of 14) | 0 | 2 | 10 |
+| Holm FWER anti-conservative / conservative (of 12) | 0 / 11 | 0 / 0 | not run |
+
+**Type-I error at alpha 0.05, randomisation / sign test** (8000 replications per cell; 99% interval half-width about 0.006 to 0.008 near 0.05; `c` = conservative, `A` = anti-conservative under the decision rule)
+
+| kind | tie rate | n = 20 | n = 50 | n = 115 | n = 240 |
+|---|---|---|---|---|---|
+| binary | 0 | 0.044 / 0.044 | 0.031c / 0.031c | 0.039 / 0.039 | 0.045 / 0.046 |
+| binary | 0.5 | 0.023c / 0.023c | 0.029c / 0.028c | 0.037 / 0.038 | 0.039 / 0.039 |
+| binary | 0.8 | 0.004c / 0.004c | 0.024c / 0.024c | 0.030c / 0.028c | 0.038 / 0.038 |
+| continuous | 0 | 0.051 / 0.042 | 0.048 / 0.034c | 0.052 / 0.040 | 0.049 / 0.041 |
+| continuous | 0.5 | 0.045 / 0.022c | 0.053 / 0.033c | 0.048 / 0.036 | 0.046 / 0.040 |
+| continuous | 0.8 | 0.008c / 0.005c | 0.042 / 0.020c | 0.050 / 0.031c | 0.052 / 0.039 |
+| skewed | 0 | 0.079A / 0.196A | 0.065A / 0.406A | 0.056 / 0.789A | 0.052 / 0.984A |
+| skewed | 0.5 | 0.089A / 0.067A | 0.079A / 0.199A | 0.062A / 0.475A | 0.056A / 0.808A |
+| skewed | 0.8 | 0.015c / 0.009c | 0.088A / 0.075A | 0.080A / 0.186A | 0.064A / 0.402A |
+
+**95% bootstrap CI coverage of the true difference** (H0 cells, 8000 replications; `u` = undercovers under the decision rule)
+
+| kind | tie rate | n = 20 | n = 50 | n = 115 | n = 240 |
+|---|---|---|---|---|---|
+| binary | 0 | 0.956 | 0.964 | 0.947 | 0.954 |
+| binary | 0.5 | 0.952 | 0.954 | 0.953 | 0.956 |
+| binary | 0.8 | 0.956 | 0.953 | 0.957 | 0.951 |
+| continuous | 0 | 0.924u | 0.943u | 0.944 | 0.949 |
+| continuous | 0.5 | 0.910u | 0.932u | 0.943u | 0.949 |
+| continuous | 0.8 | 0.932u | 0.918u | 0.938u | 0.940u |
+| skewed | 0 | 0.906u | 0.929u | 0.942u | 0.947 |
+| skewed | 0.5 | 0.872u | 0.910u | 0.935u | 0.942u |
+| skewed | 0.8 | 0.907u | 0.875u | 0.910u | 0.934u |
+
+**Power of the randomisation test at the formula's n\* for 80%** (3000 replications per cell, interval half-width about 0.02; `o` = optimistic: interval entirely below 0.80). "mde" rows: true effect = MDE(n) so n\* is about n; "fixed" rows: effect given, n\* computed. Sign-test power in the last column.
+
+| group | kind | tie rate | true effect | n\* | randomisation power | sign-test power |
+|---|---|---|---|---|---|---|
+| mde | binary | 0 | 0.531 | 21 | 0.637o | 0.637 |
+| mde | binary | 0 | 0.368 | 51 | 0.724o | 0.767 |
+| mde | binary | 0 | 0.253 | 116 | 0.752o | 0.726 |
+| mde | binary | 0 | 0.178 | 241 | 0.775o | 0.766 |
+| mde | binary | 0.5 | 0.375 | 21 | 0.654o | 0.654 |
+| mde | binary | 0.5 | 0.260 | 51 | 0.708o | 0.700 |
+| mde | binary | 0.5 | 0.179 | 115 | 0.744o | 0.747 |
+| mde | binary | 0.5 | 0.126 | 240 | 0.775o | 0.775 |
+| mde | binary | 0.8 | 0.165 | 50 | 0.708o | 0.708 |
+| mde | binary | 0.8 | 0.113 | 116 | 0.740o | 0.735 |
+| mde | binary | 0.8 | 0.080 | 241 | 0.769o | 0.771 |
+| mde | continuous | 0 | 0.157 | 21 | 0.776o | 0.494 |
+| mde | continuous | 0 | 0.099 | 51 | 0.797 | 0.613 |
+| mde | continuous | 0 | 0.065 | 115 | 0.782 | 0.571 |
+| mde | continuous | 0 | 0.045 | 241 | 0.801 | 0.559 |
+| mde | continuous | 0.5 | 0.142 | 21 | 0.859 | 0.625 |
+| mde | continuous | 0.5 | 0.076 | 50 | 0.817 | 0.565 |
+| mde | continuous | 0.5 | 0.048 | 116 | 0.815 | 0.572 |
+| mde | continuous | 0.5 | 0.033 | 241 | 0.821 | 0.589 |
+| mde | continuous | 0.8 | 0.073 | 51 | 0.910 | 0.775 |
+| mde | continuous | 0.8 | 0.034 | 116 | 0.866 | 0.625 |
+| mde | continuous | 0.8 | 0.022 | 241 | 0.833 | 0.618 |
+| fixed | binary | 0.6 | 0.050 | 1248 | 0.790 | 0.793 |
+| fixed | binary | 0.6 | 0.100 | 307 | 0.771o | 0.775 |
+| fixed | binary | 0.6 | 0.200 | 71 | 0.732o | 0.720 |
+| fixed | continuous | 0.6 | 0.050 | 91 | 0.827 | 0.599 |
+| fixed | continuous | 0.6 | 0.100 | 32 | 0.873 | 0.623 |
+| fixed | continuous | 0.6 | 0.200 | 17 | 0.704o | 0.649 |
+
+**Family-wise error rate, all nulls true** (3000 replications per cell; Holm FWER, with the unadjusted FWER in brackets; none flagged anti-conservative)
+
+| kind | design | m | n = 50 | n = 115 |
+|---|---|---|---|---|
+| binary | independent | 3 | 0.030 (0.095) | 0.031 (0.111) |
+| binary | independent | 5 | 0.027 (0.151) | 0.031 (0.162) |
+| binary | independent | 10 | 0.024 (0.261) | 0.030 (0.305) |
+| binary | all-pairs | 3 | 0.024 (0.080) | 0.030 (0.094) |
+| binary | all-pairs | 6 | 0.022 (0.132) | 0.030 (0.155) |
+| binary | all-pairs | 10 | 0.026 (0.203) | 0.025 (0.222) |
+| continuous | independent | 3 | 0.047 (0.143) | 0.044 (0.137) |
+| continuous | independent | 5 | 0.050 (0.222) | 0.050 (0.223) |
+| continuous | independent | 10 | 0.049 (0.403) | 0.046 (0.404) |
+| continuous | all-pairs | 3 | 0.039 (0.118) | 0.040 (0.123) |
+| continuous | all-pairs | 6 | 0.041 (0.209) | 0.039 (0.206) |
+| continuous | all-pairs | 10 | 0.043 (0.295) | 0.041 (0.276) |
+
+### Verdict
+
+No defect in the code was found, so there is no bug fix and no regression test. The shipped functions are correct implementations; what the simulation shows is where the methods behave differently from the nominal numbers they print. Every flagged cell is in the report; the ones that matter:
+
+1. **Randomisation test: valid for symmetric differences, anti-conservative for asymmetric ones.** For binary and symmetric continuous scores the type-I error is 0.042 to 0.053 for continuous scores (except 0.008 at n = 20, t = 0.8, where too few differences are nonzero to ever reject) and 0.004 to 0.045 for binary scores, with no anti-conservative cell. For the skewed generator (mean zero, asymmetric) it is anti-conservative in 9 of 12 cells: 0.056 to 0.089, worst at small n (0.089 at n = 20, t = 0.5), falling to 0.052 to 0.064 at n = 240. The sign-flip reference distribution assumes each difference is symmetric around zero; with asymmetric differences it is only asymptotically right for the mean.
+2. **Sign test: valid and conservative for scores it tests correctly, wrong question for the mean.** On binary scores it equals the randomisation test (0.004 to 0.046; every difference is +/-1). On continuous scores it is flagged conservative in 6 cells (0.005 to 0.042) and its power is 0.49 to 0.78 where the randomisation test's is 0.70 to 0.91. On the skewed generator it rejects 0.067 to 0.984 of true nulls in 11 of 12 cells because it tests whether wins and losses are equally likely (the median), not whether the mean is zero. It is a reported column, and the decision uses the randomisation test, so this does not affect the verdicts, but do not read a small sign-test p as evidence about the mean.
+3. **Percentile bootstrap CI undercovers on continuous scores at small n.** Coverage of a true difference of 0 is 0.910 to 0.949 for continuous scores (17 of 26 continuous cells flagged undercovering, 9 of the 12 H0 cells; all 12 H0 point estimates are below 0.95), and for the skewed generator 0.872 to 0.947 (24 flagged). It improves with n and does not move when the resamples go from 2000 to 10000 (robustness run), so this is the method, not Monte Carlo noise in the endpoints. On binary scores coverage is 0.947 to 0.964 in all 12 H0 cells; its 4 undercovering cells are H1 cells with large effects at n = 21 to 51 (0.918 to 0.935). The CI is the one reported next to the p-value, so at n <= 50 a continuous-score interval claimed as 95% is about 91 to 94%.
+4. **The 80% power formula is optimistic for binary scores.** At the n* the formula returns, the randomisation test reaches only 0.64 to 0.79 power (13 of 14 binary cells flagged; the one unflagged cell, n* = 1248, gives 0.790). The shortfall shrinks with n (0.64 to 0.65 at n* = 21, 0.71 to 0.75 at n* = 50 to 116, 0.77 to 0.78 at n* = 240) and matches the exact test's type-I error being below 0.05 on discrete differences (item 2); I did not separate the two causes further. So `n_needed` and `mde` for binary 0/1 scores, including the n = 1025 quoted in the GSM8K section, are probably lower bounds: more examples than printed are likely needed to hit 80%.
+5. **For continuous scores the formula is mostly fine, with small-n misses in both directions.** In 10 of 14 continuous MDE/fixed cells the randomisation power is 0.78 to 0.87, within the rule; flagged optimistic are n* = 21 at t = 0 (0.776) and n* = 17 at effect 0.20 (0.704), both tiny n for a normal approximation, and flagged pessimistic are t = 0.8, n* = 51 (0.910) and t = 0.6, effect 0.10, n* = 32 (0.873), where many exact ties leave a few large differences carrying the sum [INFERENCE, not tested]. For the skewed generator the formula is pessimistic in 10 of 14 cells (0.88 to 0.997). Three of those (t = 0.5 n* = 21, t = 0.8 n* = 51, effect 0.10 at t = 0.6) have a mean nonzero difference of at least 0.25, which makes every nonzero difference positive (a shifted exponential with a hard lower bound at 0), so those flags describe the generator rather than the formula. The rest are plausibly the light left tail [INFERENCE]; either way the SD-only formula cannot see the shape.
+6. **Holm controls the family-wise error rate.** No FWER cell is anti-conservative: continuous 0.039 to 0.050 (all 12 inside the rule), binary 0.022 to 0.031 (11 of 12 flagged conservative; they inherit the discrete tests), for m = 3 to 10 independent comparisons and for 3 to 10 pairs among 3 to 5 exchangeable models that share example difficulty. Without correction the same families reject 8% to 40% of the time, so the correction is doing its job.
+7. **Conservative binary tests at small n, by design.** With few nonzero differences the exact tests cannot reach 0.05 (for example 0.004 at n = 20, t = 0.8, where fewer than 6 nonzero differences can never reject). Valid, but with little power at small n when most pairs tie.
+
+Robustness check (protocol item 4): going from 2000 to 10000 bootstrap resamples changed no verdict in the 6 shared H0 coverage cells and none of the 12 type-I verdicts. Three of the 12 shared H1 verdicts differ, all at a threshold: coverage binary n* = 51 (0.935 undercovers vs 0.947 ok) and continuous n* = 50 (0.936 vs 0.940), and power continuous n* = 21 (0.859 ok vs 0.867 pessimistic). The two runs also use different random streams and 3000 replications (standard error about 0.004 for coverage), so these move by about the noise; the H1 coverage and power flags near a threshold are the least reliable part of the table.
+
+### Caveats (stats-check)
+
+- The simulated worlds are simple: one tie structure, independent examples, N(0, 0.25) / shifted-exponential differences, binary scores with equal both-right/both-wrong ties. Real eval differences are clustered by topic and have their own SD, which will differ.
+- The power cells hand the formula the exact true SD of the differences. In real use `n_needed` takes the SD estimated from the data, which adds error that is not measured here.
+- With a 99% interval, about 1% of cells would be flagged by chance even if the method were exact; the flags above are far more numerous and systematic than that and replicate in the second run, but isolated cells at the edge (for example the single 0.936 vs 0.940 coverage cell) should not be over-read.
+- The percentile-bootstrap undercoverage and the binary power shortfall are properties of the methods (percentile intervals; a normal-approximation power formula applied to discrete data). Per the protocol they are reported and documented, not patched; a bias-corrected or studentised bootstrap and a simulation-based n for binary scores would be the fixes.
+- The Holm check covers all-null families only; it says nothing about power loss from the correction.
+
 ## Design Decisions
 
 - **Zero-Dependency Core Metrics**: Metrics are implemented directly with NumPy and standard library to ensure mathematical transparency and prevent external library drift.

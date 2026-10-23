@@ -249,6 +249,7 @@ def stats_check_command(args: argparse.Namespace) -> int:
         ns=parse_ints(args.ns),
         ties=parse_floats(args.ties),
         fwer_ns=parse_ints(args.fwer_ns),
+        fixed_effects=parse_floats(args.fixed_effects),
         workers=args.workers if args.workers > 0 else default_workers(),
     )
     try:
@@ -362,6 +363,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     sc_parser.add_argument("--ties", default="0,0.5,0.8", help="comma-separated tie rates")
     sc_parser.add_argument(
         "--fwer-ns", default="50,115", help="sample sizes for the Holm FWER cells"
+    )
+    sc_parser.add_argument(
+        "--fixed-effects", default="0.05,0.10,0.20", help="fixed-effect power cells (empty: none)"
     )
     sc_parser.add_argument(
         "--workers", type=int, default=0, help="worker processes (0: min(8, cpu count))"
