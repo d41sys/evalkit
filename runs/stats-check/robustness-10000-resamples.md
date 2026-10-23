@@ -85,4 +85,4 @@ seed 0; replications: H0 8000, power 3000, FWER 3000; bootstrap resamples 10000;
 - conservative: Holm FWER binary all-pairs m=6 n=50: 0.027 [0.020, 0.036]
 - conservative: Holm FWER binary all-pairs m=10 n=50: 0.020 [0.014, 0.028]
 
-Wall time 54 s on 8 worker(s).
+Wall time 48 s on 8 worker(s).

@@ -81,7 +81,7 @@ seed 0; replications: H0 8000, power 3000, FWER 3000; bootstrap resamples 2000; 
 | h0 | skewed | 0.8 | 50 | 0.000 | 0.875 [0.865, 0.884] **undercovers** | 0.056 |
 | h0 | skewed | 0.8 | 115 | 0.000 | 0.910 [0.901, 0.918] **undercovers** | 0.039 |
 | h0 | skewed | 0.8 | 240 | 0.000 | 0.934 [0.927, 0.941] **undercovers** | 0.028 |
-| mde | binary | 0 | 20 | 0.597 | 0.782 [0.762, 0.800] **undercovers** | 0.695 |
+| mde | binary | 0 | 20 | 0.597 | 0.782 [0.762, 0.800] **undercovers** | 0.691 |
 | mde | binary | 0 | 49 | 0.408 | 0.971 [0.962, 0.978] **overcovers** | 0.532 |
 | mde | binary | 0 | 112 | 0.267 | 0.965 [0.956, 0.973] | 0.361 |
 | mde | binary | 0 | 240 | 0.183 | 0.949 [0.938, 0.959] | 0.250 |
@@ -305,4 +305,4 @@ MDE cells with no attainable effect (binary: even every discordant pair favourin
 - conservative: Holm FWER binary all-pairs m=6 n=115: 0.030 [0.023, 0.039]
 - conservative: Holm FWER binary all-pairs m=10 n=115: 0.025 [0.019, 0.034]
 
-Wall time 223 s on 8 worker(s).
+Wall time 204 s on 8 worker(s).
