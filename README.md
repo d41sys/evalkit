@@ -471,6 +471,43 @@ Robustness check (protocol item 4): going from 2000 to 10000 bootstrap resamples
 - The percentile-bootstrap undercoverage and the binary power shortfall are properties of the methods (percentile intervals; a normal-approximation power formula applied to discrete data). Per the protocol they are reported and documented, not patched; a bias-corrected or studentised bootstrap and a simulation-based n for binary scores would be the fixes.
 - The Holm check covers all-null families only; it says nothing about power loss from the correction.
 
+## Round 2: fixing the three findings (protocol committed before any re-scoring)
+
+Round 1 (above) found three miscalibrations that were not code bugs but method limits: the 80% power formula is optimistic for binary 0/1 scores, the percentile bootstrap CI undercovers at small n, and the sign-flip randomisation test is anti-conservative on skewed differences. Round 2 changes the code for each, then re-runs the same grid with the same seed and the same decision rules. Round-1 outputs are kept as `runs/stats-check/report-round1.md` and `runs/stats-check/robustness-10000-resamples-round1.md`.
+
+**Changes (all in `src/evalkit/aggregate.py`):**
+
+1. **Binary power / sample size / MDE.** When both score vectors are 0/1, `compare_pairs` uses the McNemar design formula of Connor (1987, [Biometrics 43:207-211](https://doi.org/10.2307/2531961)), which is stated in the discordant-pair rate psi = P(A != B) and the difference delta = P(A=1, B=0) - P(A=0, B=1): `n = (z_{1-alpha/2} sqrt(psi) + z_{power} sqrt(psi - delta^2))^2 / delta^2`. The variance under H0 is psi, under H1 psi - delta^2; the old continuous formula used the H1 SD on both sides. MDE solves the same equation for delta at fixed psi and n. psi is the observed discordant rate. Continuous scores keep the normal approximation. Worked examples used as unit tests: Machin et al. (2009) via the [MedCalc manual](https://www.medcalc.org/en/manual/sample-size-mcnemar-test.php) (shift 20% / 10%, alpha 0.05, power 0.8: n = 234) and the [Stata `power pairedproportions` manual](https://www.stata.com/manuals/pss-2powerpairedproportions.pdf) (p12 = 0.105, p21 = 0.004: n = 82, power 0.8759 at n = 100).
+2. **Bootstrap CI.** `bootstrap_mean_ci(..., method=)` accepts `percentile`, `bca` (Efron 1987: bias-correction z0 and jackknife acceleration) and `studentized` (bootstrap-t); `auto` (the default) uses the method chosen below for n < 400 and the percentile interval otherwise. **Threshold 400:** Hesterberg (2015, [Am. Statistician 69:371](https://www.amstat.org/docs/default-source/amstat-documents/edu-resamplingundergradcurriculum.pdf)) shows the percentile interval behaves like `xbar +/- z * s * sqrt((n-1)/n) / sqrt(n)`, i.e. too narrow by the narrowness factor and by using z instead of t. For symmetric data its coverage is then `P(|T_{n-1}| < 1.96 sqrt((n-1)/n))` = 0.904 / 0.929 / 0.942 / 0.947 / 0.948 / 0.949 at n = 10 / 20 / 50 / 115 / 240 / 400 (numerical integration of the t density, scratch script, not in the repo), so n = 400 is where the symmetric-data shortfall drops below 0.1 point. Skewed data need more (Hesterberg: percentile needs n of about 2400 on an exponential population), which is why the cut-off is a floor, not a guarantee.
+3. **Skewed differences.** Swapping the model labels inside each example is the same as flipping the sign of that example's difference, so the "paired permutation of model labels" is exactly the sign-flip test already shipped; it does not remove the problem. The null that justifies the permutation is "(A_i, B_i) is exchangeable", i.e. each difference is symmetric around 0, which is stronger than "mean difference = 0"; with an asymmetric difference distribution the test is exact only under that stronger null and asymptotically valid for the mean otherwise (Romano 1990, JASA 85:686-692, shows when randomisation tests without a group invariance fail for means; Lehmann & Romano, *Testing Statistical Hypotheses*, ch. 15). The fix the literature offers is a studentised statistic, which I do not ship. **Decision: keep the test, add a warning.** `PairResolution.skew_warning` is set, and `compare --all-pairs` prints a note, when `n < 25 * g^2` where `g` is the sample skewness of the differences: Cochran's (1977, *Sampling Techniques*, 3rd ed., p. 42; Sugden, Smith & Jones 2000, JRSS-B 62:787-793) sample-size rule for when a normal-theory interval for a mean is adequate under skew. It is a heuristic borrowed from the t-test, and the stats-check below measures how well it flags the data where the test misbehaves.
+
+**Selecting the small-n CI method (development seed, before the final run).** Candidates `bca` and `studentized`, run with the same grid, replications and decision rules as round 1 but **seed 1**, never seed 0 (the final run):
+
+```bash
+uv run evalkit stats-check --seed 1 --ci-method bca --out runs/stats-check/dev-seed1-bca.md
+uv run evalkit stats-check --seed 1 --ci-method studentized --out runs/stats-check/dev-seed1-studentized.md
+```
+
+Selection rule: the method with fewer `undercovers` verdicts over all coverage cells (H0, MDE and fixed groups, all three kinds) becomes the `auto` default for n < 400; on a tie, fewer `overcovers` verdicts; on a further tie, `bca`. Both dev reports are committed whichever wins.
+
+**Final run (seed 0, identical grid, replications and decision rules to round 1):**
+
+```bash
+uv run evalkit stats-check --out runs/stats-check/report.md
+uv run evalkit stats-check --ns 20,50 --ties 0.5 --fwer-ns 50 --fixed-effects "" \
+  --resamples 10000 --out runs/stats-check/robustness-10000-resamples.md
+```
+
+Round-2 pass criteria, fixed now:
+
+| target | pass if | note |
+|---|---|---|
+| binary power at n\* | no binary power cell flagged `optimistic` | the formula is judged at the n it returns, as in round 1 |
+| bootstrap coverage at small n | the number of `undercovers` coverage cells (of 26 per kind) falls for continuous and for skewed, and does not rise for binary | per-cell flags are reported, not only counts |
+| skewed type-I error | **no change expected**: the test is unchanged. The warning passes if it fires in at least 50% of replications in every skewed H0 cell flagged `anti-conservative` in round 1, and in at most 10% of replications in every binary and continuous H0 cell | new column `warn rate` in the H0 table |
+
+Contingency, fixed now: if binary power is still flagged `optimistic` after Connor's closed form, the next step is exact conditional power of the shipped exact test (Duffy 1984, Biometrics 40:1005-1015; the exact test conditions on the number of discordant pairs, so power is a binomial mixture), committed with its reason and the report re-run; both outcomes would then be reported. The decision rules, grid, replication counts and seed are not changed.
+
 ## Design Decisions
 
 - **Zero-Dependency Core Metrics**: Metrics are implemented directly with NumPy and standard library to ensure mathematical transparency and prevent external library drift.
