@@ -47,6 +47,9 @@ uv run evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random
 # All model pairs: randomisation p, Holm correction, minimum detectable effect, n for 80% power
 uv run evalkit compare runs/demo/results.jsonl --all-pairs
 
+# Monte Carlo check of the shipped statistics (type-I error, CI coverage, power, Holm FWER)
+uv run evalkit stats-check --out runs/stats-check/report.md
+
 # Real local models (needs the [hf] extra: torch + transformers)
 uv run --extra hf evalkit run --tasks tasks --models oracle,random,hf:Qwen/Qwen2.5-0.5B-Instruct --workers 1
 
@@ -316,6 +319,36 @@ What "resolved" does and does not say here:
 - **Random is at floor by construction**: it answers a random integer in 0-100 and 162 of the 240 targets lie in that range, so the expected number of hits is 162/101 = 1.6 and 0 observed is unremarkable; oracle returns the target. Neither says anything about GSM8K difficulty.
 - **n = 240 of 1319.** Scoring the whole test set would take about 54 minutes (1319 x 2.45 s, extrapolated from the pilot, not run).
 - The confidence and ECE columns for the Qwen models come from the geometric-mean token probability of a long reasoning chain, a heuristic, and say little about answer-level calibration.
+
+## Do the statistics hold up? Monte Carlo check (`evalkit stats-check`)
+
+`evalkit stats-check` simulates paired per-example scores with a known true difference and runs the shipped functions in `aggregate.py` on them: `paired_comparison` (percentile bootstrap CI and exact sign test), `randomization_test_p`, `holm_bonferroni` (through `compare_pairs`), `minimum_detectable_effect` and `required_sample_size`. The simulator and the verdict rules live in `src/evalkit/statscheck.py`; numpy only, seeded, no models.
+
+```bash
+uv run evalkit stats-check --out runs/stats-check/report.md   # full grid, seed 0
+uv run pytest -q tests/test_evalkit_statscheck.py             # unit tests, tiny replication counts
+```
+
+### Protocol (committed before any scoring run)
+
+Data generators (`Scenario`): `binary` (0/1 scores; wins and losses with probabilities (1 - t +/- d)/2, ties both-right or both-wrong), `continuous` (A - B ~ N(d/(1 - t), 0.25) on a random subset of 1 - t of the examples, exact ties elsewhere) and `skewed` (same, but A - B = mu + 0.25 (Exp(1) - 1); under H0 the mean is zero but the distribution is asymmetric, which the sign-flip test's exchangeability argument does not cover). `t` is the tie rate P(A = B), `d` the true mean difference.
+
+Grid: n in {20, 50, 115, 240} (115 and 240 are the sizes of the bundled and GSM8K suites), t in {0, 0.5, 0.8}.
+
+1. **H0 (d = 0):** all 36 cells; per replication run the randomisation test (`num_draws` 2000; exact enumeration up to 20 nonzero differences), the exact sign test and `paired_comparison` (2000 resamples). Metrics: rejection rate at alpha 0.05 for the randomisation and sign tests, and coverage of d = 0 by the 95% bootstrap CI. 8000 replications per cell.
+2. **H1 at the formula's own sample size:** for each kind and t, take the effect that `minimum_detectable_effect` returns at n (the SD of the differences depends on the effect, so the fixed point is solved in closed form, see `mde_scenario`), then simulate at n* = `required_sample_size(true SD, effect)`. Cells where the fixed point does not exist or exceeds 1 - t are skipped and listed. Nine more cells use fixed effects 0.05 / 0.10 / 0.20 at t = 0.6 with n* from the same function. Metrics: empirical power of the randomisation test against the predicted 0.80, power of the sign test and of "CI excludes 0", and coverage of the true d. 3000 replications per cell. The formula gets the exact true SD, so this tests the formula, not SD estimation.
+3. **Holm FWER:** all nulls true; `compare_pairs` over m comparisons, either m independent A/B datasets (m = 3, 5, 10) or k exchangeable models sharing example difficulty with all k(k - 1)/2 pairs (k = 3, 4, 5, so m = 3, 6, 10), binary and continuous scores, n in {50, 115}. FWER = P(any pair resolved, i.e. Holm-adjusted p < 0.05), next to the unadjusted FWER. 3000 replications per cell.
+4. **Robustness:** one extra run with 10000 bootstrap resamples (the `compare` default) on n in {20, 50}, t = 0.5 to check that using 2000 in the main grid does not move any verdict.
+
+Decision rule. Every proportion carries a Wilson 99% interval over replications.
+
+| quantity | ok | flagged |
+|---|---|---|
+| type-I error (randomisation, sign) and Holm FWER, target 0.05 | interval contains 0.05 or lies below it | **anti-conservative** if the interval lies entirely above 0.05 (failure); **conservative** if entirely below 0.04 (valid, wastes power) |
+| 95% bootstrap CI coverage, target 0.95 | interval contains 0.95 or lies above it | **undercovers** if entirely below 0.95 (failure); **overcovers** if entirely above 0.96 |
+| power of the randomisation test at n*, target 0.80 | interval contains 0.80 or lies above it | **optimistic** if entirely below 0.80 (the formula promises power it does not deliver; failure); **pessimistic** if entirely above 0.85 |
+
+Every flagged cell is reported, not only the failures. The rules, grid and replication counts are not changed after seeing results. A real bug gets a fix and a regression test; a known limitation of an approximation (a normal-approximation power formula, a percentile bootstrap) is reported as a finding and documented, not patched, unless it is a defect in the code rather than in the method.
 
 ## Design Decisions
 

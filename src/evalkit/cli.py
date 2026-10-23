@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -10,6 +11,15 @@ from .aggregate import PairResolution, compare_pairs, paired_comparison
 from .models import Model, get_model
 from .runner import EvalRecord, generate_leaderboard, run
 from .spec import SpecError, TaskSpec
+from .statscheck import (
+    StatsCheckConfig,
+    check_args,
+    default_workers,
+    parse_floats,
+    parse_ints,
+    render_markdown,
+    run_stats_check,
+)
 
 
 def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
@@ -227,6 +237,35 @@ def compare_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def stats_check_command(args: argparse.Namespace) -> int:
+    """Monte Carlo validation of the shipped statistics (type-I, coverage, power, Holm FWER)."""
+    config = StatsCheckConfig(
+        seed=args.seed,
+        reps_h0=args.reps_h0,
+        reps_power=args.reps_power,
+        reps_fwer=args.reps_fwer,
+        resamples=args.resamples,
+        draws=args.draws,
+        ns=parse_ints(args.ns),
+        ties=parse_floats(args.ties),
+        fwer_ns=parse_ints(args.fwer_ns),
+        workers=args.workers if args.workers > 0 else default_workers(),
+    )
+    try:
+        check_args(config.ns + config.fwer_ns, config.ties)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    started = time.perf_counter()
+    text = render_markdown(run_stats_check(config))
+    text += f"\nWall time {time.perf_counter() - started:.0f} s on {config.workers} worker(s).\n"
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="evalkit",
@@ -304,6 +343,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     cmp_parser.add_argument("--seed", type=int, default=0)
 
+    # stats-check command
+    sc_parser = subparsers.add_parser(
+        "stats-check",
+        help="Monte Carlo check of the shipped statistics (type-I error, coverage, power, Holm)",
+    )
+    sc_parser.add_argument("--seed", type=int, default=0)
+    sc_parser.add_argument("--reps-h0", type=int, default=8000, help="replications per H0 cell")
+    sc_parser.add_argument(
+        "--reps-power", type=int, default=3000, help="replications per power/coverage cell"
+    )
+    sc_parser.add_argument("--reps-fwer", type=int, default=3000, help="replications per FWER cell")
+    sc_parser.add_argument("--resamples", type=int, default=2000, help="bootstrap resamples")
+    sc_parser.add_argument(
+        "--draws", type=int, default=2000, help="randomisation Monte Carlo draws"
+    )
+    sc_parser.add_argument("--ns", default="20,50,115,240", help="comma-separated sample sizes")
+    sc_parser.add_argument("--ties", default="0,0.5,0.8", help="comma-separated tie rates")
+    sc_parser.add_argument(
+        "--fwer-ns", default="50,115", help="sample sizes for the Holm FWER cells"
+    )
+    sc_parser.add_argument(
+        "--workers", type=int, default=0, help="worker processes (0: min(8, cpu count))"
+    )
+    sc_parser.add_argument("--out", default=None, help="also write the markdown report here")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -312,6 +376,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return leaderboard_command(args)
     elif args.subcommand == "compare":
         return compare_command(args)
+    elif args.subcommand == "stats-check":
+        return stats_check_command(args)
     else:
         parser.print_help()
         return 1
