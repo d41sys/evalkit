@@ -10,6 +10,7 @@ import pytest
 from evalkit.aggregate import (
     minimum_detectable_effect,
     minimum_detectable_effect_binary,
+    paired_binary_power_exact,
     required_sample_size,
     required_sample_size_binary,
 )
@@ -113,12 +114,16 @@ def test_mde_scenario_is_formula_fixed_point(kind: str, n: int, tie: float) -> N
 
 @pytest.mark.parametrize("n", [20, 50, 115, 240])
 @pytest.mark.parametrize("tie", [0.0, 0.5])
-def test_binary_mde_scenario_is_connor_fixed_point(n: int, tie: float) -> None:
+def test_binary_mde_scenario_is_exact_power_fixed_point(n: int, tie: float) -> None:
     sc = mde_scenario("binary", n, tie)
     assert sc is not None
-    assert minimum_detectable_effect_binary(1.0 - tie, n) == pytest.approx(sc.effect, rel=1e-9)
-    assert required_sample_size_binary(1.0 - tie, sc.effect) - n in (0, 1)
-    assert n_star("binary", tie, sc.effect) == required_sample_size_binary(1.0 - tie, sc.effect)
+    psi = 1.0 - tie
+    assert minimum_detectable_effect_binary(psi, n) == pytest.approx(sc.effect, rel=1e-9)
+    assert paired_binary_power_exact(n, sc.effect, psi) == pytest.approx(0.8, abs=1e-6)
+    star = n_star("binary", tie, sc.effect)
+    assert star == required_sample_size_binary(psi, sc.effect)
+    assert star <= n  # first crossing: exact power's sawtooth can reach 0.8 a pair or two early
+    assert paired_binary_power_exact(star, sc.effect, psi) >= 0.8
 
 
 def test_mde_scenario_none_when_unattainable() -> None:

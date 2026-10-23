@@ -207,7 +207,8 @@ def mde_scenario(kind: str, n: int, tie_rate: float) -> Scenario | None:
     """Scenario whose true effect is the formula's MDE at ``n``.
 
     Binary: the discordant rate is known (``1 - tie_rate``), so the effect is
-    :func:`minimum_detectable_effect_binary` (Connor 1987) at that rate. Continuous
+    :func:`minimum_detectable_effect_binary` (exact conditional power; the shipped
+    formula was a normal approximation, then Connor's 1987, see the README) at that rate. Continuous
     kinds: effect = MDE(sd(effect), n) with the SD depending on the effect, solved in
     closed form as d^2 = c^2 (1 - t) SIGMA^2 / (n - c^2 t / (1 - t)), with
     c = z_{1-a/2} + z_{power}. Returns None when the formula's promise is unattainable
@@ -228,8 +229,8 @@ def mde_scenario(kind: str, n: int, tie_rate: float) -> Scenario | None:
 def n_star(kind: str, tie_rate: float, effect: float) -> int:
     """The formula's n for 80% power at the scenario's true discordant rate / SD and effect.
 
-    Binary scores: :func:`required_sample_size_binary` at psi = 1 - tie_rate; the
-    continuous kinds: :func:`required_sample_size` at the true SD.
+    Binary scores: :func:`required_sample_size_binary` (exact power search) at
+    psi = 1 - tie_rate; the continuous kinds: :func:`required_sample_size` at the true SD.
     """
     if kind == "binary":
         return required_sample_size_binary(1.0 - tie_rate, effect)
@@ -360,7 +361,9 @@ def run_fwer(job: FwerJob) -> FwerResult:
         else:
             scores = _all_pairs_scores(job.kind, job.size, job.n, rng)
             pairs = list(itertools.combinations(scores, 2))
-        res = compare_pairs(scores, pairs, num_resamples=0, num_draws=job.draws, seed=s)
+        res = compare_pairs(
+            scores, pairs, num_resamples=0, num_draws=job.draws, seed=s, with_power=False
+        )
         raw += any(r.rand_p < ALPHA for r in res)
         holm += any(r.resolved for r in res)
     return FwerResult(job, Rate(int(raw), job.reps), Rate(int(holm), job.reps))

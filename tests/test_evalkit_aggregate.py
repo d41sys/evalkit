@@ -7,8 +7,10 @@ import numpy as np
 import pytest
 
 from evalkit.aggregate import (
+    EXACT_POWER_MAX_N,
     SMALL_N_CI,
     SMALL_N_METHOD,
+    _sign_test_cutoff,
     bootstrap_macro_ci,
     bootstrap_mean_ci,
     build_pairwise_matches,
@@ -21,6 +23,7 @@ from evalkit.aggregate import (
     minimum_detectable_effect,
     minimum_detectable_effect_binary,
     paired_binary_power,
+    paired_binary_power_exact,
     paired_comparison,
     randomization_test_p,
     required_sample_size,
@@ -217,17 +220,17 @@ def test_binary_sample_size_published_examples() -> None:
     # Machin, Campbell, Tan & Tan (2009), as worked in the MedCalc manual: 20% of cases shift
     # positive -> negative, 10% negative -> positive, alpha 0.05, power 0.8: n = 234.
     # psi = 0.3, delta = 0.1: ((1.95996 sqrt(.3) + 0.84162 sqrt(.29)) / .1)^2 = 233.1 -> 234
-    assert required_sample_size_binary(0.3, 0.1) == 234
-    assert required_sample_size_binary(0.3, -0.1) == 234
+    assert required_sample_size_binary(0.3, 0.1, exact=False) == 234
+    assert required_sample_size_binary(0.3, -0.1, exact=False) == 234
     # Stata `power pairedproportions 0.105 0.004` (Connor 1987): n = 82 (81.5 before rounding up)
-    assert required_sample_size_binary(0.109, 0.101) == 82
+    assert required_sample_size_binary(0.109, 0.101, exact=False) == 82
     # ... and its power at n = 100 is 0.8759
     assert paired_binary_power(100, 0.101, 0.109) == pytest.approx(0.8759, abs=5e-5)
 
 
 def test_binary_power_is_consistent_with_sample_size() -> None:
     for psi, delta in [(0.3, 0.1), (0.109, 0.101), (0.5, 0.2), (0.2, 0.05)]:
-        n = required_sample_size_binary(psi, delta)
+        n = required_sample_size_binary(psi, delta, exact=False)
         assert paired_binary_power(n, delta, psi) >= 0.8 - 1e-9
         assert paired_binary_power(n - 3, delta, psi) < 0.8
     assert paired_binary_power(0, 0.1, 0.3) == 0.0
@@ -237,15 +240,97 @@ def test_binary_power_is_consistent_with_sample_size() -> None:
 
 def test_binary_mde_inverts_the_sample_size_formula() -> None:
     for psi, n in [(0.3, 234), (0.5, 100), (0.2, 400)]:
-        d = minimum_detectable_effect_binary(psi, n)
+        d = minimum_detectable_effect_binary(psi, n, exact=False)
         assert 0.0 < d <= psi
-        assert abs(required_sample_size_binary(psi, d) - n) <= 1
+        assert abs(required_sample_size_binary(psi, d, exact=False) - n) <= 1
     # n = 234, psi = 0.3 -> the published effect 0.1 (to the rounding of n)
-    assert minimum_detectable_effect_binary(0.3, 234) == pytest.approx(0.1, abs=1e-3)
+    assert minimum_detectable_effect_binary(0.3, 234, exact=False) == pytest.approx(0.1, abs=1e-3)
     # even every discordant pair favouring one model is invisible: 2 of 115 discordant
-    assert math.isinf(minimum_detectable_effect_binary(2 / 115, 115))
-    assert minimum_detectable_effect_binary(0.0, 100) == 0.0
-    assert math.isinf(minimum_detectable_effect_binary(0.3, 0))
+    for exact in (False, True):
+        assert math.isinf(minimum_detectable_effect_binary(2 / 115, 115, exact=exact))
+        assert minimum_detectable_effect_binary(0.0, 100, exact=exact) == 0.0
+        assert math.isinf(minimum_detectable_effect_binary(0.3, 0, exact=exact))
+
+
+def _brute_force_power(n: int, p_win: float, p_loss: float, alpha: float) -> float:
+    """Sum the trinomial pmf over every (wins, losses) outcome the sign test rejects."""
+    total = 0.0
+    for w in range(n + 1):
+        for lo in range(n + 1 - w):
+            if sign_test_p(w, lo) < alpha:
+                ties = n - w - lo
+                coef = math.factorial(n) / (
+                    math.factorial(w) * math.factorial(lo) * math.factorial(ties)
+                )
+                total += coef * p_win**w * p_loss**lo * (1 - p_win - p_loss) ** ties
+    return total
+
+
+def test_exact_binary_power_matches_brute_force_enumeration() -> None:
+    for n, p_win, p_loss in [(12, 0.4, 0.1), (25, 0.25, 0.05), (30, 0.1, 0.1), (18, 0.5, 0.0)]:
+        brute = _brute_force_power(n, p_win, p_loss, 0.05)
+        exact = paired_binary_power_exact(n, p_win - p_loss, p_win + p_loss)
+        assert exact == pytest.approx(brute, abs=1e-12)
+
+
+def test_exact_binary_power_is_below_connor_at_connors_n() -> None:
+    # discrete exact test is conservative: the closed form is optimistic at its own n
+    n = required_sample_size_binary(0.3, 0.1, exact=False)
+    assert paired_binary_power(n, 0.1, 0.3) >= 0.8
+    assert paired_binary_power_exact(n, 0.1, 0.3) < paired_binary_power(n, 0.1, 0.3)
+    exact_n = required_sample_size_binary(0.3, 0.1)
+    assert exact_n >= n - 3
+    assert paired_binary_power_exact(exact_n, 0.1, 0.3) >= 0.8
+    assert paired_binary_power_exact(exact_n - 1, 0.1, 0.3) < 0.8
+    # the exact minimum detectable effect reproduces 0.8 power at that n
+    d = minimum_detectable_effect_binary(0.3, exact_n)
+    assert paired_binary_power_exact(exact_n, d, 0.3) == pytest.approx(0.8, abs=1e-6)
+
+
+def test_exact_binary_power_edge_cases() -> None:
+    assert paired_binary_power_exact(0, 0.1, 0.3) == 0.0
+    assert paired_binary_power_exact(50, 0.0, 0.0) == 0.0
+    with pytest.raises(ValueError):
+        paired_binary_power_exact(10, 0.5, 0.3)
+    # under H1 with no wins by the other model and many discordant pairs: near certain
+    assert paired_binary_power_exact(200, 0.5, 0.5) == pytest.approx(1.0, abs=1e-12)
+    # at the null (d = 0) the exact test rejects at most alpha
+    assert paired_binary_power_exact(60, 0.0, 0.4) <= 0.05
+
+
+def test_resolve_ci_method_tie_guard() -> None:
+    assert resolve_ci_method("auto", 100, 0.0) == SMALL_N_METHOD
+    assert resolve_ci_method("auto", 100, 0.5) == SMALL_N_METHOD
+    assert resolve_ci_method("auto", 100, 0.51) == "percentile"
+    assert resolve_ci_method("auto", 400, 0.0) == "percentile"
+    assert resolve_ci_method("bca", 400, 0.9) == "bca"
+
+
+def test_sign_test_cutoff_matches_sign_test_p_on_both_code_paths() -> None:
+    for m in (60, 400, 401, 900):  # integer path up to 400, log-space floats above
+        c = _sign_test_cutoff(m, 0.05)
+        assert sign_test_p(c, m - c) < 0.05
+        assert sign_test_p(c + 1, m - c - 1) >= 0.05
+
+
+def test_exact_binary_search_is_fast_and_falls_back_to_connor_for_huge_n() -> None:
+    # target effect 0.001 would need ~4 million pairs: closed form, not a million-step search
+    assert required_sample_size_binary(0.5, 0.001) == required_sample_size_binary(
+        0.5, 0.001, exact=False
+    )
+    assert required_sample_size_binary(0.5, 0.001) > EXACT_POWER_MAX_N
+    # inside the exact range the sawtooth search lands on a crossing whose predecessor window fails
+    n = required_sample_size_binary(0.4, 0.1)
+    assert paired_binary_power_exact(n, 0.1, 0.4) >= 0.8
+    assert all(paired_binary_power_exact(m, 0.1, 0.4) < 0.8 for m in range(max(2, n - 60), n))
+
+
+def test_compare_pairs_without_power_skips_mde_and_n_needed() -> None:
+    scores = {"a": {i: float(i % 2) for i in range(30)}, "b": {i: 0.0 for i in range(30)}}
+    rows = compare_pairs(scores, [("a", "b")], num_resamples=50, with_power=False)
+    assert math.isnan(rows[0].mde) and rows[0].n_needed is None
+    full = compare_pairs(scores, [("a", "b")], num_resamples=50)
+    assert full[0].n_needed is not None and full[0].rand_p == rows[0].rand_p
 
 
 def test_binary_sample_size_edge_cases() -> None:
@@ -254,7 +339,9 @@ def test_binary_sample_size_edge_cases() -> None:
     with pytest.raises(ValueError):
         required_sample_size_binary(0.3, 1.5)
     # an effect larger than the discordant rate raises psi to the effect
-    assert required_sample_size_binary(0.01, 0.2) == required_sample_size_binary(0.2, 0.2)
+    assert required_sample_size_binary(0.01, 0.2, exact=False) == required_sample_size_binary(
+        0.2, 0.2, exact=False
+    )
 
 
 def test_binary_formula_differs_from_normal_approximation() -> None:
@@ -262,7 +349,7 @@ def test_binary_formula_differs_from_normal_approximation() -> None:
     psi, delta = 0.3, 0.1
     old = required_sample_size(math.sqrt(psi - delta**2), delta)
     assert old == 228
-    assert required_sample_size_binary(psi, delta) == 234 > old
+    assert required_sample_size_binary(psi, delta, exact=False) == 234 > old
 
 
 def test_is_binary() -> None:

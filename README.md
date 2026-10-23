@@ -508,6 +508,20 @@ Round-2 pass criteria, fixed now:
 
 Contingency, fixed now: if binary power is still flagged `optimistic` after Connor's closed form, the next step is exact conditional power of the shipped exact test (Duffy 1984, Biometrics 40:1005-1015; the exact test conditions on the number of discordant pairs, so power is a binomial mixture), committed with its reason and the report re-run; both outcomes would then be reported. The decision rules, grid, replication counts and seed are not changed.
 
+### Round 2a outcome and round 2b amendments (committed before the round-2b scoring run)
+
+The dev selection chose `studentized` (20 vs 43 `undercovers` coverage cells on seed 1; `runs/stats-check/dev-seed1-*.md`). Round 2a is the seed-0 final run with Connor's formula and `auto` = bootstrap-t below n = 400 (`runs/stats-check/report-connor.md`, `uv run evalkit stats-check --out runs/stats-check/report-connor.md`):
+
+- **Binary power: contingency triggered.** 11 of 14 binary power cells are still flagged `optimistic` (empirical power 0.74 to 0.79 at Connor's n for 0.80). Connor's formula is a normal approximation to a discrete, conservative test.
+- **Bootstrap coverage:** `undercovers` cells fall from 17 to 7 (continuous) and from 24 to 7 (skewed) but the second-order intervals are worse than the percentile interval when most pairs tie. At tie rate 0.8 coverage drops from 0.956 / 0.953 to 0.904 / 0.925 (binary, n = 20 / 50), from 0.932 / 0.918 to 0.880 / 0.889 (continuous) and from 0.907 / 0.875 to 0.838 / 0.849 (skewed). Development seed 1 shows the same regression for both `bca` and `studentized` at tie rate 0.8 and no gain at 0.5 (n = 20 / 50: bootstrap-t 0.906 / 0.929 continuous, percentile round 1 on seed 0 0.910 / 0.932). Real eval pairs often tie heavily (113 of 115 for 1.5B vs 3B), so this is the regime that matters most.
+
+Round-2b amendments, made after seeing round 2a (the second is **not** pre-registered; it is a response to the 2a result, based on the dev-seed evidence above, and is reported as such):
+
+1. **Exact conditional power for binary scores** (the pre-registered contingency, Duffy 1984). `paired_binary_power_exact` is the binomial mixture over the number of discordant pairs m ~ Bin(n, psi), with the rejection region of the exact two-sided sign test given m. It is verified against full trinomial enumeration in the tests. `required_sample_size_binary` and `minimum_detectable_effect_binary` use it by default (Connor's closed form stays available as `exact=False`). Exact power is not monotone in n, so n\* is the first n that reaches 80% (searched upward from 80% of Connor's n).
+2. **Tie guard for `auto`.** `auto` uses bootstrap-t only when n < 400 **and** at most 50% of the paired differences are exactly zero; otherwise percentile. The cut at 0.5 is the midpoint between the tie rates (0.5, 0.8) of the grid, read off dev seed 1; no other value was tried.
+
+The 2b final run overwrites `report.md` and `robustness-10000-resamples.md` with the same commands, grid, seed and decision rules as above. Pass criteria are unchanged. Binary power is evaluated at the new n\*. The H0 data are identical to round 1 and 2a (the cell ids did not change), so any coverage change is the interval method.
+
 ## Design Decisions
 
 - **Zero-Dependency Core Metrics**: Metrics are implemented directly with NumPy and standard library to ensure mathematical transparency and prevent external library drift.

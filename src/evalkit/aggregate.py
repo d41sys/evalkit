@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import cache
 from statistics import NormalDist
 
 import numpy as np
@@ -14,6 +15,11 @@ SMALL_N_CI = 400
 At n = 400 the percentile interval's normal-theory coverage shortfall (Hesterberg 2015:
 narrowness factor sqrt((n-1)/n) and z instead of t) is 0.1 percentage point."""
 SMALL_N_METHOD = "studentized"
+MAX_TIE_FRACTION_CI = 0.5
+"""``auto`` falls back to percentile when more than this share of paired differences is 0.
+
+Chosen from development seed 1 (bootstrap-t coverage equals or beats percentile at tie rates
+0 and 0.5 but is clearly worse at 0.8), not from the final seed-0 test data."""
 
 
 def jackknife_acceleration(arr: np.ndarray) -> float:
@@ -78,12 +84,19 @@ def _studentized_interval(
     return (theta - float(q_hi) * se, theta - float(q_lo) * se)
 
 
-def resolve_ci_method(method: str, n: int) -> str:
-    """The concrete interval method ``method`` means for ``n`` examples (``auto`` resolved)."""
+def resolve_ci_method(method: str, n: int, tie_fraction: float = 0.0) -> str:
+    """The concrete interval method ``method`` means (``auto`` resolved).
+
+    ``auto``: :data:`SMALL_N_METHOD` when ``n < SMALL_N_CI`` and at most
+    :data:`MAX_TIE_FRACTION_CI` of the paired differences are exactly zero, else
+    percentile. ``stats-check`` found the second-order methods worse than percentile when
+    most pairs tie (few nonzero differences carry the resampled variance estimate).
+    """
     if method not in CI_METHODS:
         raise ValueError(f"unknown CI method {method!r}; choose from {CI_METHODS}")
     if method == "auto":
-        return SMALL_N_METHOD if n < SMALL_N_CI else "percentile"
+        small = n < SMALL_N_CI and tie_fraction <= MAX_TIE_FRACTION_CI
+        return SMALL_N_METHOD if small else "percentile"
     return method
 
 
@@ -355,16 +368,20 @@ def paired_comparison(
     """Paired bootstrap CI on mean(A - B) plus an exact sign test.
 
     Resampling the per-example differences keeps the pairing, so example difficulty
-    cancels out instead of widening the interval. ``ci_method`` is passed to
-    :func:`bootstrap_mean_ci` (default ``auto``: bootstrap-t below 400 examples).
+    cancels out instead of widening the interval. ``ci_method`` is resolved by
+    :func:`resolve_ci_method` (default ``auto``: bootstrap-t below 400 examples unless
+    more than half the pairs tie, else percentile) and passed to
+    :func:`bootstrap_mean_ci`.
     """
     if len(scores_a) != len(scores_b):
         raise ValueError("paired scores must have the same length")
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)
     diffs = a - b
+    tie_fraction = float(np.mean(diffs == 0.0)) if diffs.size else 0.0
+    method = resolve_ci_method(ci_method, int(a.size), tie_fraction)
     diff, lo, hi = bootstrap_mean_ci(
-        diffs.tolist(), num_resamples=num_resamples, seed=seed, method=ci_method
+        diffs.tolist(), num_resamples=num_resamples, seed=seed, method=method
     )
     wins = int((diffs > 0).sum())
     losses = int((diffs < 0).sum())
@@ -379,7 +396,7 @@ def paired_comparison(
         losses=losses,
         ties=int(a.size) - wins - losses,
         sign_p=sign_test_p(wins, losses),
-        ci_method=resolve_ci_method(ci_method, int(a.size)),
+        ci_method=method,
     )
 
 
@@ -525,26 +542,95 @@ def paired_binary_power(n: int, p_diff: float, p_disc: float, alpha: float = 0.0
     return nd.cdf((shift - top) / spread) + nd.cdf((-shift - top) / spread)
 
 
-def required_sample_size_binary(
-    p_disc: float, effect: float, alpha: float = 0.05, power: float = 0.8
-) -> int:
-    """Pairs needed for the McNemar test to detect ``effect`` with the given power.
+EXACT_POWER_MAX_N = 5000
+_SAWTOOTH_WINDOW = 60
+_LOG_FACT: list[np.ndarray] = [np.zeros(1)]
 
-    Connor (1987, Biometrics 43:207-211), eq. for the paired-sample design:
 
-        n = ceil((z_{1 - alpha/2} sqrt(psi) + z_{power} sqrt(psi - d^2))^2 / d^2)
+def _log_factorials(n: int) -> np.ndarray:
+    """``log(k!)`` for k = 0..n (a growing cache; the returned array may be longer)."""
+    if _LOG_FACT[0].size <= n:
+        size = max(n + 1, 2 * _LOG_FACT[0].size)
+        out = np.zeros(size, dtype=np.float64)
+        out[1:] = np.cumsum(np.log(np.arange(1, size, dtype=np.float64)))
+        _LOG_FACT[0] = out
+    return _LOG_FACT[0]
 
-    ``psi`` = ``p_disc``, the discordant-pair rate P(A != B); ``d`` = ``effect`` =
-    P(A=1, B=0) - P(A=0, B=1). Worked example (Machin et al. 2009, via MedCalc):
-    shifts of 20% and 10%, so psi = 0.3, d = 0.1: n = 234. Fewer discordant pairs than
-    the effect is impossible, so psi is raised to |d| if smaller. At least 2.
+
+def _binom_pmf(n: int, p: float, log_fact: np.ndarray) -> np.ndarray:
+    """Binomial(n, p) probabilities for k = 0..n (``log_fact`` covers at least n)."""
+    out = np.zeros(n + 1, dtype=np.float64)
+    if p <= 0.0:
+        out[0] = 1.0
+    elif p >= 1.0:
+        out[n] = 1.0
+    else:
+        k = np.arange(n + 1)
+        out = np.exp(
+            log_fact[n] - log_fact[k] - log_fact[n - k] + k * math.log(p) + (n - k) * math.log1p(-p)
+        )
+    return out
+
+
+@cache
+def _sign_test_cutoff(m: int, alpha: float) -> int:
+    """Largest c such that the exact two-sided sign test on ``m`` discordant pairs
+    rejects whenever ``min(wins, losses) <= c`` (-1 when it never rejects).
+
+    Same rule as :func:`sign_test_p`: reject when ``min(1, 2 P(Bin(m, 1/2) <= c)) < alpha``.
+    Integer arithmetic up to 400 pairs, log-space floats above (same answer, no big ints).
     """
-    delta = abs(effect)
-    if delta == 0:
-        raise ValueError("effect must be nonzero")
-    if delta > 1.0:
-        raise ValueError("a difference of 0/1 scores cannot exceed 1")
-    psi = max(p_disc, delta)
+    if m > 400:
+        log_fact = _log_factorials(m)
+        ks = np.arange(m // 2 + 1)
+        cdf = np.cumsum(np.exp(log_fact[m] - log_fact[ks] - log_fact[m - ks] - m * math.log(2.0)))
+        return int(np.count_nonzero(np.minimum(1.0, 2.0 * cdf) < alpha)) - 1
+    cum = 0
+    term = 1  # C(m, 0)
+    cutoff = -1
+    for k in range(m // 2 + 1):
+        cum += term
+        if min(1.0, 2.0 * (cum / 2**m)) < alpha:
+            cutoff = k
+        else:
+            break
+        term = term * (m - k) // (k + 1)
+    return cutoff
+
+
+def paired_binary_power_exact(n: int, p_diff: float, p_disc: float, alpha: float = 0.05) -> float:
+    """Exact power of the shipped test (exact two-sided sign test on the discordant pairs).
+
+    For binary scores :func:`randomization_test_p` is the exact conditional McNemar
+    test, so power is a binomial mixture (Duffy 1984, Biometrics 40:1005-1015): the
+    number of discordant pairs is ``m ~ Bin(n, psi)`` with ``psi = p_disc``; given
+    ``m``, the wins are ``Bin(m, (psi + d) / (2 psi))`` and the test rejects when
+    ``min(wins, losses) <= c_m``, the sign-test cutoff for ``m`` pairs. Unlike
+    :func:`paired_binary_power` it does not treat the discrete, conservative test as a
+    continuous normal one.
+    """
+    delta = abs(p_diff)
+    if delta > p_disc + 1e-12:
+        raise ValueError("|p_diff| cannot exceed p_disc")
+    if n <= 0 or p_disc <= 0.0:
+        return 0.0
+    psi = min(p_disc, 1.0)
+    p_win = min(1.0, (psi + delta) / (2.0 * psi))
+    log_fact = _log_factorials(n)
+    weight = _binom_pmf(n, psi, log_fact)
+    total = 0.0
+    for m in np.nonzero(weight > 1e-16)[0]:
+        cutoff = _sign_test_cutoff(int(m), alpha)
+        if cutoff < 0:
+            continue
+        pmf = _binom_pmf(int(m), p_win, log_fact)
+        total += float(weight[m]) * (
+            float(pmf[: cutoff + 1].sum()) + float(pmf[m - cutoff :].sum())
+        )
+    return min(1.0, total)
+
+
+def _connor_sample_size(psi: float, delta: float, alpha: float, power: float) -> int:
     nd = NormalDist()
     num = nd.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(psi) + nd.inv_cdf(power) * math.sqrt(
         max(0.0, psi - delta * delta)
@@ -552,36 +638,105 @@ def required_sample_size_binary(
     return max(2, math.ceil((num / delta) ** 2))
 
 
-def minimum_detectable_effect_binary(
-    p_disc: float, n: int, alpha: float = 0.05, power: float = 0.8
-) -> float:
-    """Smallest difference of 0/1 scores the McNemar test detects with the given power.
+def required_sample_size_binary(
+    p_disc: float,
+    effect: float,
+    alpha: float = 0.05,
+    power: float = 0.8,
+    exact: bool = True,
+) -> int:
+    """Pairs needed to detect ``effect`` with the given power, for 0/1 scores.
 
-    Solves Connor's relation ``sqrt(n) d = z sqrt(psi) + z_power sqrt(psi - d^2)`` for
-    ``d`` at the discordant rate ``psi = p_disc`` (the left side minus the right is
-    increasing in ``d``, so bisection finds the unique root). ``inf`` when even
-    ``d = psi`` (every discordant pair favouring one model) is not detectable at this
-    ``n``; 0 when there are no discordant pairs (nothing to resolve either way).
+    ``psi`` = ``p_disc``, the discordant-pair rate P(A != B); ``d`` = ``effect`` =
+    P(A=1, B=0) - P(A=0, B=1). Fewer discordant pairs than the effect is impossible,
+    so psi is raised to |d| if smaller. At least 2.
+
+    * ``exact=False``: Connor's (1987, Biometrics 43:207-211) closed form for the
+      McNemar test, ``n = ceil((z_{1-a/2} sqrt(psi) + z_power sqrt(psi - d^2))^2 / d^2)``.
+      Worked example (Machin et al. 2009, via MedCalc): shifts of 20% and 10%, so
+      psi = 0.3, d = 0.1: n = 234.
+    * ``exact=True`` (default): the smallest ``n`` whose exact power
+      (:func:`paired_binary_power_exact`) reaches ``power``. ``evalkit stats-check`` found
+      Connor's closed form optimistic for this discrete test (empirical power 0.74 to 0.79
+      at its own n for 0.80). Exact power is not monotone in ``n`` (the rejection region
+      jumps), so the search bisects to a crossing between 80% of Connor's n and above it,
+      then returns the earliest n that reaches ``power`` within the 60 pairs below it
+      (a larger n can dip back just below). Above ``EXACT_POWER_MAX_N`` = 5000 pairs
+      the exact search is skipped and Connor's n is returned: there exact power is
+      within 1 percentage point of the closed form (0.790 at n = 2614 for psi 0.3,
+      d 0.03; 0.794 at n = 4359 for psi 0.5, d 0.03).
+    """
+    delta = abs(effect)
+    if delta == 0:
+        raise ValueError("effect must be nonzero")
+    if delta > 1.0:
+        raise ValueError("a difference of 0/1 scores cannot exceed 1")
+    psi = max(p_disc, delta)
+    n = _connor_sample_size(psi, delta, alpha, power)
+    if not exact or n > EXACT_POWER_MAX_N:
+        return n
+
+    def reaches(m: int) -> bool:
+        return paired_binary_power_exact(m, delta, psi, alpha) >= power
+
+    lo = max(2, int(0.8 * n))
+    if reaches(lo):
+        while lo > 2 and reaches(lo - 1):
+            lo -= 1
+        return lo
+    hi = n
+    while not reaches(hi):  # lo fails; find some n that reaches
+        lo, hi = hi, hi + max(2, n // 20)
+    while hi - lo > 1:  # bisect to a crossing
+        mid = (lo + hi) // 2
+        if reaches(mid):
+            hi = mid
+        else:
+            lo = mid
+    # power is a sawtooth in n: take the earliest crossing in a window below the one found
+    first = hi
+    for m in range(max(2, hi - _SAWTOOTH_WINDOW), hi):
+        if reaches(m):
+            first = m
+            break
+    return first
+
+
+def minimum_detectable_effect_binary(
+    p_disc: float, n: int, alpha: float = 0.05, power: float = 0.8, exact: bool = True
+) -> float:
+    """Smallest difference of 0/1 scores detected with the given power at ``n`` pairs.
+
+    Solves, for ``d`` at the discordant rate ``psi = p_disc``, either Connor's relation
+    ``sqrt(n) d = z sqrt(psi) + z_power sqrt(psi - d^2)`` (``exact=False``) or
+    ``paired_binary_power_exact(n, d, psi) = power`` (default). Both sides increase
+    with ``d``, so bisection finds the root. ``inf`` when even ``d = psi`` (every
+    discordant pair favouring one model) is not detectable at this ``n``; 0 when there
+    are no discordant pairs (nothing to resolve either way).
     """
     if n <= 0:
         return math.inf
     psi = min(max(p_disc, 0.0), 1.0)
     if psi == 0.0:
         return 0.0
+    exact = exact and n <= EXACT_POWER_MAX_N
     nd = NormalDist()
     z_a = nd.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(psi)
     z_b = nd.inv_cdf(power)
     root_n = math.sqrt(n)
 
-    def gap(d: float) -> float:
-        return root_n * d - z_a - z_b * math.sqrt(max(0.0, psi - d * d))
+    def short(d: float) -> bool:
+        """True when effect ``d`` is not yet detected with the target power."""
+        if exact:
+            return paired_binary_power_exact(n, d, psi, alpha) < power
+        return root_n * d - z_a - z_b * math.sqrt(max(0.0, psi - d * d)) < 0.0
 
-    if gap(psi) < 0.0:
+    if short(psi):
         return math.inf
     lo, hi = 0.0, psi
-    for _ in range(80):
+    for _ in range(50 if exact else 80):
         mid = 0.5 * (lo + hi)
-        if gap(mid) < 0.0:
+        if short(mid):
             lo = mid
         else:
             hi = mid
@@ -671,6 +826,7 @@ def compare_pairs(
     num_draws: int = 10000,
     seed: int = 0,
     ci_method: str = "auto",
+    with_power: bool = True,
 ) -> list[PairResolution]:
     """Paired resolvability analysis for ``pairs`` (A, B) of models.
 
@@ -681,10 +837,12 @@ def compare_pairs(
     the observed |mean difference|; None result when that is 0). A pair is
     ``resolved`` when its Holm-adjusted randomisation p < ``alpha``.
 
-    MDE and ``n_needed``: for pairs where both models' scores are all 0/1, Connor's
-    McNemar formulas at the observed discordant rate; otherwise the normal
-    approximation with the SD of the differences. ``ci_method`` is the bootstrap CI
-    method (see :func:`bootstrap_mean_ci`).
+    MDE and ``n_needed``: for pairs where both models' scores are all 0/1, the exact
+    conditional McNemar power (:func:`paired_binary_power_exact`, discordant rate
+    observed); otherwise the normal approximation with the SD of the differences.
+    ``with_power=False`` skips both (``mde`` is NaN, ``n_needed`` None) for callers that
+    only need p-values. ``ci_method`` is the bootstrap CI method (see
+    :func:`bootstrap_mean_ci`).
     """
     stats: list[_PairStats] = []
     for a_name, b_name in pairs:
@@ -703,7 +861,11 @@ def compare_pairs(
     for (a_name, b_name), s, hp in zip(pairs, stats, holm, strict=True):
         c = s.comparison
         target = abs(c.diff) if effect is None else abs(effect)
-        if s.binary:
+        mde: float
+        needed: int | None
+        if not with_power:
+            mde, needed = math.nan, None
+        elif s.binary:
             psi = (c.wins + c.losses) / c.n
             mde = minimum_detectable_effect_binary(psi, c.n, alpha, power)
             needed = (

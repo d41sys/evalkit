@@ -271,7 +271,7 @@ def assign_tie_groups(
     pairs = [(ranked[i].model_name, ranked[i + 1].model_name) for i in range(len(ranked) - 1)]
     group = 1
     ranked[0].tie_group = group
-    for nxt, res in zip(ranked[1:], compare_pairs(scores, pairs), strict=True):
+    for nxt, res in zip(ranked[1:], compare_pairs(scores, pairs, with_power=False), strict=True):
         if res.resolved:
             group += 1
         nxt.tie_group = group
