@@ -38,9 +38,12 @@ import numpy as np
 from .aggregate import (
     compare_pairs,
     minimum_detectable_effect,
+    minimum_detectable_effect_binary,
     paired_comparison,
     randomization_test_p,
     required_sample_size,
+    required_sample_size_binary,
+    skewness_warning,
 )
 
 ALPHA = 0.05
@@ -201,19 +204,20 @@ def simulate_pairs(
 
 
 def mde_scenario(kind: str, n: int, tie_rate: float) -> Scenario | None:
-    """Scenario whose true effect is the formula's MDE at ``n`` (effect = MDE(sd(effect), n)).
+    """Scenario whose true effect is the formula's MDE at ``n``.
 
-    The SD of the differences depends on the effect, so the fixed point is solved in
-    closed form: binary d^2 = c^2 (1 - t) / (n + c^2); continuous kinds
-    d^2 = c^2 (1 - t) SIGMA^2 / (n - c^2 t / (1 - t)), with c = z_{1-a/2} + z_{power}.
-    Returns None when no finite effect satisfies it (or a binary effect would exceed
-    1 - tie_rate), i.e. the formula's promise is unattainable at this n.
+    Binary: the discordant rate is known (``1 - tie_rate``), so the effect is
+    :func:`minimum_detectable_effect_binary` (Connor 1987) at that rate. Continuous
+    kinds: effect = MDE(sd(effect), n) with the SD depending on the effect, solved in
+    closed form as d^2 = c^2 (1 - t) SIGMA^2 / (n - c^2 t / (1 - t)), with
+    c = z_{1-a/2} + z_{power}. Returns None when the formula's promise is unattainable
+    at this n (no finite effect satisfies it).
     """
-    c = minimum_detectable_effect(1.0, 1)
     t = tie_rate
     if kind == "binary":
-        d = math.sqrt(c * c * (1.0 - t) / (n + c * c))
-        return Scenario(kind, n, t, d) if d <= 1.0 - t else None
+        d = minimum_detectable_effect_binary(1.0 - t, n)
+        return Scenario(kind, n, t, d) if math.isfinite(d) else None
+    c = minimum_detectable_effect(1.0, 1)
     denom = n - c * c * t / (1.0 - t)
     if denom <= 0:
         return None
@@ -222,7 +226,13 @@ def mde_scenario(kind: str, n: int, tie_rate: float) -> Scenario | None:
 
 
 def n_star(kind: str, tie_rate: float, effect: float) -> int:
-    """``required_sample_size`` for 80% power at the scenario's true SD and effect."""
+    """The formula's n for 80% power at the scenario's true discordant rate / SD and effect.
+
+    Binary scores: :func:`required_sample_size_binary` at psi = 1 - tie_rate; the
+    continuous kinds: :func:`required_sample_size` at the true SD.
+    """
+    if kind == "binary":
+        return required_sample_size_binary(1.0 - tie_rate, effect)
     sd = Scenario(kind, 2, tie_rate, effect).true_sd
     return required_sample_size(sd, effect)
 
@@ -241,6 +251,7 @@ class CellJob:
     resamples: int
     draws: int
     group: str  # "h0", "mde" or "fixed"
+    ci_method: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -252,6 +263,7 @@ class CellResult:
     coverage: Rate
     mean_ci_width: float
     predicted_power: float | None  # 0.80 where n was computed by the formula
+    skew_warn: Rate  # share of replications where skewness_warning fires
 
 
 def run_cell(job: CellJob) -> CellResult:
@@ -259,17 +271,24 @@ def run_cell(job: CellJob) -> CellResult:
     a, b = simulate_pairs(job.scenario, job.reps, rng)
     seeds = rng.integers(0, 2**31 - 1, size=job.reps)
     truth = job.scenario.effect
-    rand_rej = sign_rej = excl = cov = 0
+    rand_rej = sign_rej = excl = cov = warned = 0
     width = 0.0
     for i in range(job.reps):
         s = int(seeds[i])
-        cmp = paired_comparison(a[i].tolist(), b[i].tolist(), num_resamples=job.resamples, seed=s)
+        cmp = paired_comparison(
+            a[i].tolist(),
+            b[i].tolist(),
+            num_resamples=job.resamples,
+            seed=s,
+            ci_method=job.ci_method,
+        )
         p_rand = randomization_test_p(a[i] - b[i], num_draws=job.draws, seed=s)
         rand_rej += p_rand < ALPHA
         sign_rej += cmp.sign_p < ALPHA
         excl += not (cmp.diff_ci_lo <= 0.0 <= cmp.diff_ci_hi)
         cov += cmp.diff_ci_lo - _EPS <= truth <= cmp.diff_ci_hi + _EPS
         width += cmp.diff_ci_hi - cmp.diff_ci_lo
+        warned += skewness_warning(a[i] - b[i])[1]
     return CellResult(
         job=job,
         rand_reject=Rate(int(rand_rej), job.reps),
@@ -278,6 +297,7 @@ def run_cell(job: CellJob) -> CellResult:
         coverage=Rate(int(cov), job.reps),
         mean_ci_width=width / job.reps,
         predicted_power=POWER_TARGET if job.group != "h0" else None,
+        skew_warn=Rate(int(warned), job.reps),
     )
 
 
@@ -362,6 +382,7 @@ class StatsCheckConfig:
     fwer_ns: tuple[int, ...] = FWER_NS
     fixed_effects: tuple[float, ...] = FIXED_EFFECTS
     workers: int = 1
+    ci_method: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -398,6 +419,7 @@ def plan(
                         config.resamples,
                         config.draws,
                         "h0",
+                        config.ci_method,
                     )
                 )
     h1: list[CellJob] = []
@@ -419,6 +441,7 @@ def plan(
                         config.resamples,
                         config.draws,
                         "mde",
+                        config.ci_method,
                     )
                 )
     for kind in KINDS:
@@ -433,6 +456,7 @@ def plan(
                     config.resamples,
                     config.draws,
                     "fixed",
+                    config.ci_method,
                 )
             )
     fwer: list[FwerJob] = []
@@ -534,19 +558,19 @@ def render_markdown(report: StatsCheckReport) -> str:
     lines.append(
         f"seed {cfg.seed}; replications: H0 {cfg.reps_h0}, power {cfg.reps_power}, "
         f"FWER {cfg.reps_fwer}; bootstrap resamples {cfg.resamples}; randomisation draws "
-        f"{cfg.draws} (exact enumeration up to 20 nonzero differences). Intervals are "
-        f"Wilson {MC_LEVEL:.0%} over replications.\n"
+        f"{cfg.draws} (exact enumeration up to 20 nonzero differences); CI method "
+        f"`{cfg.ci_method}`. Intervals are Wilson {MC_LEVEL:.0%} over replications.\n"
     )
     lines.append("### Type-I error at alpha = 0.05 (H0: true difference 0)\n")
-    lines.append("| kind | tie rate | n | randomisation | sign test | CI excludes 0 |")
-    lines.append("|---|---|---|---|---|---|")
+    lines.append("| kind | tie rate | n | randomisation | sign test | CI excludes 0 | warn rate |")
+    lines.append("|---|---|---|---|---|---|---|")
     for r in report.h0:
         s = r.job.scenario
         lines.append(
             f"| {s.kind} | {s.tie_rate:g} | {s.n} "
             f"| {r.rand_reject.fmt()}{_flag(classify_error_rate(r.rand_reject))} "
             f"| {r.sign_reject.fmt()}{_flag(classify_error_rate(r.sign_reject))} "
-            f"| {r.ci_excludes_zero.fmt()} |"
+            f"| {r.ci_excludes_zero.fmt()} | {r.skew_warn.fmt()} |"
         )
     lines.append("\n### Bootstrap CI coverage of the true difference (nominal 0.95)\n")
     lines.append("| group | kind | tie rate | n | effect | coverage | mean CI width |")
@@ -574,8 +598,9 @@ def render_markdown(report: StatsCheckReport) -> str:
         )
     if report.skipped:
         lines.append(
-            "\nMDE cells with no attainable effect (formula's fixed point does not exist "
-            "or exceeds 1 - tie rate): "
+            "\nMDE cells with no attainable effect (binary: even every discordant pair "
+            "favouring one model is not detectable at this n; continuous: the formula's "
+            "fixed point does not exist): "
             + "; ".join(f"{k.kind} n={k.n} ties={k.tie_rate:g}" for k in report.skipped)
             + "."
         )

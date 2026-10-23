@@ -7,7 +7,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from evalkit.aggregate import minimum_detectable_effect, required_sample_size
+from evalkit.aggregate import (
+    minimum_detectable_effect,
+    minimum_detectable_effect_binary,
+    required_sample_size,
+    required_sample_size_binary,
+)
 from evalkit.cli import main
 from evalkit.statscheck import (
     CellJob,
@@ -20,6 +25,7 @@ from evalkit.statscheck import (
     classify_power,
     collect_findings,
     mde_scenario,
+    n_star,
     plan,
     render_markdown,
     run_cell,
@@ -95,7 +101,7 @@ def test_scenario_validation() -> None:
         Scenario("binary", 10, 1.0, 0.0)
 
 
-@pytest.mark.parametrize("kind", ["binary", "continuous", "skewed"])
+@pytest.mark.parametrize("kind", ["continuous", "skewed"])
 @pytest.mark.parametrize("n", [20, 50, 115, 240])
 @pytest.mark.parametrize("tie", [0.0, 0.5])
 def test_mde_scenario_is_formula_fixed_point(kind: str, n: int, tie: float) -> None:
@@ -105,9 +111,35 @@ def test_mde_scenario_is_formula_fixed_point(kind: str, n: int, tie: float) -> N
     assert abs(required_sample_size(sc.true_sd, sc.effect) - n) <= 1
 
 
+@pytest.mark.parametrize("n", [20, 50, 115, 240])
+@pytest.mark.parametrize("tie", [0.0, 0.5])
+def test_binary_mde_scenario_is_connor_fixed_point(n: int, tie: float) -> None:
+    sc = mde_scenario("binary", n, tie)
+    assert sc is not None
+    assert minimum_detectable_effect_binary(1.0 - tie, n) == pytest.approx(sc.effect, rel=1e-9)
+    assert required_sample_size_binary(1.0 - tie, sc.effect) - n in (0, 1)
+    assert n_star("binary", tie, sc.effect) == required_sample_size_binary(1.0 - tie, sc.effect)
+
+
 def test_mde_scenario_none_when_unattainable() -> None:
-    assert mde_scenario("binary", 20, 0.8) is None  # needs effect 0.237 > 1 - tie rate
+    assert mde_scenario("binary", 20, 0.8) is None  # even d = psi = 0.2 is not detectable
     assert mde_scenario("continuous", 20, 0.8) is None  # no finite fixed point
+
+
+def test_run_cell_reports_skew_warning_rate() -> None:
+    skewed = run_cell(CellJob(0, Scenario("skewed", 20, 0.0, 0.0), 60, 0, 50, 100, "h0"))
+    sym = run_cell(CellJob(0, Scenario("continuous", 115, 0.0, 0.0), 60, 0, 50, 100, "h0"))
+    assert skewed.skew_warn.value > 0.5
+    assert sym.skew_warn.value < 0.2
+
+
+def test_ci_method_reaches_the_cell_runner() -> None:
+    def cell(method: str) -> CellJob:
+        return CellJob(0, Scenario("skewed", 30, 0.0, 0.0), 40, 0, 200, 100, "h0", method)
+
+    assert run_cell(cell("bca")).mean_ci_width != run_cell(cell("percentile")).mean_ci_width
+    assert run_cell(cell("bca")) == run_cell(cell("bca"))
+    assert StatsCheckConfig().ci_method == "auto"
 
 
 def test_run_cell_is_deterministic_and_seed_sensitive() -> None:

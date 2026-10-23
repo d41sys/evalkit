@@ -7,17 +7,107 @@ from statistics import NormalDist
 
 import numpy as np
 
+CI_METHODS = ("auto", "percentile", "bca", "studentized")
+SMALL_N_CI = 400
+"""``method="auto"`` uses :data:`SMALL_N_METHOD` below this many examples, else percentile.
+
+At n = 400 the percentile interval's normal-theory coverage shortfall (Hesterberg 2015:
+narrowness factor sqrt((n-1)/n) and z instead of t) is 0.1 percentage point."""
+SMALL_N_METHOD = "bca"
+
+
+def jackknife_acceleration(arr: np.ndarray) -> float:
+    """Acceleration ``a = sum(d^3) / (6 sum(d^2)^1.5)`` of the BCa interval for the mean.
+
+    ``d_i = jack mean - jack_i`` over the leave-one-out means. For the mean this is
+    exactly ``skewness / (6 sqrt(n))`` (Efron 1987); 0 when the data do not vary.
+    """
+    jack = (arr.sum() - arr) / (arr.size - 1)
+    d = jack.mean() - jack
+    denom = 6.0 * float((d * d).sum()) ** 1.5
+    return float((d**3).sum()) / denom if denom > 0.0 else 0.0
+
+
+def _bca_interval(arr: np.ndarray, boot_means: np.ndarray, alpha: float) -> tuple[float, float]:
+    """BCa interval for the mean (Efron 1987, "Better bootstrap confidence intervals").
+
+    Percentile levels are moved to ``Phi(z0 + (z0 + z_a) / (1 - a (z0 + z_a)))`` where
+    ``z0`` is the bias correction (normal quantile of the bootstrap share below the
+    estimate; ties count half, which matters for discrete scores) and ``a`` the
+    jackknife acceleration ``sum(d^3) / (6 sum(d^2)^1.5)``, ``d = jack mean - jack_i``.
+    """
+    nd = NormalDist()
+    theta = float(arr.mean())
+    tol = 1e-12 * max(1.0, abs(theta))
+    below = float(np.mean(boot_means < theta - tol)) + 0.5 * float(
+        np.mean(np.abs(boot_means - theta) <= tol)
+    )
+    eps = 0.5 / boot_means.size
+    z0 = nd.inv_cdf(min(max(below, eps), 1.0 - eps))
+    accel = jackknife_acceleration(arr)
+    out: list[float] = []
+    for p in (alpha / 2.0, 1.0 - alpha / 2.0):
+        zc = z0 + nd.inv_cdf(p)
+        shrink = 1.0 - accel * zc
+        adj = nd.cdf(z0 + zc / shrink) if shrink > 0.0 else (1.0 if zc > 0.0 else 0.0)
+        out.append(float(np.quantile(boot_means, adj)))
+    return (out[0], out[1])
+
+
+def _studentized_interval(
+    arr: np.ndarray, resamples: np.ndarray, alpha: float
+) -> tuple[float, float] | None:
+    """Bootstrap-t interval for the mean (Efron & Tibshirani 1993, ch. 12).
+
+    ``t* = (mean* - mean) / (sd* / sqrt(n))`` over the resamples; the interval is
+    ``mean - q_{1-a/2} se, mean - q_{a/2} se`` with ``se = sd / sqrt(n)``. Resamples
+    with ``sd* = 0`` have no t value and are dropped; None if too few remain.
+    """
+    n = arr.size
+    sd = float(arr.std(ddof=1))
+    if sd <= 0.0:
+        return None
+    sd_star = resamples.std(axis=1, ddof=1)
+    ok = sd_star > 1e-12 * sd
+    if int(ok.sum()) < 0.5 * resamples.shape[0]:
+        return None
+    theta = float(arr.mean())
+    t_star = (resamples.mean(axis=1)[ok] - theta) / (sd_star[ok] / math.sqrt(n))
+    q_lo, q_hi = np.quantile(t_star, [alpha / 2.0, 1.0 - alpha / 2.0])
+    se = sd / math.sqrt(n)
+    return (theta - float(q_hi) * se, theta - float(q_lo) * se)
+
+
+def resolve_ci_method(method: str, n: int) -> str:
+    """The concrete interval method ``method`` means for ``n`` examples (``auto`` resolved)."""
+    if method not in CI_METHODS:
+        raise ValueError(f"unknown CI method {method!r}; choose from {CI_METHODS}")
+    if method == "auto":
+        return SMALL_N_METHOD if n < SMALL_N_CI else "percentile"
+    return method
+
 
 def bootstrap_mean_ci(
     scores: Sequence[float],
     num_resamples: int = 1000,
     confidence_level: float = 0.95,
     seed: int = 0,
+    method: str = "auto",
 ) -> tuple[float, float, float]:
     """Compute mean and 95% bootstrap confidence interval (mean, ci_lo, ci_hi).
 
-    Default: 1000 resamples, seed 0.
+    Default: 1000 resamples, seed 0. ``method``:
+
+    * ``percentile``: the plain percentile interval. Too narrow for small n
+      (Hesterberg 2015), and for skewed scores.
+    * ``bca``: bias-corrected and accelerated (Efron 1987), second-order accurate.
+    * ``studentized``: bootstrap-t (Efron & Tibshirani 1993); falls back to the
+      percentile interval when the data have no spread or most resamples do not.
+    * ``auto`` (default): :data:`SMALL_N_METHOD` when ``n < SMALL_N_CI`` (400),
+      percentile otherwise.
     """
+    if method not in CI_METHODS:
+        raise ValueError(f"unknown CI method {method!r}; choose from {CI_METHODS}")
     if len(scores) == 0:
         return (0.0, 0.0, 0.0)
 
@@ -27,13 +117,21 @@ def bootstrap_mean_ci(
     if n == 1 or num_resamples <= 0:
         return (mean_val, mean_val, mean_val)
 
+    method = resolve_ci_method(method, n)
     rng = np.random.default_rng(seed)
     resamples = rng.choice(arr, size=(num_resamples, n), replace=True)
     resample_means = resamples.mean(axis=1)
 
     alpha = 1.0 - confidence_level
-    lo = float(np.percentile(resample_means, 100.0 * (alpha / 2.0)))
-    hi = float(np.percentile(resample_means, 100.0 * (1.0 - alpha / 2.0)))
+    if method == "bca":
+        lo, hi = _bca_interval(arr, resample_means, alpha)
+    else:
+        stud = _studentized_interval(arr, resamples, alpha) if method == "studentized" else None
+        if stud is not None:
+            lo, hi = stud
+        else:
+            lo = float(np.percentile(resample_means, 100.0 * (alpha / 2.0)))
+            hi = float(np.percentile(resample_means, 100.0 * (1.0 - alpha / 2.0)))
     return (mean_val, lo, hi)
 
 
@@ -244,6 +342,7 @@ class PairedComparison:
     losses: int
     ties: int
     sign_p: float
+    ci_method: str  # concrete method behind diff_ci_lo / diff_ci_hi
 
 
 def paired_comparison(
@@ -251,18 +350,22 @@ def paired_comparison(
     scores_b: Sequence[float],
     num_resamples: int = 10000,
     seed: int = 0,
+    ci_method: str = "auto",
 ) -> PairedComparison:
     """Paired bootstrap CI on mean(A - B) plus an exact sign test.
 
     Resampling the per-example differences keeps the pairing, so example difficulty
-    cancels out instead of widening the interval.
+    cancels out instead of widening the interval. ``ci_method`` is passed to
+    :func:`bootstrap_mean_ci` (default ``auto``: BCa below 400 examples).
     """
     if len(scores_a) != len(scores_b):
         raise ValueError("paired scores must have the same length")
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)
     diffs = a - b
-    diff, lo, hi = bootstrap_mean_ci(diffs.tolist(), num_resamples=num_resamples, seed=seed)
+    diff, lo, hi = bootstrap_mean_ci(
+        diffs.tolist(), num_resamples=num_resamples, seed=seed, method=ci_method
+    )
     wins = int((diffs > 0).sum())
     losses = int((diffs < 0).sum())
     return PairedComparison(
@@ -276,6 +379,7 @@ def paired_comparison(
         losses=losses,
         ties=int(a.size) - wins - losses,
         sign_p=sign_test_p(wins, losses),
+        ci_method=resolve_ci_method(ci_method, int(a.size)),
     )
 
 
@@ -299,6 +403,13 @@ def randomization_test_p(
 
     Smucker, Allan & Carterette (2007) recommend this test, or the bootstrap,
     over the sign and Wilcoxon tests for comparing retrieval/IR systems.
+
+    Assumption: flipping the sign of a difference is the same as swapping the two
+    models' scores in that example, so the reference distribution is exact only if
+    each difference is symmetric around 0 under H0 (A_i, B_i exchangeable), which is
+    stronger than "mean difference = 0". On skewed differences the test is
+    anti-conservative (``evalkit stats-check``: type-I error 0.05 to 0.09 at nominal
+    0.05 for n <= 240); :func:`skewness_warning` flags when to distrust it.
     """
     d = np.asarray(diffs, dtype=np.float64)
     d = d[np.abs(d) > 1e-12]
@@ -382,9 +493,139 @@ def required_sample_size(
     return max(2, n)
 
 
+def is_binary(values: Sequence[float] | np.ndarray) -> bool:
+    """True when ``values`` is non-empty and every entry is exactly 0 or 1."""
+    arr = np.asarray(values, dtype=np.float64)
+    return bool(arr.size > 0 and np.all((arr == 0.0) | (arr == 1.0)))
+
+
+def paired_binary_power(n: int, p_diff: float, p_disc: float, alpha: float = 0.05) -> float:
+    """Power of the two-sided McNemar test for ``n`` pairs (Connor 1987).
+
+    ``p_disc`` = P(A != B), the discordant-pair rate, ``p_diff`` = P(A=1, B=0) -
+    P(A=0, B=1). Under H0 the difference of discordant counts has variance
+    ``n * p_disc``, under H1 ``n * (p_disc - p_diff^2)``:
+
+        power = Phi((sqrt(n)|d| - z sqrt(psi)) / s) + Phi((-sqrt(n)|d| - z sqrt(psi)) / s)
+
+    with ``z = z_{1 - alpha/2}``, ``psi = p_disc``, ``s = sqrt(psi - d^2)``.
+    """
+    delta = abs(p_diff)
+    if delta > p_disc + 1e-12:
+        raise ValueError("|p_diff| cannot exceed p_disc")
+    if n <= 0:
+        return 0.0
+    nd = NormalDist()
+    z = nd.inv_cdf(1.0 - alpha / 2.0)
+    shift = math.sqrt(n) * delta
+    spread = math.sqrt(max(0.0, p_disc - delta * delta))
+    if spread == 0.0:
+        return 1.0 if shift > z * math.sqrt(p_disc) else 0.0
+    top = z * math.sqrt(p_disc)
+    return nd.cdf((shift - top) / spread) + nd.cdf((-shift - top) / spread)
+
+
+def required_sample_size_binary(
+    p_disc: float, effect: float, alpha: float = 0.05, power: float = 0.8
+) -> int:
+    """Pairs needed for the McNemar test to detect ``effect`` with the given power.
+
+    Connor (1987, Biometrics 43:207-211), eq. for the paired-sample design:
+
+        n = ceil((z_{1 - alpha/2} sqrt(psi) + z_{power} sqrt(psi - d^2))^2 / d^2)
+
+    ``psi`` = ``p_disc``, the discordant-pair rate P(A != B); ``d`` = ``effect`` =
+    P(A=1, B=0) - P(A=0, B=1). Worked example (Machin et al. 2009, via MedCalc):
+    shifts of 20% and 10%, so psi = 0.3, d = 0.1: n = 234. Fewer discordant pairs than
+    the effect is impossible, so psi is raised to |d| if smaller. At least 2.
+    """
+    delta = abs(effect)
+    if delta == 0:
+        raise ValueError("effect must be nonzero")
+    if delta > 1.0:
+        raise ValueError("a difference of 0/1 scores cannot exceed 1")
+    psi = max(p_disc, delta)
+    nd = NormalDist()
+    num = nd.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(psi) + nd.inv_cdf(power) * math.sqrt(
+        max(0.0, psi - delta * delta)
+    )
+    return max(2, math.ceil((num / delta) ** 2))
+
+
+def minimum_detectable_effect_binary(
+    p_disc: float, n: int, alpha: float = 0.05, power: float = 0.8
+) -> float:
+    """Smallest difference of 0/1 scores the McNemar test detects with the given power.
+
+    Solves Connor's relation ``sqrt(n) d = z sqrt(psi) + z_power sqrt(psi - d^2)`` for
+    ``d`` at the discordant rate ``psi = p_disc`` (the left side minus the right is
+    increasing in ``d``, so bisection finds the unique root). ``inf`` when even
+    ``d = psi`` (every discordant pair favouring one model) is not detectable at this
+    ``n``; 0 when there are no discordant pairs (nothing to resolve either way).
+    """
+    if n <= 0:
+        return math.inf
+    psi = min(max(p_disc, 0.0), 1.0)
+    if psi == 0.0:
+        return 0.0
+    nd = NormalDist()
+    z_a = nd.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(psi)
+    z_b = nd.inv_cdf(power)
+    root_n = math.sqrt(n)
+
+    def gap(d: float) -> float:
+        return root_n * d - z_a - z_b * math.sqrt(max(0.0, psi - d * d))
+
+    if gap(psi) < 0.0:
+        return math.inf
+    lo, hi = 0.0, psi
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if gap(mid) < 0.0:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
+SKEW_RULE = 25.0
+
+
+def sample_skewness(values: Sequence[float] | np.ndarray) -> float:
+    """Moment skewness ``m3 / m2^1.5`` (0 when the values do not vary)."""
+    x = np.asarray(values, dtype=np.float64)
+    if x.size == 0:
+        return 0.0
+    c = x - x.mean()
+    m2 = float(np.mean(c * c))
+    if m2 <= 1e-24:
+        return 0.0
+    return float(np.mean(c**3)) / float(m2**1.5)
+
+
+def skewness_warning(diffs: Sequence[float] | np.ndarray) -> tuple[float, bool]:
+    """(skewness, warn) for the per-example differences behind a randomisation test.
+
+    ``warn`` when ``n < 25 * skewness^2``: Cochran's (1977, Sampling Techniques, 3rd
+    ed., p. 42; Sugden, Smith & Jones 2000) rule for the sample size at which a
+    normal-theory inference on a mean survives skew. A heuristic: it was derived for
+    the t interval, here it flags where the sign-flip test's symmetry assumption is
+    likely to matter (``evalkit stats-check`` measures how well).
+    """
+    x = np.asarray(diffs, dtype=np.float64)
+    g = sample_skewness(x)
+    return g, bool(x.size < SKEW_RULE * g * g)
+
+
 @dataclass(frozen=True)
 class PairResolution:
-    """One model pair: paired statistics, corrected p-value, power, verdict."""
+    """One model pair: paired statistics, corrected p-value, power, verdict.
+
+    ``binary`` marks pairs of 0/1 scores, for which ``mde`` and ``n_needed`` come from
+    the McNemar design formula (Connor 1987) at the observed discordant rate
+    (``wins + losses`` over ``n``) instead of the normal approximation with
+    ``sd_diff``. ``skew_warning`` is :func:`skewness_warning` on the differences.
+    """
 
     model_a: str
     model_b: str
@@ -404,6 +645,20 @@ class PairResolution:
     mde: float
     n_needed: int | None  # None when the target effect is 0
     resolved: bool
+    binary: bool
+    skewness: float
+    skew_warning: bool
+    ci_method: str
+
+
+@dataclass(frozen=True)
+class _PairStats:
+    comparison: PairedComparison
+    rand_p: float
+    sd: float
+    binary: bool
+    skewness: float
+    skew_warning: bool
 
 
 def compare_pairs(
@@ -415,6 +670,7 @@ def compare_pairs(
     num_resamples: int = 10000,
     num_draws: int = 10000,
     seed: int = 0,
+    ci_method: str = "auto",
 ) -> list[PairResolution]:
     """Paired resolvability analysis for ``pairs`` (A, B) of models.
 
@@ -424,22 +680,38 @@ def compare_pairs(
     caller's choice. ``effect`` is the target difference for ``n_needed`` (default:
     the observed |mean difference|; None result when that is 0). A pair is
     ``resolved`` when its Holm-adjusted randomisation p < ``alpha``.
+
+    MDE and ``n_needed``: for pairs where both models' scores are all 0/1, Connor's
+    McNemar formulas at the observed discordant rate; otherwise the normal
+    approximation with the SD of the differences. ``ci_method`` is the bootstrap CI
+    method (see :func:`bootstrap_mean_ci`).
     """
-    partial: list[tuple[PairedComparison, float, float]] = []
+    stats: list[_PairStats] = []
     for a_name, b_name in pairs:
         sa, sb = scores[a_name], scores[b_name]
         keys = sorted((k for k in sa if k in sb), key=repr)
         va = [sa[k] for k in keys]
         vb = [sb[k] for k in keys]
-        c = paired_comparison(va, vb, num_resamples=num_resamples, seed=seed)
+        c = paired_comparison(va, vb, num_resamples=num_resamples, seed=seed, ci_method=ci_method)
         diffs = np.asarray(va, dtype=np.float64) - np.asarray(vb, dtype=np.float64)
         p = randomization_test_p(diffs, num_draws=num_draws, seed=seed)
         sd = float(diffs.std(ddof=1)) if diffs.size > 1 else 0.0
-        partial.append((c, p, sd))
-    holm = holm_bonferroni([p for _, p, _ in partial])
+        skew, warn = skewness_warning(diffs)
+        stats.append(_PairStats(c, p, sd, is_binary(va) and is_binary(vb), skew, warn))
+    holm = holm_bonferroni([s.rand_p for s in stats])
     out: list[PairResolution] = []
-    for (a_name, b_name), (c, p, sd), hp in zip(pairs, partial, holm, strict=True):
+    for (a_name, b_name), s, hp in zip(pairs, stats, holm, strict=True):
+        c = s.comparison
         target = abs(c.diff) if effect is None else abs(effect)
+        if s.binary:
+            psi = (c.wins + c.losses) / c.n
+            mde = minimum_detectable_effect_binary(psi, c.n, alpha, power)
+            needed = (
+                required_sample_size_binary(psi, target, alpha, power) if target > 1e-12 else None
+            )
+        else:
+            mde = minimum_detectable_effect(s.sd, c.n, alpha, power)
+            needed = required_sample_size(s.sd, target, alpha, power) if target > 1e-12 else None
         out.append(
             PairResolution(
                 model_a=a_name,
@@ -454,12 +726,16 @@ def compare_pairs(
                 losses=c.losses,
                 ties=c.ties,
                 sign_p=c.sign_p,
-                rand_p=p,
+                rand_p=s.rand_p,
                 holm_p=hp,
-                sd_diff=sd,
-                mde=minimum_detectable_effect(sd, c.n, alpha, power),
-                n_needed=required_sample_size(sd, target, alpha, power) if target > 1e-12 else None,
+                sd_diff=s.sd,
+                mde=mde,
+                n_needed=needed,
                 resolved=hp < alpha,
+                binary=s.binary,
+                skewness=s.skewness,
+                skew_warning=s.skew_warning,
+                ci_method=c.ci_method,
             )
         )
     return out

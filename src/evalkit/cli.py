@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from .aggregate import PairResolution, compare_pairs, paired_comparison
+from .aggregate import CI_METHODS, PairResolution, compare_pairs, paired_comparison
 from .models import Model, get_model
 from .runner import EvalRecord, generate_leaderboard, run
 from .spec import SpecError, TaskSpec
@@ -176,7 +177,9 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
         if not set(all_scores[a_name]) & set(all_scores[b_name]):
             sys.stderr.write(f"Error: no shared (task, example_id) for {a_name!r} and {b_name!r}\n")
             return 1
-    rows = compare_pairs(all_scores, pairs, effect=args.effect, seed=args.seed)
+    rows = compare_pairs(
+        all_scores, pairs, effect=args.effect, seed=args.seed, ci_method=args.ci_method
+    )
     print(f"\n### All pairs ({len(pairs)} comparisons, pooled over tasks, A - B)\n")
     print(
         "| A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | "
@@ -185,20 +188,43 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
     print("|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         needed = "n/a" if r.n_needed is None else str(r.n_needed)
+        mde = "unattainable" if math.isinf(r.mde) else f"{r.mde:.3f}"
         print(
             f"| {r.model_a} vs {r.model_b} | {r.n} | {r.diff:+.3f} | "
             f"[{r.diff_ci_lo:+.3f}, {r.diff_ci_hi:+.3f}] | {r.wins} / {r.losses} / {r.ties} | "
-            f"{r.sign_p:.3g} | {r.rand_p:.3g} | {r.holm_p:.3g} | {r.mde:.3f} | {needed} | "
+            f"{r.sign_p:.3g} | {r.rand_p:.3g} | {r.holm_p:.3g} | {mde} | {needed} | "
             f"{_verdict(r)} |"
         )
     target = "the observed |A - B|" if args.effect is None else f"|A - B| = {args.effect}"
+    methods = sorted({r.ci_method for r in rows})
+    kinds = {r.binary for r in rows}
+    power_note = {
+        frozenset({True}): "McNemar design formula (Connor 1987) at the observed discordant rate",
+        frozenset({False}): "normal approximation with the observed SD of the differences",
+        frozenset({True, False}): (
+            "McNemar design formula (Connor 1987) at the observed discordant rate for 0/1 "
+            "scores, normal approximation with the observed SD of the differences otherwise"
+        ),
+    }[frozenset(kinds)]
     print(
         "\nrandomisation p: two-sided paired sign-flip test (exact for <= 20 nonzero "
         "differences, else 10,000 seeded Monte Carlo draws). Holm p: Holm-Bonferroni over "
         f"these {len(pairs)} pairs; resolved = Holm p < 0.05. MDE and n use alpha = 0.05, "
-        f"power 0.8, normal approximation with the observed SD of the differences; n is for "
-        f"{target}. The sign test is shown for reference only.\n"
+        f"power 0.8, {power_note}; n is for {target}; MDE `unattainable` means that even "
+        "every discordant pair favouring one model would not be detected at this n. "
+        f"CI method: {', '.join(methods)}. The sign test is shown for reference only.\n"
     )
+    warned = [r for r in rows if r.skew_warning]
+    if warned:
+        warned_pairs = "; ".join(
+            f"{r.model_a} vs {r.model_b} (n = {r.n}, skewness {r.skewness:+.2f})" for r in warned
+        )
+        print(
+            "Skewness warning (n < 25 * skewness^2, Cochran's rule): the randomisation test "
+            "assumes the differences are symmetric around 0 under H0 and is anti-conservative "
+            "on skewed differences, so read its p-value as approximate for: "
+            f"{warned_pairs}.\n"
+        )
     return 0
 
 
@@ -224,7 +250,9 @@ def compare_command(args: argparse.Namespace) -> int:
     print("|---|---|---|---|---|---|---|---|")
     for task in [*tasks, "ALL"]:
         keys = shared if task == "ALL" else [k for k in shared if k[0] == task]
-        c = paired_comparison([a[k] for k in keys], [b[k] for k in keys], seed=args.seed)
+        c = paired_comparison(
+            [a[k] for k in keys], [b[k] for k in keys], seed=args.seed, ci_method=args.ci_method
+        )
         print(
             f"| {task} | {c.n} | {c.mean_a:.3f} | {c.mean_b:.3f} | {c.diff:+.3f} | "
             f"[{c.diff_ci_lo:+.3f}, {c.diff_ci_hi:+.3f}] | {c.wins} / {c.losses} / {c.ties} | "
@@ -251,6 +279,7 @@ def stats_check_command(args: argparse.Namespace) -> int:
         fwer_ns=parse_ints(args.fwer_ns),
         fixed_effects=parse_floats(args.fixed_effects),
         workers=args.workers if args.workers > 0 else default_workers(),
+        ci_method=args.ci_method,
     )
     try:
         check_args(config.ns + config.fwer_ns, config.ties)
@@ -343,6 +372,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--results-b", default=None, help="results.jsonl for model B (default: same file)"
     )
     cmp_parser.add_argument("--seed", type=int, default=0)
+    cmp_parser.add_argument(
+        "--ci-method",
+        choices=CI_METHODS,
+        default="auto",
+        help="paired bootstrap CI: auto (BCa below 400 examples, else percentile), "
+        "percentile, bca or studentized",
+    )
 
     # stats-check command
     sc_parser = subparsers.add_parser(
@@ -350,6 +386,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Monte Carlo check of the shipped statistics (type-I error, coverage, power, Holm)",
     )
     sc_parser.add_argument("--seed", type=int, default=0)
+    sc_parser.add_argument(
+        "--ci-method", choices=CI_METHODS, default="auto", help="bootstrap CI method under test"
+    )
     sc_parser.add_argument("--reps-h0", type=int, default=8000, help="replications per H0 cell")
     sc_parser.add_argument(
         "--reps-power", type=int, default=3000, help="replications per power/coverage cell"
