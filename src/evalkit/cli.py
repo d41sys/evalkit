@@ -9,6 +9,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .aggregate import CI_METHODS, PairResolution, compare_pairs, paired_comparison
+from .helm import import_helm_lite
+from .helm_metrics import run_metric_check
+from .helm_study import GAPS, run_study
 from .models import Model, get_model
 from .runner import EvalRecord, generate_leaderboard, run
 from .spec import SpecError, TaskSpec
@@ -296,6 +299,65 @@ def stats_check_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def import_helm_command(args: argparse.Namespace) -> int:
+    """Write an evalkit results.jsonl from compact HELM Lite per-instance files."""
+    root = Path(args.dir)
+    if not (root / "core_scenarios.json").is_file():
+        sys.stderr.write(
+            f"Error: {root}/core_scenarios.json not found; run scripts/fetch_helm_lite.py first\n"
+        )
+        return 1
+    models = [m.strip() for m in args.models.split(",") if m.strip()] if args.models else None
+    try:
+        stats = import_helm_lite(root, Path(args.out), models)
+    except KeyError as exc:
+        sys.stderr.write(f"Error: {exc.args[0]}\n")
+        return 1
+    print(
+        f"Imported {stats.models} models, {stats.rows} rows over {len(stats.tasks)} tasks "
+        f"({', '.join(stats.tasks)}) -> {args.out}"
+    )
+    if stats.skipped:
+        print(f"Skipped (missing run files): {', '.join(stats.skipped)}")
+    return 0
+
+
+def helm_study_command(args: argparse.Namespace) -> int:
+    """Rank-gap resolution study on an imported HELM Lite results.jsonl."""
+    results = Path(args.results)
+    if not results.is_file():
+        sys.stderr.write(f"Error: {results} not found; run `evalkit import-helm` first\n")
+        return 1
+    started = time.perf_counter()
+    text = run_study(
+        results,
+        Path(args.dir),
+        seed=args.seed,
+        resamples=args.resamples,
+        gaps=parse_ints(args.gaps),
+    )
+    text += f"\nWall time {time.perf_counter() - started:.0f} s.\n"
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
+def metric_check_command(args: argparse.Namespace) -> int:
+    """Re-score HELM Lite predictions with evalkit's metrics and compare with HELM's values."""
+    root = Path(args.dir)
+    if not (root / "core_scenarios.json").is_file():
+        sys.stderr.write(f"Error: {root}/core_scenarios.json not found\n")
+        return 1
+    text = run_metric_check(root, stride=args.stride)
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="evalkit",
@@ -411,6 +473,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     sc_parser.add_argument("--out", default=None, help="also write the markdown report here")
 
+    # import-helm command
+    ih = subparsers.add_parser(
+        "import-helm", help="Convert HELM Lite per-instance results to results.jsonl"
+    )
+    ih.add_argument("--dir", default="data/raw/helm-lite", help="compact HELM Lite files")
+    ih.add_argument("--out", default="runs/helm-lite/results.jsonl")
+    ih.add_argument("--models", default=None, help="comma-separated HELM display names")
+
+    # helm-study command
+    hs = subparsers.add_parser(
+        "helm-study", help="Are the published HELM Lite rank gaps resolved by its per-item data?"
+    )
+    hs.add_argument("--dir", default="data/raw/helm-lite", help="compact HELM Lite files")
+    hs.add_argument("--results", default="runs/helm-lite/results.jsonl")
+    hs.add_argument("--seed", type=int, default=0)
+    hs.add_argument("--resamples", type=int, default=1000, help="rank bootstrap resamples")
+    hs.add_argument(
+        "--gaps", default=",".join(str(g) for g in GAPS), help="published rank distances to test"
+    )
+    hs.add_argument("--out", default=None, help="also write the markdown report here")
+
+    # metric-check command
+    mc = subparsers.add_parser(
+        "metric-check", help="evalkit metrics vs HELM's per-instance values on the same predictions"
+    )
+    mc.add_argument("--dir", default="data/raw/helm-lite", help="compact HELM Lite files")
+    mc.add_argument("--stride", type=int, default=8, help="use every Nth model of the ranking")
+    mc.add_argument("--out", default=None, help="also write the markdown report here")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -421,6 +512,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return compare_command(args)
     elif args.subcommand == "stats-check":
         return stats_check_command(args)
+    elif args.subcommand == "import-helm":
+        return import_helm_command(args)
+    elif args.subcommand == "helm-study":
+        return helm_study_command(args)
+    elif args.subcommand == "metric-check":
+        return metric_check_command(args)
     else:
         parser.print_help()
         return 1
