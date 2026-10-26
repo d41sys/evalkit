@@ -229,7 +229,7 @@ def test_helm_study_report_and_cli(tmp_path: Path, capsys: pytest.CaptureFixture
     assert "not found" in capsys.readouterr().err
 
 
-def test_metric_check_finds_the_article_collision(tmp_path: Path) -> None:
+def test_metric_check_article_only_answers_match_helm(tmp_path: Path) -> None:
     build_fixture(tmp_path)
     assert gold_texts("mmlu", [["a", False], ["b", True]]) == ["B"]
     assert gold_texts("legalbench", [["Yes", True], ["No", False]]) == ["Yes"]
@@ -239,7 +239,7 @@ def test_metric_check_finds_the_article_collision(tmp_path: Path) -> None:
         line.split("|")[1].strip(): line for line in text.splitlines() if line.startswith("| m")
     }
     cells = [c.strip() for c in rows["mmlu"].split("|")]
-    assert cells[3:7] == ["12", "83.33%", "2", "0"]  # instances, identical, higher, lower
+    assert cells[3:7] == ["12", "100.00%", "0", "0"]  # instances, identical, higher, lower
     gsm_line = next(x for x in text.splitlines() if x.startswith("| gsm8k"))
     gsm = [c.strip() for c in gsm_line.split("|")]
     assert gsm[3:7] == ["12", "91.67%", "1", "0"]  # Beta "7.00": numeric equality vs string

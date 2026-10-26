@@ -127,3 +127,11 @@ def test_score_classical_dispatcher() -> None:
     assert score_classical("chrf", "test", ["test"]) == 1.0
     with pytest.raises(ValueError, match="Unknown classical metric"):
         score_classical("unknown_metric", "a", ["a"])
+
+
+def test_exact_match_article_only_answers_do_not_collide() -> None:
+    # Regression (HELM Lite replication): MCQ letter "A" and prediction "The" both normalised to "".
+    assert exact_match("The", ["A"]) == 0.0
+    assert exact_match("A", ["A"]) == 1.0
+    assert exact_match("a.", ["A"]) == 1.0
+    assert exact_match("the cat", ["cat"]) == 1.0

@@ -10,11 +10,18 @@ TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 
 def normalize_text(text: str) -> str:
-    """Normalize text: lowercase, strip articles, remove punctuation, collapse whitespace."""
-    text = text.lower()
-    text = re.sub(r"\b(a|an|the)\b", " ", text)
-    text = "".join(ch for ch in text if ch not in string.punctuation)
-    return " ".join(text.split())
+    """Normalize text: lowercase, strip articles, remove punctuation, collapse whitespace.
+
+    If stripping articles would leave nothing (an answer that is itself "A" or "The", e.g. an
+    MCQ letter), the articles are kept, so "The" and gold "A" no longer both become "".
+    """
+    lowered = text.lower()
+    stripped = re.sub(r"\b(a|an|the)\b", " ", lowered)
+
+    def clean(s: str) -> str:
+        return " ".join("".join(ch for ch in s if ch not in string.punctuation).split())
+
+    return clean(stripped) or clean(lowered)
 
 
 def tokenize(text: str) -> list[str]:

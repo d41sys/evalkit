@@ -4,9 +4,9 @@ Predictions of 12 HELM Lite models (every 8th model of the published ranking) re
 
 | scenario | evalkit metric | instances | identical to HELM | evalkit higher | evalkit lower | mean evalkit | mean HELM | mean abs diff | Kendall tau of the model means |
 |---|---|---|---|---|---|---|---|---|---|
-| openbookqa | exact_match | 6000 | 99.93% | 4 | 0 | 0.8337 | 0.8330 | 0.0007 | 0.98 |
-| mmlu | exact_match | 6168 | 99.72% | 17 | 0 | 0.6362 | 0.6334 | 0.0028 | 0.92 |
-| medqa | exact_match | 6036 | 99.97% | 2 | 0 | 0.6309 | 0.6306 | 0.0003 | 1.00 |
+| openbookqa | exact_match | 6000 | 100.00% | 0 | 0 | 0.8330 | 0.8330 | 0.0000 | 0.98 |
+| mmlu | exact_match | 6168 | 100.00% | 0 | 0 | 0.6334 | 0.6334 | 0.0000 | 0.98 |
+| medqa | exact_match | 6036 | 100.00% | 0 | 0 | 0.6306 | 0.6306 | 0.0000 | 1.00 |
 | legalbench | exact_match | 24079 | 100.00% | 0 | 0 | 0.5141 | 0.5141 | 0.0000 | 1.00 |
 | narrativeqa | f1_score | 4260 | 58.85% | 692 | 1061 | 0.6688 | 0.6765 | 0.0321 | 0.97 |
 | naturalquestions_open | f1_score | 12000 | 74.95% | 936 | 2070 | 0.6582 | 0.6593 | 0.0220 | 0.97 |
@@ -15,14 +15,6 @@ Predictions of 12 HELM Lite models (every 8th model of the published ranking) re
 
 First disagreements (prediction tail | evalkit gold | evalkit | HELM):
 
-- openbookqa: `'The'` | `A` | 1.000 | 0.000
-- openbookqa: `'The'` | `A` | 1.000 | 0.000
-- openbookqa: `'The'` | `A` | 1.000 | 0.000
-- mmlu: `'The'` | `A` | 1.000 | 0.000
-- mmlu: `'The'` | `A` | 1.000 | 0.000
-- mmlu: `'The'` | `A` | 1.000 | 0.000
-- medqa: `'The'` | `A` | 1.000 | 0.000
-- medqa: `'The'` | `A` | 1.000 | 0.000
 - narrativeqa: `'Crystal ship'` | `A crystal ship | A crystal ship.` | 0.800 | 1.000
 - narrativeqa: `"Her mother's death"` | `her mother died | Her mother died.` | 0.571 | 0.333
 - narrativeqa: `'Page boy at a radio station'` | `He works as a page boy at a radio station in Hollywood. | he` | 0.800 | 0.833
