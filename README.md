@@ -50,6 +50,15 @@ uv run evalkit compare runs/demo/results.jsonl --all-pairs
 # Monte Carlo check of the shipped statistics (type-I error, CI coverage, power, Holm FWER)
 uv run evalkit stats-check --out runs/stats-check/report.md
 
+# Reproduce the HELM Lite comparison (docs/sota-review.md): fetch public per-item results,
+# convert to results.jsonl, run the rank-gap study and the metric cross-check (no model is run).
+# The fetch pulls ~0.7 GB of raw JSON from a public bucket, keeps ~37 MB (gitignored data/raw/)
+uv run python scripts/fetch_helm_lite.py
+uv run evalkit import-helm                                    # -> runs/helm-lite/results.jsonl
+uv run evalkit helm-study --out docs/results/helm-lite-study.md   # ~5 min
+uv run evalkit metric-check --out docs/results/helm-lite-metric-check.md
+uv run evalkit compare runs/helm-lite/results.jsonl --all-pairs --models "GPT-4o (2024-05-13),DeepSeek v3,GPT-4 (0613)"
+
 # Real local models (needs the [hf] extra: torch + transformers)
 uv run --extra hf evalkit run --tasks tasks --models oracle,random,hf:Qwen/Qwen2.5-0.5B-Instruct --workers 1
 
@@ -585,6 +594,31 @@ The script's output has every before/after cell for H0 coverage and type-I error
 5. **Robustness run (10,000 resamples, n = 20 / 50, tie rate 0.5):** coverage flags 1 to 0 (binary), 3 to 3 (continuous), 4 to 4 (skewed); binary power `optimistic` 2 to 0; type-I verdicts unchanged.
 
 Caveats for round 2: the tie-guard cut (0.5) and the range clip were decided after seeing round 2a (disclosed above), and the final run is the second 2b scoring run (the clip changed one reported number, a mean CI width, and no verdict); the grid has only tie rates 0, 0.5 and 0.8, so the 0.5 threshold is a midpoint, not an estimate. The 8000- and 3000-replication intervals are the same as in round 1.
+
+## Comparison with SOTA
+
+Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
+
+| What | evalkit result on HELM Lite per-item data | HELM published / reference | Verdict |
+|---|---|---|---|
+| Per-scenario scores, 909 model x scenario cells | recomputed from items | table cells | identical (max diff 1e-15) |
+| Mean win rate and order | recomputed | "Mean win rate" column | identical (diff 1.1e-16, same order) |
+| Exact match, 4 scenarios, 42,283 items | evalkit `exact_match` on the same predictions | HELM per-item value | 99.7-100% item-identical; all 23 MC disagreements are `The` credited for gold `A` (article stripping). **evalkit is wrong there.** |
+| Token F1, 3 scenarios, 28,260 items | evalkit `f1_score` | HELM set-based F1 | **only 59-80% item-identical**; pooled means within 0.008, model order kept (tau 0.97-1.00) |
+| GSM8K, 11,000 items | `numeric_match` | last-number string match | 98.6% identical; evalkit more lenient on 146 items, stricter on 8 |
+| ECE | 1-bin: 6 of 6 runs equal to HELM `ece_1_bin`; 10-bin equal-width: 4 of 6 equal, others off by 0.002 and 0.0034 | `ece_10_bin` uses equal-mass bins | same estimator at 1 bin, different binning at 10 |
+| `pass@k` | identical to HELM's estimator (unit test, exhaustive check) | no code scenario in HELM Lite | verified by test only |
+| Adjacent ranks 1..91 | 41 of 90 pairs resolved (paired randomisation, Holm), **16 of those 41 in the opposite order** to the published ranking; 42 tie groups | 91 distinct ranks, point values only | published order is mostly not supported by item-level evidence |
+| HELM's own statistic, bootstrapped | adjacent order holds in at least 95% of resamples for 9 of 90 pairs; median 95% rank interval 6 ranks | not published | same conclusion, scenario-balanced weighting |
+| Pairs that would resolve with more data | median n for 80% power among unresolved adjacent pairs: 35,576 items (HELM Lite has about 10,200 per model) | not published | the leaderboard cannot separate these models |
+
+Verdict, plainly:
+
+1. **Where evalkit is ahead.** It ships paired tests on shared items, Holm correction, power and tie groups, which I found in none of the six harnesses compared (documentation and key source files only; the weak spots are listed in [docs/sota-review.md](docs/sota-review.md#9-notes-sources-and-weak-spots)). On HELM Lite it shows that about half of the adjacent rank gaps are unresolved at the data's own size and that the published order and the pooled item means disagree in 16 resolved cases (a scenario-weighting choice the table hides). It reproduces HELM's published numbers exactly from per-item data.
+2. **Where evalkit loses on this benchmark.** Its exact-match normalisation is not HELM's (article stripping credits `The` for `A`), its token F1 is a different statistic (59-80% item-identical), GSM8K matching is more lenient, and its ECE binning differs. The pooled means move by at most 0.013 and model order is kept, but item-level differences feed the paired tests. These metrics were reported, not changed, in this work.
+3. **Where evalkit loses on features** (not tested on a benchmark): no clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data, so the p-values above may be too small where questions are grouped), no Bradley-Terry, no LLM-judge scorers or judge-aware inference, no IRT or adaptive testing, no seed/repeat variance, no contamination or label-error audit, no agent evals. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
+4. **Not done.** The Open LLM Leaderboard per-item data is gated (HTTP 401 without a Hugging Face login), so there is no `import-openllm`. The Chatbot Arena Elo-versus-Bradley-Terry comparison was skipped (184 MB vote file, no Bradley-Terry fit to compare). Details and the table of numbers that are not comparable: [docs/sota-review.md](docs/sota-review.md#3-published-numbers-that-are-not-comparable).
+5. **Caveats.** Pooled micro-averaging is evalkit's weighting, not HELM's (the bootstrap row uses HELM's). Items are treated as independent. Imported rows have no confidence, so the ECE and Brier columns of `evalkit leaderboard` are constants there. The first fetch downloaded about 0.7 GB of raw JSON, above the 300 MB guidance (a sizing mistake); 37 MB are kept on disk.
 
 ## Design Decisions
 
