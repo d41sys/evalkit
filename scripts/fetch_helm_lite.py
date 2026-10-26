@@ -4,16 +4,15 @@ Source: https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output (H
 For every model row of the release's `core_scenarios` leaderboard table it fetches each run's
 `display_predictions.json` and the family's `instances.json`, and keeps only a compact extract
 (see `evalkit.helm`): the headline metric of the evaluation split's instances, the references, and
-the predicted text for every `--text-stride`-th model (for the metric cross-check). The raw files
-are not kept. Resumable: runs whose compact file exists are skipped. Files left in the legacy raw
-layout (`runs/<run>/predictions.json`) are compacted in place instead of downloaded again.
+the predicted text for every `--text-stride`-th model (for the metric cross-check), and for those
+models the calibration inputs (`max_prob`, `exact_match`, HELM's `ece_*` values) of the large
+single-run scenarios. The raw files are not kept. Resumable: files that exist are skipped.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import time
 import urllib.error
@@ -24,7 +23,9 @@ from typing import Any
 from urllib.request import urlopen
 
 from evalkit.helm import (
+    CALIBRATION_TASKS,
     SCENARIOS,
+    compact_calibration,
     compact_references,
     compact_run,
     family_of,
@@ -100,37 +101,37 @@ def main() -> int:
     with ThreadPoolExecutor(args.workers) as pool:
         list(pool.map(fetch_refs, families.values()))
 
-    stats = {"downloaded": 0, "recompacted": 0, "missing": 0}
+    stats = {"downloaded": 0, "missing": 0}
 
     def fetch_run(job: tuple[str, str, bool]) -> None:
         run, task, keep_text = job
         dest = run_file(out, run)
-        if dest.exists():
-            return
-        legacy = out / "runs" / urllib.parse.quote(run, safe="")
-        if (legacy / "predictions.json").exists():
-            raw = (legacy / "predictions.json").read_bytes()
-            stats["recompacted"] += 1
-        else:
+        if not dest.exists():
             try:
                 raw = get(f"{run_url(run)}/display_predictions.json")
             except urllib.error.HTTPError:
                 stats["missing"] += 1
                 return
             stats["downloaded"] += len(raw)
-        keep_ids = set(json.loads(reference_file(out, run).read_text()))
-        write_json(dest, compact_run(json.loads(raw), METRIC[task].metric, keep_ids, keep_text))
+            keep_ids = set(json.loads(reference_file(out, run).read_text()))
+            write_json(dest, compact_run(json.loads(raw), METRIC[task].metric, keep_ids, keep_text))
+        if keep_text and task in CALIBRATION_TASKS:
+            data = json.loads(dest.read_text())
+            if "calibration" not in data:  # None marks "no calibration statistics for this run"
+                try:
+                    stats_json = json.loads(get(f"{run_url(run)}/stats.json"))
+                    per_instance = json.loads(get(f"{run_url(run)}/per_instance_stats.json"))
+                    cal = compact_calibration(stats_json, per_instance, METRIC[task].split)
+                except urllib.error.HTTPError:
+                    cal = None
+                data["calibration"] = cal
+                write_json(dest, data)
 
     print(f"{len(runs)} runs, {len(families)} families", file=sys.stderr)
     with ThreadPoolExecutor(args.workers) as pool:
         list(pool.map(fetch_run, runs))
-    for legacy in (out / "runs").iterdir():
-        if legacy.is_dir():
-            shutil.rmtree(legacy)
-    shutil.rmtree(out / "instances", ignore_errors=True)
     print(
-        f"downloaded {stats['downloaded'] / 1e6:.1f} MB, recompacted {stats['recompacted']} legacy "
-        f"files, missing {stats['missing']}",
+        f"downloaded {stats['downloaded'] / 1e6:.1f} MB of predictions, missing {stats['missing']}",
         file=sys.stderr,
     )
     return 0

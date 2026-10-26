@@ -1,0 +1,32 @@
+# Protocol: do HELM Lite's published rank gaps survive evalkit's statistics?
+
+Written and committed before the final scoring run whose output is in `docs/results/`. One exploratory run (gap 1 only, 50 bootstrap resamples) was seen earlier to time the pipeline; it exposed one bug (models with partially missing instances produced NaN scenario means) which was fixed in the code before the final run, and nothing else in the design below was changed after seeing it.
+
+## Question
+
+evalkit is a harness, so "compare with SOTA" is tested the way a harness should be: take a public leaderboard that ships per-item results, feed those items through evalkit unchanged, and ask (1) does evalkit reproduce the leaderboard's own numbers, (2) how many of the leaderboard's rank gaps does evalkit's resolvability layer (paired randomisation test, Holm, power) call resolved, and (3) do evalkit's metric implementations agree with the leaderboard's reference implementations on the same predictions. No model is run.
+
+## Data
+
+- Source: HELM Lite release **v1.13.0** (`summary.json` date 2025-01-10), public bucket `gs://crfm-helm-public/lite/benchmark_output`, i.e. `https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json` (the published table: 91 models, mean win rate and 10 scenario scores) and, per run, `display_predictions.json` and `instances.json` under `runs/<suite>/<run>/`.
+- Scenarios (10): NarrativeQA, NaturalQuestions open-book, NaturalQuestions closed-book, OpenbookQA, MMLU (5 subjects), MATH (7 subjects), GSM8K, LegalBench (5 subsets), MedQA, WMT 2014 (5 language pairs). Metric per scenario and evaluation split are the `main_name` / `main_split` of the release's `schema.json`.
+- Fetch: `scripts/fetch_helm_lite.py` (stdlib + evalkit). It keeps a compact extract in the gitignored `data/raw/helm-lite/`: the headline metric of the evaluation-split instances, the references, and prediction text for every 8th model of the published ranking (12 models, not WMT) and, for the OpenbookQA and MedQA runs of those models, the calibration inputs, for the metric check.
+- Import: `evalkit import-helm` writes one `results.jsonl` row per (scenario, model, instance): `task` = scenario, `example_id` = `<subset>/<instance id>` for scenarios with several runs, `score` = the scenario's headline metric. `confidence` is not available, so the ECE and Brier columns of `evalkit leaderboard` are meaningless on imported data.
+
+## Checks and tests, fixed in advance
+
+1. **Replication (pass/fail).** The per-scenario score recomputed from the instances (mean over a scenario's subsets of the subset mean, HELM's aggregation) must equal the published cell for all models. Mean win rate recomputed from the published cells with HELM's rule (`compute_aggregate_row_win_rates` in `summarize.py`) must equal the published column. If either fails, the importer, not the leaderboard, is wrong and no further result is reported.
+2. **Rank-gap resolution.** For published rank distance d in {1, 2, 3, 5, 10}, every pair (rank i, rank i+d). Each pair is tested on the instances both models were scored on, pooled over scenarios (the evalkit `compare --all-pairs` behaviour), with `compare_pairs`: paired sign-flip randomisation test, 10,000 draws, seed 0, Holm over the 91-d pairs of that distance; resolved = Holm p < 0.05. Tie groups: a model starts a new group only if it is resolved from the model directly above. Reported with the observed-effect n for 80% power.
+3. **Rank uncertainty of HELM's own statistic.** Stratified item bootstrap, 1000 resamples, seed 0: instances resampled within every (scenario, subset) stratum with the same draw for all models, scenario score = mean of subset means, mean win rate by HELM's rule, rank by it. Reported: adjacent pairs whose published order holds in at least 97.5%, 95% and 90% of resamples (no multiplicity correction, so this is the lenient reading) and the 95% rank interval width per model.
+4. **Metric cross-check.** For 12 models, re-score the same (prediction, reference) pairs with evalkit's `exact_match`, `f1_score`, `numeric_match` and compare with HELM's stored per-instance value: share identical, direction of disagreements, mean difference, Kendall tau of the model means. MC scenarios use the answer letter as gold. MATH (needs LaTeX equivalence) and WMT (predictions not kept) are not compared. evalkit's metrics are not changed by this work. The `pass@k` estimator is checked against HELM's `pass_at_k_estimator` (verbatim copy in the test) and by exhaustive enumeration, because HELM Lite has no code scenario. ECE: HELM Lite's stats files carry `ece_1_bin` and `ece_10_bin` for runs of models with log-probs, computed from each instance's `max_prob` and `exact_match` (`compute_calibration_metrics` in `basic_metrics.py`); the OpenbookQA and MedQA runs of the 12 checked models that have them are re-computed with `expected_calibration_error`: with one bin evalkit must equal `ece_1_bin`; the 10-bin values differ by construction (HELM equal-mass bins from the external `calibration` package, evalkit equal-width) and are reported, not judged. (An earlier draft of this protocol said Lite carries no calibration statistics; that was wrong, found by opening the stats files of the first model's runs, and the check was added before scoring.)
+
+## What would count as a finding
+
+- The pooled paired test and the bootstrap of HELM's statistic need not agree: they test different quantities (mean score difference weighted by instance count versus a rank-based, scenario-balanced statistic). Both are reported; neither is called the truth.
+- Metric disagreements are reported with counts and causes. Aggregate agreement of model means is not read as item-level agreement.
+
+## Scope limits stated up front
+
+- Open LLM Leaderboard `details` datasets: gated ("auto" approval, needs a logged-in Hugging Face token; unauthenticated file requests return HTTP 401 `GatedRepo`, checked 2026-10-26). They were not used and there is no `import-openllm`.
+- Chatbot Arena: the public vote files are large (the 55k battles CSV is 184 MB) and evalkit has no Bradley-Terry fit to compare against the published ranking, so this part was not attempted.
+- The first fetch of HELM files pulled about 0.7 GB of raw JSON before compaction (the per-run files turned out larger than estimated), above the 300 MB guidance; only about 37 MB remain on disk. This was an error in sizing the download, not a design choice.

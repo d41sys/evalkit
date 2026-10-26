@@ -12,6 +12,7 @@ import pytest
 
 from evalkit.cli import main
 from evalkit.helm import (
+    compact_calibration,
     compact_references,
     compact_run,
     family_of,
@@ -20,7 +21,7 @@ from evalkit.helm import (
     reference_file,
     run_file,
 )
-from evalkit.helm_metrics import gold_texts, kendall_tau, run_metric_check
+from evalkit.helm_metrics import check_calibration, gold_texts, kendall_tau, run_metric_check
 from evalkit.helm_study import (
     load_matrix,
     mean_win_rate,
@@ -29,6 +30,7 @@ from evalkit.helm_study import (
     run_study,
     win_rates,
 )
+from evalkit.metrics.calibration import expected_calibration_error
 from evalkit.metrics.code_exec import estimate_pass_at_k
 
 # model -> (gsm scores, mmlu subject x scores, mmlu subject y scores); the HELM table lists the
@@ -263,3 +265,73 @@ def test_pass_at_k_matches_helm_reference_and_brute_force() -> None:
         subsets = list(itertools.combinations(range(n), k))
         hit = sum(any(i < c for i in s) for s in subsets) / len(subsets)
         assert estimate_pass_at_k(n, c, k) == pytest.approx(hit, abs=1e-12)
+
+
+def _stat(name: str, mean: float, split: str = "test", perturbed: bool = False) -> dict[str, Any]:
+    n: dict[str, Any] = {"name": name, "split": split}
+    if perturbed:
+        n["perturbation"] = {"name": "robustness"}
+    return {"name": n, "mean": mean}
+
+
+def test_compact_calibration_keeps_plain_test_stats_only() -> None:
+    stats = [
+        _stat("ece_1_bin", 0.1),
+        _stat("ece_10_bin", 0.2),
+        _stat("ece_1_bin", 9.0, perturbed=True),
+        _stat("ece_1_bin", 8.0, split="valid"),
+    ]
+    per_instance = [
+        {"instance_id": "a", "stats": [_stat("max_prob", 0.9), _stat("exact_match", 1.0)]},
+        {"instance_id": "b", "stats": [_stat("max_prob", 0.6, perturbed=True)]},
+        {"instance_id": "c", "stats": [_stat("max_prob", 0.7), _stat("exact_match", 0.0)]},
+    ]
+    cal = compact_calibration(stats, per_instance, "test")
+    assert cal == {
+        "ece_1_bin": 0.1,
+        "ece_10_bin": 0.2,
+        "max_prob": {"a": 0.9, "c": 0.7},
+        "correct": {"a": 1, "c": 0},
+    }
+    assert compact_calibration([_stat("exact_match", 1.0)], per_instance, "test") is None
+
+
+def test_ece_check_agrees_with_helm_for_one_bin(tmp_path: Path) -> None:
+    run = "commonsense:dataset=openbookqa,method=multiple_choice_joint,model=m"
+    conf = {"a": 0.9, "b": 0.8, "c": 0.6, "d": 0.99}
+    correct = {"a": 1, "b": 0, "c": 1, "d": 1}
+    one_bin = abs(float(np.mean(list(conf.values()))) - float(np.mean(list(correct.values()))))
+    _write(
+        run_file(tmp_path, run),
+        {
+            "metric": "exact_match",
+            "scores": {k: float(v) for k, v in correct.items()},
+            "calibration": {
+                "ece_1_bin": one_bin,
+                "ece_10_bin": 0.5,
+                "max_prob": conf,
+                "correct": correct,
+            },
+        },
+    )
+    _write(
+        tmp_path / "core_scenarios.json",
+        [
+            {
+                "header": [{"value": h} for h in ("Model", "Mean win rate", "OpenbookQA - EM")],
+                "rows": [
+                    [
+                        {"value": "M"},
+                        {"value": 0.5},
+                        {"value": 0.75, "run_spec_names": [run]},
+                    ]
+                ],
+            }
+        ],
+    )
+    (check,) = check_calibration(tmp_path, read_table(tmp_path), ["M"])
+    assert (check.model, check.task, check.n) == ("M", "openbookqa", 4)
+    assert check.evalkit_ece_1 == pytest.approx(check.helm_ece_1, abs=1e-12)
+    assert check.evalkit_ece_10 == pytest.approx(
+        expected_calibration_error(list(conf.values()), list(correct.values()), n_bins=10)
+    )

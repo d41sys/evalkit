@@ -4,9 +4,10 @@ HELM Lite stores, for every instance, the model's prediction and the metric valu
 for it. For the models whose prediction text was kept by ``scripts/fetch_helm_lite.py`` this module
 re-scores the same (prediction, reference) pairs with evalkit's metrics and compares them with
 HELM's value: exact match normalisation (MedQA/LegalBench ``quasi_exact_match``, MMLU/OpenbookQA
-``exact_match`` on the answer letter), token F1 (NarrativeQA, NaturalQuestions) and the final-number
-metric (GSM8K). MATH (LaTeX equivalence) and WMT (BLEU) are not compared: evalkit has no LaTeX
-normaliser, and WMT predictions are not kept.
+``exact_match`` on the answer letter), token F1 (NarrativeQA, NaturalQuestions), the final-number
+metric (GSM8K) and ECE (OpenbookQA, MedQA runs of models with log-probs; HELM's ``ece_1_bin`` and
+``ece_10_bin`` against evalkit's ``expected_calibration_error``). MATH (LaTeX equivalence) and WMT
+(BLEU) are not compared: evalkit has no LaTeX normaliser, and WMT predictions are not kept.
 """
 
 from __future__ import annotations
@@ -16,7 +17,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .helm import HelmTable, read_table, reference_file, run_file
+from .helm import CALIBRATION_TASKS, HelmTable, read_table, reference_file, run_file
+from .metrics.calibration import expected_calibration_error
 from .metrics.classical import exact_match, f1_score, numeric_match
 
 MC_TASKS = frozenset({"openbookqa", "mmlu", "medqa"})
@@ -106,7 +108,48 @@ def kendall_tau(a: Sequence[float], b: Sequence[float]) -> float:
     return (conc - disc) / (n * (n - 1) / 2) if n > 1 else 1.0
 
 
-def render_metric_check(checks: Sequence[TaskCheck], n_models: int) -> str:
+@dataclass(frozen=True)
+class CalibrationCheck:
+    model: str
+    task: str
+    n: int
+    helm_ece_1: float
+    evalkit_ece_1: float
+    helm_ece_10: float
+    evalkit_ece_10: float
+
+
+def check_calibration(
+    root: Path, table: HelmTable, models: Sequence[str]
+) -> list[CalibrationCheck]:
+    """ECE of the runs whose calibration inputs were kept, HELM's value against evalkit's."""
+    out: list[CalibrationCheck] = []
+    for model in models:
+        for task in sorted(CALIBRATION_TASKS):
+            for run in table.runs[model].get(task, []):
+                cal = json.loads(run_file(root, run).read_text(encoding="utf-8")).get("calibration")
+                if not cal:
+                    continue
+                ids = sorted(cal["max_prob"])
+                conf = [cal["max_prob"][i] for i in ids]
+                correct = [cal["correct"][i] for i in ids]
+                out.append(
+                    CalibrationCheck(
+                        model,
+                        task,
+                        len(ids),
+                        float(cal["ece_1_bin"]),
+                        expected_calibration_error(conf, correct, n_bins=1),
+                        float(cal["ece_10_bin"]),
+                        expected_calibration_error(conf, correct, n_bins=10),
+                    )
+                )
+    return out
+
+
+def render_metric_check(
+    checks: Sequence[TaskCheck], n_models: int, calibration: Sequence[CalibrationCheck] = ()
+) -> str:
     lines = [
         "# evalkit metrics vs HELM reference values, same predictions",
         "",
@@ -140,6 +183,25 @@ def render_metric_check(checks: Sequence[TaskCheck], n_models: int) -> str:
         for pred, gold, mine, ref in c.examples:
             lines.append(f"- {c.task}: `{pred!r}` | `{gold}` | {mine:.3f} | {ref:.3f}")
     lines.append("")
+    if calibration:
+        lines += [
+            "## ECE",
+            "",
+            "HELM computes `ece_1_bin` and `ece_10_bin` (equal-mass bins, `calibration` package, "
+            "`basic_metrics.py`) from each instance's `max_prob` and `exact_match`. evalkit's "
+            "`expected_calibration_error` uses equal-width bins; with one bin both are "
+            "|mean confidence - accuracy|. Runs of models without log-probs have no HELM ECE.",
+            "",
+            "| model | scenario | n | HELM ece_1_bin | evalkit ECE (1 bin) | HELM ece_10_bin "
+            "(equal-mass) | evalkit ECE (10 equal-width bins) |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        lines += [
+            f"| {c.model} | {c.task} | {c.n} | {c.helm_ece_1:.4f} | {c.evalkit_ece_1:.4f} | "
+            f"{c.helm_ece_10:.4f} | {c.evalkit_ece_10:.4f} |"
+            for c in calibration
+        ]
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -147,4 +209,4 @@ def run_metric_check(root: Path, stride: int = 8) -> str:
     table = read_table(root)
     models = table.models[::stride]
     checks = [check_task_runs(root, table, task, models) for task in CHECKS]
-    return render_metric_check(checks, len(models))
+    return render_metric_check(checks, len(models), check_calibration(root, table, models))

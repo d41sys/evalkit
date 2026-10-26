@@ -102,6 +102,49 @@ def compact_references(
     }
 
 
+# Scenarios whose runs carry HELM's calibration statistics and are large enough to be worth
+# checking (single run, 500+ instances); ECE is computed by HELM from ``max_prob`` and
+# ``exact_match`` of the instances.
+CALIBRATION_TASKS = frozenset({"openbookqa", "medqa"})
+
+
+def compact_calibration(
+    stats: Sequence[Mapping[str, Any]], per_instance: Sequence[Mapping[str, Any]], split: str
+) -> dict[str, Any] | None:
+    """HELM's ``ece_1_bin`` / ``ece_10_bin`` of a run plus the per-instance inputs of its ECE.
+
+    Returns None when the run has no calibration statistics (model without log-probs).
+    """
+
+    def plain(entry: Mapping[str, Any], name: str) -> bool:
+        n = entry["name"]
+        return bool(n["name"] == name and n.get("split") == split and "perturbation" not in n)
+
+    aggregate = {
+        name: float(s["mean"])
+        for name in ("ece_1_bin", "ece_10_bin")
+        for s in stats
+        if plain(s, name)
+    }
+    if len(aggregate) < 2:
+        return None
+    max_prob: dict[str, float] = {}
+    correct: dict[str, int] = {}
+    for inst in per_instance:
+        iid = str(inst["instance_id"])
+        for s in inst["stats"]:
+            if plain(s, "max_prob"):
+                max_prob[iid] = float(s["mean"])
+            elif plain(s, "exact_match"):
+                correct[iid] = int(float(s["mean"]))
+    keep = sorted(set(max_prob) & set(correct))
+    return {
+        **aggregate,
+        "max_prob": {i: max_prob[i] for i in keep},
+        "correct": {i: correct[i] for i in keep},
+    }
+
+
 @dataclass(frozen=True)
 class HelmTable:
     """HELM's published leaderboard: models in the published (mean win rate) order."""
