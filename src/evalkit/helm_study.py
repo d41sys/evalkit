@@ -160,6 +160,11 @@ class GapResult:
     def resolved(self) -> int:
         return sum(r.resolved for r in self.rows)
 
+    @property
+    def reversed(self) -> int:
+        """Resolved pairs whose pooled mean difference favours the lower-ranked model."""
+        return sum(r.resolved and r.diff < 0 for r in self.rows)
+
 
 def pair_family(m: ScoreMatrix, gap: int, seed: int, num_draws: int = 10000) -> GapResult:
     scores = m.as_dict()
@@ -245,14 +250,15 @@ def render_report(
         "it is resolved from the model directly above (rank distance 1).",
         "",
         "| rank distance | pairs | resolved (Holm p < 0.05) | share resolved | "
-        "median n for 80% power |",
-        "|---|---|---|---|---|",
+        "of which the lower-ranked model has the higher pooled mean | median n for 80% power |",
+        "|---|---|---|---|---|---|",
     ]
     for g in gaps:
         needed = [r.n_needed for r in g.rows if r.n_needed is not None and not r.resolved]
         med = f"{int(np.median(needed))}" if needed else "n/a"
         lines.append(
-            f"| {g.gap} | {len(g.rows)} | {g.resolved} | {g.resolved / len(g.rows):.0%} | {med} |"
+            f"| {g.gap} | {len(g.rows)} | {g.resolved} | {g.resolved / len(g.rows):.0%} | "
+            f"{g.reversed} | {med} |"
         )
     adj = next(g for g in gaps if g.gap == 1)
     lines += [
