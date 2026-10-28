@@ -2,6 +2,8 @@
 
 Snapshot 2026-10-26. evalkit is a model-free evaluation harness (statistics layer over per-item results), so "head-to-head on the same public benchmark" means: feed a public leaderboard's own per-item results through evalkit and compare what comes out with what the leaderboard published. No model was run for this review. The protocol was committed before the final scoring run: [protocol-helm-lite.md](protocol-helm-lite.md).
 
+**Update after this snapshot:** evalkit now has clustered standard errors (Miller 2024 formula), a cluster bootstrap, a cluster sign-flip test, a design effect in the power functions, multi-sample averaging and pass^k; see the README section "Clustered standard errors, multi-sample runs, pass^k" and [protocol-clustered-se.md](protocol-clustered-se.md). Statements below that evalkit has no clustered SE or no repeat variance describe the snapshot, not the current code (repeat samples are now averaged per item; seed-to-seed variance of a model is still not modelled).
+
 Sections: 1 summary, 2 empirical replication on HELM Lite, 3 numbers that are not comparable, 4 release state, 5 feature matrix, 6 Miller 2024, 7 papers and systems, 8 what the SOTA does that evalkit does not, 9 notes, sources and weak spots.
 
 ## 1. Summary

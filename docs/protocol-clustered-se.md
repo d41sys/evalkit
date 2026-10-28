@@ -8,7 +8,7 @@ Eval items often come in groups (questions about one passage, items from one sou
 
     SE_clustered = sqrt( SE_CLT^2 + (1/n^2) * sum_c sum_i sum_{j != i} (s_ic - s_bar)(s_jc - s_bar) )
 
-with `SE_CLT^2 = Var(s) / n` (unbiased variance), `s_ic` the score of item `i` in cluster `c`, `s_bar` the grand mean, and the double sum over ordered pairs of distinct items in the same cluster. `evalkit.clustered.clustered_se` implements exactly this. The design effect used for power is `DEFF = 1 + (m - 1) * ICC` (Kish 1965; for unequal cluster sizes `m` is `sum_c m_c^2 / N`, Eldridge et al. 2009).
+with `SE_CLT^2 = Var(s) / n` (unbiased variance), `s_ic` the score of item `i` in cluster `c`, `s_bar` the grand mean, and the double sum over ordered pairs of distinct items in the same cluster. `evalkit.clustered.clustered_se` implements exactly this. The design effect used for power is `DEFF = 1 + (m - 1) * ICC` (Kish 1965; for unequal cluster sizes `m` is `sum_c m_c^2 / N`, Eldridge, Ashby & Kerry 2006).
 
 Claims under test:
 

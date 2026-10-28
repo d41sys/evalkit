@@ -595,6 +595,66 @@ The script's output has every before/after cell for H0 coverage and type-I error
 
 Caveats for round 2: the tie-guard cut (0.5) and the range clip were decided after seeing round 2a (disclosed above), and the final run is the second 2b scoring run (the clip changed one reported number, a mean CI width, and no verdict); the grid has only tie rates 0, 0.5 and 0.8, so the 0.5 threshold is a midpoint, not an estimate. The 8000- and 3000-replication intervals are the same as in round 1.
 
+## Clustered standard errors, multi-sample runs, pass^k
+
+Eval items often share a source (questions about one passage, items from one document), so their scores are correlated and `s / sqrt(n)` is too small. Miller (2024, "Adding Error Bars to Evals", [arXiv 2411.00640](https://arxiv.org/abs/2411.00640), sec. 3.2) gives the clustered standard error of a mean:
+
+```
+SE_clustered = sqrt( SE_CLT^2 + (1/n^2) * sum_c sum_i sum_{j != i} (s_ic - s_bar)(s_jc - s_bar) )     SE_CLT^2 = Var(s) / n
+```
+
+(`s_ic` is the score of item `i` in cluster `c`, `s_bar` the grand mean; the double sum runs over ordered pairs of distinct items in the same cluster; `evalkit.clustered.clustered_se`). With every item its own cluster it equals the naive SE. Applied to the per-item differences it is the SE of a paired difference.
+
+What is in the box (numpy only, `src/evalkit/clustered.py`, `results.py`, `samples.py`):
+
+- **`cluster_id` per item.** A dataset row may carry `cluster_id`, or the task spec names another field with `cluster_field: passage`; `run` writes it into `results.jsonl`. An item without one is its own cluster; one `cluster_id` is scoped to its task.
+- **Cluster bootstrap** (`cluster_bootstrap_ci`): resample whole clusters with replacement, mean = total score over total items, percentile interval.
+- **`compare` and `compare --all-pairs` switch to the clustered versions when the results file has cluster ids**: the CI is the cluster bootstrap, the randomisation p is a **cluster sign-flip test** (all differences in a cluster change sign together, i.e. `randomization_test_p` on cluster sums), and the table shows naive SE, clustered SE and their ratio (all-pairs also the ICC and DEFF). Files without cluster ids print the tables above, unchanged. The item-level sign test stays as a reference column.
+- **Design effect in power**: `DEFF = 1 + (m - 1) * ICC` (Kish 1965; `m` = sum of squared cluster sizes / n, which is the cluster size for equal clusters and covers unequal ones, Eldridge, Ashby & Kerry 2006). The ICC is the one-way ANOVA estimate on the paired differences, clipped at 0. `minimum_detectable_effect`, `required_sample_size` and the binary versions take `deff=`; `compare` passes the estimated one, so the `MDE` and `n for 80% power` columns are in items and are inflated by it. The binary versions evaluate McNemar power at `n / DEFF`, an approximation.
+- **Several samples per item.** `run --samples k` queries each item `k` times (rows get a `sample` index; the mock `noisy` and `random` models draw independently per sample, a greedy model such as the `hf:` ones repeats itself). The item is the unit of analysis: samples are averaged per item before any statistic, in `compare` and in the leaderboard. **pass^k** (tau-bench, Yao et al. 2024, [arXiv 2406.12045](https://arxiv.org/abs/2406.12045)) is the probability that all `k` samples of an item are correct, estimated unbiasedly per item as `C(c, k) / C(n, k)` for `c` correct of `n` samples (0/1 scores only); `compare` prints it, with a cluster-aware bootstrap CI, whenever an item has several samples (`--pass-k` picks `k`, default the fewest samples per item).
+
+```bash
+uv run evalkit run --tasks tasks --models noisy:0.3,random --samples 5
+uv run evalkit compare runs/<run>/results.jsonl --all-pairs
+uv run evalkit stats-check --only-clustered --out docs/results/clustered-se-stats-check.md
+```
+
+### Real-data demo: none available, so the demo is simulated
+
+No local results have natural clusters. The bundled tasks, the GSM8K runs and the pilot runs have no cluster field (the trivia MCQ rows are `id, question, choices, choices_text, target, targets`: no category), and I did not invent one. The HELM Lite per-item data is not cached (`data/` is empty, and a search of the disk for `core_scenarios.json` found nothing); it was not re-downloaded. So the demo below is a simulation (`scripts/make_clustered_demo.py`: 40 passages x 5 questions, 3 models, 3 samples each, a shared passage difficulty plus a model x passage interaction; seed 0). Nothing in it is a measurement of a real model. Full output: [docs/results/clustered-demo.md](docs/results/clustered-demo.md).
+
+`evalkit compare runs/clustered-demo/results.jsonl --all-pairs` (columns for the first two pairs; verdicts from the cluster sign-flip test with Holm over 3 pairs):
+
+| A vs B | n | clusters | naive SE | clustered SE (ratio) | ICC | DEFF | A - B | 95% CI (cluster bootstrap) | sign p (item level) | cluster randomisation p | Holm p | n for 80% power | verdict |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| model_a vs model_b | 200 | 40 | 0.0282 | 0.0433 (1.54x) | 0.35 | 2.40 | +0.093 | [+0.008, +0.178] | 0.00328 | 0.0478 | 0.054 | 344 | unresolved |
+| model_a vs model_c | 200 | 40 | 0.0307 | 0.0471 (1.54x) | 0.35 | 2.40 | +0.192 | [+0.098, +0.282] | 1.41e-08 | 0.0005 | 0.0015 | 97 | resolved |
+
+The item-level sign test calls model_a vs model_b significant at p = 0.003; with passages as the unit the cluster sign-flip p is 0.048, the Holm-adjusted p 0.054 and the `n for 80% power` column says 344 items (inflated by DEFF 2.40, at the observed difference). Per-model pass^3 in the same output: 0.345 / 0.210 / 0.115 against pass^1 of 0.628 / 0.535 / 0.437.
+
+### Does the clustered statistic hold up? (`evalkit stats-check --clustered`)
+
+Protocol, grid and decision rules were committed before the scoring run: [docs/protocol-clustered-se.md](docs/protocol-clustered-se.md) (`987f0d6`). The estimators were implemented in `2aab09f` and `4b69299` and not changed after the run. Full report (72 coverage cells, 6 power cells): [docs/results/clustered-se-stats-check.md](docs/results/clustered-se-stats-check.md), seed 0, 2000 replications per cell, 88 s on 8 workers.
+
+Data generators (`src/evalkit/statscheck_cluster.py`): design `mean` (one model's scores: beta-binomial binary, Gaussian random-effect continuous) and design `paired` (the analysed score is `A - B`; true difference 0; binary scores from cluster-level probabilities `0.5 +/- s_c`, so A and B are exchangeable); ICC 0, 0.1, 0.3; 20, 50, 100 clusters; clusters of 5 or `1 + Poisson(4)`. Four 95% intervals per replication: naive normal (`mean +/- 1.96 s / sqrt(n)`), the item bootstrap `compare` printed before this change, clustered-SE normal, cluster bootstrap. Verdicts use the existing Wilson-99% rules.
+
+| Pre-registered claim | Rule (fixed beforehand) | Outcome |
+|---|---|---|
+| 1. The naive SE and the item bootstrap undercover when ICC > 0 | each flagged `undercovers` in at least 90% of the 48 cells with ICC > 0 | **supported**, 48 of 48 for both. Point coverage at 50 or more clusters: 0.88 to 0.91 at ICC 0.1, 0.78 to 0.82 at ICC 0.3 (nominal 0.95) |
+| 2. The clustered SE (normal) and the cluster bootstrap are calibrated | binding in the 48 cells with at least 50 clusters: *supported* if none is flagged, *approximately supported* if every flagged cell has coverage at least 0.93 | **approximately supported**, not fully: clustered normal flagged in 8 of 48 cells, cluster bootstrap in 9, lowest point coverage 0.932 / 0.931; coverage 0.932 to 0.957 in all of them |
+| 3a. The item-level sign-flip test is anti-conservative under clustering | flagged in at least 90% of the 24 paired cells with ICC > 0 | **supported**, 24 of 24: type-I error 0.08 to 0.11 at ICC 0.1, 0.16 to 0.22 at ICC 0.3 (nominal 0.05) |
+| 3b. The cluster sign-flip test is valid | no paired cell anti-conservative (36 cells) | **supported**, 0 of 36: 0.029 to 0.059 |
+| 4. The DEFF-inflated n reaches 80% power | `optimistic` is a failure | **not supported**: power 0.701 / 0.752 / 0.758 at ICC 0 / 0.1 / 0.3 (n = 50 / 70 / 110 items) |
+
+Details behind the table, all from the report:
+
+- Mean point coverage at 50 or more clusters, by ICC 0 / 0.1 / 0.3: naive 0.951 / 0.894 / 0.801, item bootstrap 0.951 / 0.895 / 0.802, clustered normal 0.946 / 0.942 / 0.944, cluster bootstrap 0.947 / 0.942 / 0.944. The clustered intervals sit 0.005 to 0.01 below nominal; the naive ones fall to 0.80.
+- **20 clusters** (not binding by the protocol): clustered normal 0.915 to 0.936 and cluster bootstrap 0.917 to 0.943 (flagged in 24 of 24 and 22 of 24 cells). That is the known small-number-of-clusters shortfall (Cameron & Miller 2015), seen at ICC 0 too. Control: at ICC 0 with 50 or more clusters the clustered normal interval is flagged in 0 of 16 cells, the cluster bootstrap in 2 of 16 (0.936, continuous mean, equal sizes).
+- **SE ratio.** Mean clustered / naive SE over `sqrt(DEFF)` is 0.982 (range 0.952 to 0.996, 72 cells): Miller's SE is about 2% low on average at these cluster counts, consistent with the mild undercoverage. A finite-cluster factor `sqrt(C / (C - 1))` (inspect_ai applies one, see [docs/sota-review.md](docs/sota-review.md)) would raise it by 1.0% at 50 clusters and 2.6% at 20; it was not tried, because the estimator was frozen by the protocol.
+- **Power (claim 4) failed; the design effect closes most of the gap but not all of it.** Without DEFF the cluster test reaches 0.71 / 0.57 / 0.39 at n = 50; with DEFF 0.70 / 0.75 / 0.76. At ICC 0 the formula's n is the same 50 items and the cluster test, which flips 10 cluster sums instead of 50 items, already reaches only 0.70 [INFERENCE: a coarser test, with a z-based formula and 10 to 22 sign-flip units; not isolated]. So the residual 0.04 to 0.10 shortfall against 0.80 is not specific to clustering. The cluster-bootstrap "CI excludes 0" column reads higher (0.81 to 0.83 in the DEFF rows) but that interval undercovers at small cluster counts (0.92 to 0.94 at 20 clusters), so part of the difference is false positives [INFERENCE, not separated]. Binary-score power with DEFF is not simulated.
+
+Caveats: the generators are simple (equal ICC, symmetric differences, clusters of about 5, 20 or more clusters); the ICC is estimated, not known, in `compare` (the generators know it); the leaderboard CIs in `evalkit leaderboard` still resample items (samples are averaged per item first) and do not use clusters, only `compare` does; the HELM Lite analysis above treats items as independent and was not rerun.
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
@@ -616,7 +676,7 @@ Verdict, plainly:
 
 1. **Where evalkit is ahead.** It ships paired tests on shared items, Holm correction, power and tie groups, which I found in none of the six harnesses compared (documentation and key source files only; the weak spots are listed in [docs/sota-review.md](docs/sota-review.md#9-notes-sources-and-weak-spots)). On HELM Lite it shows that about half of the adjacent rank gaps are unresolved at the data's own size and that the published order and the pooled item means disagree in 16 resolved cases (a scenario-weighting choice the table hides). It reproduces HELM's published numbers exactly from per-item data.
 2. **Where evalkit loses on this benchmark.** Its token F1 is a different statistic (59-80% item-identical), GSM8K matching is more lenient, and its ECE binning differs. The pooled means move by at most 0.013 and model order is kept, but item-level differences feed the paired tests. These metrics were reported, not changed, in this work.
-3. **Where evalkit loses on features** (not tested on a benchmark): no clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data, so the p-values above may be too small where questions are grouped), no Bradley-Terry, no LLM-judge scorers or judge-aware inference, no IRT or adaptive testing, no seed/repeat variance, no contamination or label-error audit, no agent evals. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
+3. **Where evalkit loses on features** (not tested on a benchmark): Bradley-Terry, LLM-judge scorers or judge-aware inference, IRT or adaptive testing, contamination or label-error audit, agent evals are missing. Clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data) and multi-sample averaging with pass^k were added after this comparison, see the section above; they are validated on simulated data only, and the HELM Lite rows here were computed without them. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
 4. **Not done.** The Open LLM Leaderboard per-item data is gated (HTTP 401 without a Hugging Face login), so there is no `import-openllm`. The Chatbot Arena Elo-versus-Bradley-Terry comparison was skipped (184 MB vote file, no Bradley-Terry fit to compare). Details and the table of numbers that are not comparable: [docs/sota-review.md](docs/sota-review.md#3-published-numbers-that-are-not-comparable).
 5. **Caveats.** Pooled micro-averaging is evalkit's weighting, not HELM's (the bootstrap row uses HELM's). Items are treated as independent. Imported rows have no confidence, so the ECE and Brier columns of `evalkit leaderboard` are constants there. The first fetch downloaded about 0.7 GB of raw JSON, above the 300 MB guidance (a sizing mistake); 37 MB are kept on disk.
 
