@@ -124,13 +124,15 @@ class NoisyModel:
         self.seed = seed
         self.name = name or f"noisy:{self.noise_rate}"
 
-    def _rng(self, prompt: str) -> random.Random:
-        # Per-prompt RNG: results are independent of thread scheduling order.
-        return random.Random(f"{self.seed}:{prompt}")
+    def _rng(self, prompt: str, sample: int = 0) -> random.Random:
+        # Per-prompt RNG: results are independent of thread scheduling order. Sample 0 keeps
+        # the original seed string; later samples of the same prompt draw independently.
+        tag = f"{sample}:" if sample else ""
+        return random.Random(f"{self.seed}:{tag}{prompt}")
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
         example = kwargs.get("example")
-        if self._rng(prompt).random() >= self.noise_rate:
+        if self._rng(prompt, int(kwargs.get("sample", 0))).random() >= self.noise_rate:
             ans = _get_target_from_example(example)
             if ans:
                 return ans
@@ -143,7 +145,7 @@ class NoisyModel:
         return [-0.4] * tokens
 
     def choose(self, prompt: str, choices: Sequence[str], **kwargs: Any) -> str:
-        rng = self._rng(prompt)
+        rng = self._rng(prompt, int(kwargs.get("sample", 0)))
         example = kwargs.get("example")
         target = _get_target_from_example(example)
         correct_choice = choices[0] if choices else ""
@@ -175,7 +177,9 @@ class NoisyModel:
             text = self.generate(prompt, example=example, **kwargs)
 
         lps = self.logprobs(prompt, text)
-        confidence = float(self._rng(prompt + "\x00conf").uniform(0.65, 0.85))
+        confidence = float(
+            self._rng(prompt + "\x00conf", int(kwargs.get("sample", 0))).uniform(0.65, 0.85)
+        )
         nll = float(-sum(lps))
         return Prediction(text=text, confidence=confidence, logprobs=lps, token_nll=nll)
 
@@ -187,21 +191,22 @@ class RandomModel:
         self.seed = seed
         self.name = name
 
-    def _rng(self, prompt: str) -> random.Random:
-        return random.Random(f"{self.seed}:{prompt}")
+    def _rng(self, prompt: str, sample: int = 0) -> random.Random:
+        tag = f"{sample}:" if sample else ""
+        return random.Random(f"{self.seed}:{tag}{prompt}")
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
         example = kwargs.get("example")
         if example and "canonical_solution" in example:
             return "    pass"
-        return str(self._rng(prompt).randint(0, 100))
+        return str(self._rng(prompt, int(kwargs.get("sample", 0))).randint(0, 100))
 
     def logprobs(self, prompt: str, candidate: str) -> list[float]:
         tokens = max(1, len(candidate.split()))
         return [-2.0] * tokens
 
     def choose(self, prompt: str, choices: Sequence[str], **kwargs: Any) -> str:
-        return self._rng(prompt).choice(choices) if choices else ""
+        return self._rng(prompt, int(kwargs.get("sample", 0))).choice(choices) if choices else ""
 
     def predict(
         self,
@@ -217,7 +222,9 @@ class RandomModel:
             text = self.generate(prompt, example=example, **kwargs)
 
         lps = self.logprobs(prompt, text)
-        confidence = float(self._rng(prompt + "\x00conf").uniform(0.2, 0.45))
+        confidence = float(
+            self._rng(prompt + "\x00conf", int(kwargs.get("sample", 0))).uniform(0.2, 0.45)
+        )
         nll = float(-sum(lps))
         return Prediction(text=text, confidence=confidence, logprobs=lps, token_nll=nll)
 

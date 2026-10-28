@@ -38,6 +38,7 @@ class TaskSpec(BaseModel):
     metrics: list[str]
     few_shot: int = 0
     few_shot_examples: list[dict[str, Any]] = Field(default_factory=list)
+    cluster_field: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
@@ -121,8 +122,22 @@ class TaskSpec(BaseModel):
                 raise SpecError(
                     f"Dataset row {idx} in {path} is missing template variable(s): {missing_str}"
                 )
+            if self.cluster_field is not None and row.get(self.cluster_field) is None:
+                raise SpecError(
+                    f"Dataset row {idx} in {path} has no value for cluster_field "
+                    f"{self.cluster_field!r}"
+                )
 
         return rows
+
+    def cluster_of(self, row: dict[str, Any]) -> str | None:
+        """The cluster id of a dataset row (items sharing a passage or source document).
+
+        The row field named by ``cluster_field`` in the spec, else a ``cluster_id`` field if
+        the row has one; None when the row has neither (such an item is its own cluster).
+        """
+        value = row.get(self.cluster_field or "cluster_id")
+        return None if value is None else str(value)
 
     def render_prompt(self, row: dict[str, Any]) -> str:
         req_vars = self.required_variables()

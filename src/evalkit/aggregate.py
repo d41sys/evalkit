@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import cache
 from statistics import NormalDist
+from typing import Any
 
 import numpy as np
+
+from .clustered import (
+    ClusterStats,
+    cluster_bootstrap_ci,
+    cluster_stats,
+    cluster_sums,
+    encode_clusters,
+)
 
 CI_METHODS = ("auto", "percentile", "bca", "studentized")
 SMALL_N_CI = 400
@@ -348,7 +357,11 @@ def sign_test_p(wins: int, losses: int) -> float:
 
 @dataclass(frozen=True)
 class PairedComparison:
-    """Model A vs model B on the same examples."""
+    """Model A vs model B on the same examples.
+
+    ``clustering`` is set when the interval is the cluster bootstrap (``ci_method`` is then
+    ``cluster-bootstrap``): naive and clustered SE of the mean difference, ICC and design effect.
+    """
 
     n: int
     mean_a: float
@@ -361,6 +374,7 @@ class PairedComparison:
     ties: int
     sign_p: float
     ci_method: str  # concrete method behind diff_ci_lo / diff_ci_hi
+    clustering: ClusterStats | None = None
 
 
 def paired_comparison(
@@ -369,6 +383,7 @@ def paired_comparison(
     num_resamples: int = 10000,
     seed: int = 0,
     ci_method: str = "auto",
+    clusters: Sequence[Hashable] | None = None,
 ) -> PairedComparison:
     """Paired bootstrap CI on mean(A - B) plus an exact sign test.
 
@@ -377,17 +392,33 @@ def paired_comparison(
     :func:`resolve_ci_method` (default ``auto``: bootstrap-t below 400 examples unless
     more than half the pairs tie, else percentile) and passed to
     :func:`bootstrap_mean_ci`.
+
+    ``clusters`` (one label per example) replaces the item bootstrap by the cluster bootstrap
+    (:func:`evalkit.clustered.cluster_bootstrap_ci`; ``ci_method`` is ignored) and fills
+    ``clustering``. Fewer than two distinct labels fall back to the item bootstrap. The sign
+    test stays item-level.
     """
     if len(scores_a) != len(scores_b):
         raise ValueError("paired scores must have the same length")
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)
     diffs = a - b
-    tie_fraction = float(np.mean(diffs == 0.0)) if diffs.size else 0.0
-    method = resolve_ci_method(ci_method, int(a.size), tie_fraction)
-    diff, lo, hi = bootstrap_mean_ci(
-        diffs.tolist(), num_resamples=num_resamples, seed=seed, method=method
-    )
+    codes = None
+    if clusters is not None:
+        if len(clusters) != len(scores_a):
+            raise ValueError("one cluster label per example is required")
+        codes = encode_clusters(clusters)
+    clustering: ClusterStats | None = None
+    if codes is not None and int(codes.max(initial=-1)) >= 1:
+        method = "cluster-bootstrap"
+        diff, lo, hi = cluster_bootstrap_ci(diffs, codes, num_resamples=num_resamples, seed=seed)
+        clustering = cluster_stats(diffs, codes)
+    else:
+        tie_fraction = float(np.mean(diffs == 0.0)) if diffs.size else 0.0
+        method = resolve_ci_method(ci_method, int(a.size), tie_fraction)
+        diff, lo, hi = bootstrap_mean_ci(
+            diffs.tolist(), num_resamples=num_resamples, seed=seed, method=method
+        )
     wins = int((diffs > 0).sum())
     losses = int((diffs < 0).sum())
     return PairedComparison(
@@ -402,6 +433,7 @@ def paired_comparison(
         ties=int(a.size) - wins - losses,
         sign_p=sign_test_p(wins, losses),
         ci_method=method,
+        clustering=clustering,
     )
 
 
@@ -457,6 +489,31 @@ def randomization_test_p(
     return (hits + 1) / (num_draws + 1)
 
 
+def cluster_randomization_test_p(
+    diffs: Sequence[float] | np.ndarray,
+    clusters: Sequence[Hashable],
+    num_draws: int = 10000,
+    seed: int = 0,
+    exact_max_nonzero: int = 20,
+) -> float:
+    """Two-sided paired randomisation test of mean(diffs) = 0 that flips whole clusters.
+
+    Items in a cluster are correlated, so the exchangeable unit under H0 is the cluster:
+    all differences in a cluster change sign together (swap A and B for the whole cluster).
+    The sum over items is the sum of the cluster totals, so this is
+    :func:`randomization_test_p` on the per-cluster sums (exact up to ``exact_max_nonzero``
+    nonzero clusters, else Monte Carlo). With one cluster per item it equals the item-level
+    test. The same symmetry assumption as there applies, at cluster level.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    if len(clusters) != d.size:
+        raise ValueError("one cluster label per difference is required")
+    sums, _ = cluster_sums(d, encode_clusters(clusters))
+    return randomization_test_p(
+        sums, num_draws=num_draws, seed=seed, exact_max_nonzero=exact_max_nonzero
+    )
+
+
 def holm_bonferroni(p_values: Sequence[float]) -> list[float]:
     """Holm (1979) step-down adjusted p-values, returned in the input order.
 
@@ -479,7 +536,7 @@ def _z_sum(alpha: float, power: float) -> float:
 
 
 def minimum_detectable_effect(
-    sd_diff: float, n: int, alpha: float = 0.05, power: float = 0.8
+    sd_diff: float, n: int, alpha: float = 0.05, power: float = 0.8, deff: float = 1.0
 ) -> float:
     """Smallest true mean paired difference detectable with the given power.
 
@@ -490,15 +547,19 @@ def minimum_detectable_effect(
 
     (power analysis for paired model comparisons as recommended by Miller 2024,
     "Adding Error Bars to Evals", arXiv 2411.00640, sec. 4; standard result, see
-    e.g. Cohen 1988.) With alpha = 0.05, power = 0.8 the multiplier is 2.8016.
+    e.g. Cohen 1988.) With alpha = 0.05, power = 0.8 the multiplier is 2.8016. Clustered
+    items (design effect
+    ``deff = 1 + (m - 1) ICC``, :func:`evalkit.clustered.design_effect`) inflate the variance
+    of the mean, so ``MDE = z * sd_diff * sqrt(deff / n)``. ``sd_diff`` is the total SD of
+    the per-example differences (the naive one).
     """
     if n <= 0:
         return math.inf
-    return _z_sum(alpha, power) * sd_diff / math.sqrt(n)
+    return _z_sum(alpha, power) * sd_diff * math.sqrt(deff / n)
 
 
 def required_sample_size(
-    sd_diff: float, effect: float, alpha: float = 0.05, power: float = 0.8
+    sd_diff: float, effect: float, alpha: float = 0.05, power: float = 0.8, deff: float = 1.0
 ) -> int:
     """Examples needed to detect a mean paired difference of ``effect``.
 
@@ -507,11 +568,14 @@ def required_sample_size(
         n = ceil(((z_{1 - alpha/2} + z_{power}) * sd_diff / effect)^2)
 
     (Miller 2024, arXiv 2411.00640.) At least 2, since a paired SD needs two
-    examples. ``effect`` must be nonzero.
+    examples. ``effect`` must be nonzero. With clustered items the variance of the mean is
+    inflated by the design effect ``deff = 1 + (m - 1) ICC`` (Kish 1965;
+    :func:`evalkit.clustered.design_effect`), so the count is multiplied by it:
+    ``n = ceil(deff * ((z_{1 - alpha/2} + z_{power}) * sd_diff / effect)^2)``.
     """
     if effect == 0:
         raise ValueError("effect must be nonzero")
-    n = math.ceil((_z_sum(alpha, power) * sd_diff / abs(effect)) ** 2)
+    n = math.ceil(deff * (_z_sum(alpha, power) * sd_diff / abs(effect)) ** 2)
     return max(2, n)
 
 
@@ -649,8 +713,27 @@ def required_sample_size_binary(
     alpha: float = 0.05,
     power: float = 0.8,
     exact: bool = True,
+    deff: float = 1.0,
 ) -> int:
     """Pairs needed to detect ``effect`` with the given power, for 0/1 scores.
+
+    The independent-pairs answer of :func:`_required_pairs_binary` times the design effect
+    ``deff`` (:func:`evalkit.clustered.design_effect`), rounded up: the number of *items*
+    needed when they come in clusters. ``deff = 1`` (default) is the unclustered answer.
+    See the helper for the formulas.
+    """
+    n = _required_pairs_binary(p_disc, effect, alpha, power, exact)
+    return n if deff == 1.0 else max(2, math.ceil(n * deff))
+
+
+def _required_pairs_binary(
+    p_disc: float,
+    effect: float,
+    alpha: float = 0.05,
+    power: float = 0.8,
+    exact: bool = True,
+) -> int:
+    """Independent pairs needed to detect ``effect`` with the given power, for 0/1 scores.
 
     ``psi`` = ``p_disc``, the discordant-pair rate P(A != B); ``d`` = ``effect`` =
     P(A=1, B=0) - P(A=0, B=1). Fewer discordant pairs than the effect is impossible,
@@ -708,7 +791,12 @@ def required_sample_size_binary(
 
 
 def minimum_detectable_effect_binary(
-    p_disc: float, n: int, alpha: float = 0.05, power: float = 0.8, exact: bool = True
+    p_disc: float,
+    n: int,
+    alpha: float = 0.05,
+    power: float = 0.8,
+    exact: bool = True,
+    deff: float = 1.0,
 ) -> float:
     """Smallest difference of 0/1 scores detected with the given power at ``n`` pairs.
 
@@ -718,9 +806,15 @@ def minimum_detectable_effect_binary(
     with ``d``, so bisection finds the root. ``inf`` when even ``d = psi`` (every
     discordant pair favouring one model) is not detectable at this ``n``; 0 when there
     are no discordant pairs (nothing to resolve either way).
+
+    ``deff`` > 1 is the design effect of clustered items: the formula is evaluated at the
+    effective sample size ``round(n / deff)`` (at least 2). An approximation, not an exact
+    clustered McNemar power.
     """
     if n <= 0:
         return math.inf
+    if deff != 1.0:
+        n = max(2, round(n / deff))
     psi = min(max(p_disc, 0.0), 1.0)
     if psi == 0.0:
         return 0.0
@@ -809,6 +903,7 @@ class PairResolution:
     skewness: float
     skew_warning: bool
     ci_method: str
+    clustering: ClusterStats | None = None
 
 
 @dataclass(frozen=True)
@@ -832,6 +927,7 @@ def compare_pairs(
     seed: int = 0,
     ci_method: str = "auto",
     with_power: bool = True,
+    clusters: Mapping[Any, Hashable] | None = None,
 ) -> list[PairResolution]:
     """Paired resolvability analysis for ``pairs`` (A, B) of models.
 
@@ -848,6 +944,14 @@ def compare_pairs(
     ``with_power=False`` skips both (``mde`` is NaN, ``n_needed`` None) for callers that
     only need p-values. ``ci_method`` is the bootstrap CI method (see
     :func:`bootstrap_mean_ci`).
+
+    ``clusters`` maps an example key to its cluster label (an example without an entry is its
+    own cluster). When a pair's examples fall into at least two clusters the analysis is
+    clustered: the CI is the cluster bootstrap, ``rand_p`` is the cluster sign-flip test
+    (:func:`cluster_randomization_test_p`), and the power figures use the design effect
+    ``1 + (m - 1) ICC`` estimated from the differences (:func:`evalkit.clustered.cluster_stats`).
+    ``PairResolution.clustering`` then carries the naive and clustered SE. ``ci_method`` and
+    the sign test stay item-level.
     """
     stats: list[_PairStats] = []
     for a_name, b_name in pairs:
@@ -855,9 +959,17 @@ def compare_pairs(
         keys = sorted((k for k in sa if k in sb), key=repr)
         va = [sa[k] for k in keys]
         vb = [sb[k] for k in keys]
-        c = paired_comparison(va, vb, num_resamples=num_resamples, seed=seed, ci_method=ci_method)
+        labels: list[Hashable] | None = None
+        if clusters is not None:
+            labels = [clusters.get(k, ("\0singleton", k)) for k in keys]
+        c = paired_comparison(
+            va, vb, num_resamples=num_resamples, seed=seed, ci_method=ci_method, clusters=labels
+        )
         diffs = np.asarray(va, dtype=np.float64) - np.asarray(vb, dtype=np.float64)
-        p = randomization_test_p(diffs, num_draws=num_draws, seed=seed)
+        if labels is not None and c.clustering is not None:
+            p = cluster_randomization_test_p(diffs, labels, num_draws=num_draws, seed=seed)
+        else:
+            p = randomization_test_p(diffs, num_draws=num_draws, seed=seed)
         sd = float(diffs.std(ddof=1)) if diffs.size > 1 else 0.0
         skew, warn = skewness_warning(diffs)
         stats.append(_PairStats(c, p, sd, is_binary(va) and is_binary(vb), skew, warn))
@@ -865,6 +977,7 @@ def compare_pairs(
     out: list[PairResolution] = []
     for (a_name, b_name), s, hp in zip(pairs, stats, holm, strict=True):
         c = s.comparison
+        deff = c.clustering.deff if c.clustering is not None else 1.0
         target = abs(c.diff) if effect is None else abs(effect)
         mde: float
         needed: int | None
@@ -872,13 +985,19 @@ def compare_pairs(
             mde, needed = math.nan, None
         elif s.binary:
             psi = (c.wins + c.losses) / c.n
-            mde = minimum_detectable_effect_binary(psi, c.n, alpha, power)
+            mde = minimum_detectable_effect_binary(psi, c.n, alpha, power, deff=deff)
             needed = (
-                required_sample_size_binary(psi, target, alpha, power) if target > 1e-12 else None
+                required_sample_size_binary(psi, target, alpha, power, deff=deff)
+                if target > 1e-12
+                else None
             )
         else:
-            mde = minimum_detectable_effect(s.sd, c.n, alpha, power)
-            needed = required_sample_size(s.sd, target, alpha, power) if target > 1e-12 else None
+            mde = minimum_detectable_effect(s.sd, c.n, alpha, power, deff=deff)
+            needed = (
+                required_sample_size(s.sd, target, alpha, power, deff=deff)
+                if target > 1e-12
+                else None
+            )
         out.append(
             PairResolution(
                 model_a=a_name,
@@ -903,6 +1022,7 @@ def compare_pairs(
                 skewness=s.skewness,
                 skew_warning=s.skew_warning,
                 ci_method=c.ci_method,
+                clustering=c.clustering,
             )
         )
     return out

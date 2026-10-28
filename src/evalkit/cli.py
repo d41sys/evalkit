@@ -5,15 +5,20 @@ import json
 import math
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
 
+import numpy as np
+
 from .aggregate import CI_METHODS, PairResolution, compare_pairs, paired_comparison
+from .clustered import cluster_bootstrap_ci, encode_clusters
 from .helm import import_helm_lite
 from .helm_metrics import run_metric_check
 from .helm_study import GAPS, run_study
 from .models import Model, get_model
+from .results import ClusterLabel, ItemKey, load_results, merge_clusters
 from .runner import EvalRecord, generate_leaderboard, run
+from .samples import pass_hat_k
 from .spec import SpecError, TaskSpec
 from .statscheck import (
     StatsCheckConfig,
@@ -81,7 +86,7 @@ def run_command(args: argparse.Namespace) -> int:
             print(f"  {m.name}: resolved revision {revision}")
     print(f"Executing evaluations -> {out_dir}")
 
-    summary = run(specs, models, out_dir, max_workers=args.workers)
+    summary = run(specs, models, out_dir, max_workers=args.workers, samples=args.samples)
 
     print(f"\nDone! Evaluated: {summary.total_evaluated}, Skipped: {summary.total_skipped}")
     print(f"Results written to: {summary.results_path}")
@@ -123,31 +128,21 @@ def leaderboard_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _read_scores(path: Path, model: str) -> dict[tuple[str, str], float]:
-    """(task, example_id) -> score for one model in a results.jsonl file."""
-    scores: dict[tuple[str, str], float] = {}
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            if row["model"] == model:
-                scores[(str(row["task"]), str(row["example_id"]))] = float(row["score"])
-    return scores
+def _item_labels(
+    keys: Sequence[ItemKey], clusters: Mapping[ItemKey, ClusterLabel] | None
+) -> list[Hashable] | None:
+    """Cluster label per item (an item without a cluster id is its own cluster).
+
+    None when there is no cluster map or the items fall into fewer than two clusters.
+    """
+    if not clusters:
+        return None
+    labels: list[Hashable] = [clusters.get(k, ("\0singleton", k)) for k in keys]
+    return labels if len(set(labels)) >= 2 else None
 
 
-def _read_all_scores(path: Path) -> dict[str, dict[object, float]]:
-    """model -> {(task, example_id): score}, models in order of first appearance."""
-    scores: dict[str, dict[object, float]] = {}
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            scores.setdefault(row["model"], {})[(str(row["task"]), str(row["example_id"]))] = float(
-                row["score"]
-            )
-    return scores
+def _ratio(r: float) -> str:
+    return "n/a" if math.isnan(r) else f"{r:.2f}"
 
 
 def _verdict(r: PairResolution) -> str:
@@ -158,12 +153,75 @@ def _verdict(r: PairResolution) -> str:
     return f"unresolved (needs n≈{r.n_needed})"
 
 
+def _print_pass_k(
+    entries: Sequence[tuple[str, dict[ItemKey, list[float]]]],
+    clusters: Mapping[ItemKey, ClusterLabel] | None,
+    k: int | None,
+    seed: int,
+) -> int:
+    """pass^k table for models whose items have several samples; 0 on success.
+
+    Printed when some item has more than one sample or ``k`` is given. ``k`` defaults to the
+    fewest samples any item has.
+    """
+    counts = [len(v) for _, items in entries for v in items.values()]
+    if not counts or (k is None and max(counts) < 2):
+        return 0
+    k_eff = k if k is not None else min(counts)
+    if k_eff < 1 or k_eff > min(counts):
+        sys.stderr.write(
+            f"Error: --pass-k {k_eff} needs at least that many samples for every item "
+            f"(fewest found: {min(counts)})\n"
+        )
+        return 1
+    print(
+        f"\n### Multi-sample: item averages and pass^{k_eff} "
+        f"(samples per item {min(counts)} to {max(counts)})\n"
+    )
+    print(f"| model | items | pass^1 (mean over samples) | pass^{k_eff} | 95% CI of pass^{k_eff} |")
+    print("|---|---|---|---|---|")
+    for name, items in entries:
+        keys = list(items)
+        try:
+            per_item = pass_hat_k(items, k_eff)
+            first = pass_hat_k(items, 1)
+        except ValueError:
+            print(f"| {name} | {len(keys)} | n/a | n/a | scores are not 0/1, pass^k undefined |")
+            continue
+        vals = np.array([per_item[key] for key in keys])
+        labels = _item_labels(keys, clusters)
+        if labels is None:
+            labels = [("\0singleton", key) for key in keys]
+        if len(set(labels)) < 2:
+            ci = "n/a"
+            point = float(vals.mean())
+        else:
+            point, lo, hi = cluster_bootstrap_ci(vals, encode_clusters(labels), 10000, seed=seed)
+            ci = f"[{lo:.3f}, {hi:.3f}]"
+        print(
+            f"| {name} | {len(keys)} | {float(np.mean(list(first.values()))):.3f} | "
+            f"{point:.3f} | {ci} |"
+        )
+    print(
+        f"\nItem score = mean of the item's samples. pass^{k_eff} = mean over items of "
+        f"C(c, {k_eff}) / C(n, {k_eff}) for c correct of n samples, an unbiased estimate of "
+        "P(all samples of an item correct) (Yao et al. 2024, tau-bench, arXiv 2406.12045). "
+        "CI: bootstrap over items" + (" (whole clusters)" if clusters else "") + ".\n"
+    )
+    return 0
+
+
 def compare_all_pairs_command(args: argparse.Namespace) -> int:
     """All model pairs on shared examples, Holm-corrected over the whole family."""
     if args.a or args.b or args.results_b:
         sys.stderr.write("Error: --all-pairs cannot be combined with --a/--b/--results-b\n")
         return 1
-    all_scores = _read_all_scores(Path(args.results))
+    try:
+        table = load_results(Path(args.results))
+    except ValueError as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    all_scores = table.all_item_scores()
     if args.models:
         names = [m.strip() for m in args.models.split(",") if m.strip()]
         missing = [m for m in names if m not in all_scores]
@@ -181,19 +239,37 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             sys.stderr.write(f"Error: no shared (task, example_id) for {a_name!r} and {b_name!r}\n")
             return 1
     rows = compare_pairs(
-        all_scores, pairs, effect=args.effect, seed=args.seed, ci_method=args.ci_method
+        all_scores,
+        pairs,
+        effect=args.effect,
+        seed=args.seed,
+        ci_method=args.ci_method,
+        clusters=table.clusters or None,
     )
+    clustered = any(r.clustering is not None for r in rows)
     print(f"\n### All pairs ({len(pairs)} comparisons, pooled over tasks, A - B)\n")
+    ci_head = "cluster bootstrap" if clustered else "paired bootstrap"
+    rand_head = "cluster randomisation p" if clustered else "randomisation p"
+    cluster_head = " clusters | naive SE | clustered SE (ratio) | ICC | DEFF |" if clustered else ""
     print(
-        "| A vs B | n | A - B | 95% CI (paired bootstrap) | W / L / T | sign p | "
-        "randomisation p | Holm p | MDE (80%) | n for 80% power | verdict |"
+        f"| A vs B | n |{cluster_head} A - B | 95% CI ({ci_head}) | W / L / T | sign p | "
+        f"{rand_head} | Holm p | MDE (80%) | n for 80% power | verdict |"
     )
-    print("|---|---|---|---|---|---|---|---|---|---|---|")
+    print("|---|---|" + ("---|" * 5 if clustered else "") + "---|" * 9)
     for r in rows:
         needed = "n/a" if r.n_needed is None else str(r.n_needed)
         mde = "unattainable" if math.isinf(r.mde) else f"{r.mde:.3f}"
+        cl = r.clustering
+        cells = ""
+        if clustered:
+            cells = (
+                " n/a | n/a | n/a | n/a | n/a |"
+                if cl is None
+                else f" {cl.n_clusters} | {cl.naive_se:.4f} | {cl.cluster_se:.4f} "
+                f"({_ratio(cl.se_ratio)}x) | {cl.icc:.2f} | {cl.deff:.2f} |"
+            )
         print(
-            f"| {r.model_a} vs {r.model_b} | {r.n} | {r.diff:+.3f} | "
+            f"| {r.model_a} vs {r.model_b} | {r.n} |{cells} {r.diff:+.3f} | "
             f"[{r.diff_ci_lo:+.3f}, {r.diff_ci_hi:+.3f}] | {r.wins} / {r.losses} / {r.ties} | "
             f"{r.sign_p:.3g} | {r.rand_p:.3g} | {r.holm_p:.3g} | {mde} | {needed} | "
             f"{_verdict(r)} |"
@@ -209,14 +285,35 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             "scores, normal approximation with the observed SD of the differences otherwise"
         ),
     }[frozenset(kinds)]
+    flip = (
+        "cluster sign-flip test (whole clusters change sign together; exact for <= 20 nonzero "
+        "cluster sums, else 10,000 seeded Monte Carlo draws)"
+        if clustered
+        else "paired sign-flip test (exact for <= 20 nonzero differences, else 10,000 seeded "
+        "Monte Carlo draws)"
+    )
     print(
-        "\nrandomisation p: two-sided paired sign-flip test (exact for <= 20 nonzero "
-        "differences, else 10,000 seeded Monte Carlo draws). Holm p: Holm-Bonferroni over "
+        f"\nrandomisation p: two-sided {flip}. Holm p: Holm-Bonferroni over "
         f"these {len(pairs)} pairs; resolved = Holm p < 0.05. MDE and n use alpha = 0.05, "
         f"power 0.8, {power_note}; n is for {target}; MDE `unattainable` means that even "
         "every discordant pair favouring one model would not be detected at this n. "
         f"CI method: {', '.join(methods)}. The sign test is shown for reference only.\n"
     )
+    if clustered:
+        finite = [
+            r.clustering.se_ratio
+            for r in rows
+            if r.clustering is not None and not math.isnan(r.clustering.se_ratio)
+        ]
+        spread = f"{min(finite):.2f}x to {max(finite):.2f}x" if finite else "n/a"
+        print(
+            "Clustered: items sharing a `cluster_id` are one resampling unit. Naive SE = "
+            "s / sqrt(n); clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2); ratio = "
+            f"clustered / naive (here {spread}). ICC: one-way ANOVA estimate on the paired "
+            "differences, clipped at 0. DEFF = 1 + (m - 1) ICC with m = sum of squared cluster "
+            "sizes / n; MDE and n for power are inflated by it (n is a count of items). Items "
+            "without a cluster id are their own cluster.\n"
+        )
     warned = [r for r in rows if r.skew_warning]
     if warned:
         warned_pairs = "; ".join(
@@ -228,7 +325,9 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             "on skewed differences, so read its p-value as approximate for: "
             f"{warned_pairs}.\n"
         )
-    return 0
+    return _print_pass_k(
+        [(m, table.samples[m]) for m in names], table.clusters or None, args.pass_k, args.seed
+    )
 
 
 def compare_command(args: argparse.Namespace) -> int:
@@ -240,8 +339,15 @@ def compare_command(args: argparse.Namespace) -> int:
         return 1
     file_a = Path(args.results)
     file_b = Path(args.results_b) if args.results_b else file_a
-    a = _read_scores(file_a, args.a)
-    b = _read_scores(file_b, args.b)
+    try:
+        table_a = load_results(file_a)
+        table_b = table_a if file_b == file_a else load_results(file_b)
+        clusters = merge_clusters(table_a, table_b) or None
+    except ValueError as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    a = table_a.item_scores(args.a)
+    b = table_b.item_scores(args.b)
     shared = sorted(set(a) & set(b))
     if not shared:
         sys.stderr.write(f"Error: no shared (task, example_id) for {args.a!r} and {args.b!r}\n")
@@ -249,23 +355,64 @@ def compare_command(args: argparse.Namespace) -> int:
 
     tasks = sorted({task for task, _ in shared})
     print(f"\n### {args.a} (A) vs {args.b} (B), paired on {len(shared)} examples\n")
-    print("| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |")
-    print("|---|---|---|---|---|---|---|---|")
+    results = []
     for task in [*tasks, "ALL"]:
         keys = shared if task == "ALL" else [k for k in shared if k[0] == task]
         c = paired_comparison(
-            [a[k] for k in keys], [b[k] for k in keys], seed=args.seed, ci_method=args.ci_method
+            [a[k] for k in keys],
+            [b[k] for k in keys],
+            seed=args.seed,
+            ci_method=args.ci_method,
+            clusters=_item_labels(keys, clusters),
         )
+        results.append((task, c))
+    clustered = any(c.clustering is not None for _, c in results)
+    if clustered:
         print(
-            f"| {task} | {c.n} | {c.mean_a:.3f} | {c.mean_b:.3f} | {c.diff:+.3f} | "
-            f"[{c.diff_ci_lo:+.3f}, {c.diff_ci_hi:+.3f}] | {c.wins} / {c.losses} / {c.ties} | "
-            f"{c.sign_p:.3g} |"
+            "| Task | n | clusters | A | B | A - B | 95% CI | naive SE | clustered SE | "
+            "SE ratio | W / L / T | sign p |"
         )
+        print("|---|---|---|---|---|---|---|---|---|---|---|---|")
+    else:
+        print("| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |")
+        print("|---|---|---|---|---|---|---|---|")
+    for task, c in results:
+        cl = c.clustering
+        parts = [task, str(c.n)]
+        if clustered:
+            parts.append("n/a" if cl is None else str(cl.n_clusters))
+        parts += [
+            f"{c.mean_a:.3f}",
+            f"{c.mean_b:.3f}",
+            f"{c.diff:+.3f}",
+            f"[{c.diff_ci_lo:+.3f}, {c.diff_ci_hi:+.3f}]",
+        ]
+        if clustered:
+            parts += (
+                ["n/a"] * 3
+                if cl is None
+                else [f"{cl.naive_se:.4f}", f"{cl.cluster_se:.4f}", f"{_ratio(cl.se_ratio)}x"]
+            )
+        parts += [f"{c.wins} / {c.losses} / {c.ties}", f"{c.sign_p:.3g}"]
+        print("| " + " | ".join(parts) + " |")
     print(
         "\nALL pools examples across tasks (micro average). "
         "p-values are not corrected for the number of tasks.\n"
     )
-    return 0
+    if clustered:
+        print(
+            "95% CI: cluster bootstrap (whole clusters resampled; rows with fewer than two "
+            "clusters fall back to the item bootstrap and show n/a). Naive SE = s / sqrt(n) of "
+            "the per-item differences; clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2); "
+            "SE ratio = clustered / naive. The sign test is item-level and ignores clusters. "
+            "Items without a cluster id are their own cluster.\n"
+        )
+    return _print_pass_k(
+        [(args.a, table_a.samples.get(args.a, {})), (args.b, table_b.samples.get(args.b, {}))],
+        clusters,
+        args.pass_k,
+        args.seed,
+    )
 
 
 def stats_check_command(args: argparse.Namespace) -> int:
@@ -397,6 +544,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=1,
         help="hf: models decode up to this many free-generation prompts together (default 1)",
     )
+    run_parser.add_argument(
+        "--samples",
+        type=int,
+        default=1,
+        help="query every item this many times (rows get a `sample` index; default 1)",
+    )
 
     # leaderboard command
     board_parser = subparsers.add_parser("leaderboard", help="View or recompute leaderboard")
@@ -439,7 +592,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=CI_METHODS,
         default="auto",
         help="paired bootstrap CI: auto (studentized below 400 examples, else percentile), "
-        "percentile, bca or studentized",
+        "percentile, bca or studentized (ignored where cluster ids exist: cluster bootstrap)",
+    )
+    cmp_parser.add_argument(
+        "--pass-k",
+        type=int,
+        default=None,
+        help="pass^k for items with several samples (default: the fewest samples per item)",
     )
 
     # stats-check command

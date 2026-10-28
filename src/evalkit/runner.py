@@ -38,6 +38,8 @@ class EvalRecord:
     correct: int
     token_nll: float = 0.0
     token_count: int = 1
+    cluster_id: str | None = None
+    sample: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,6 +54,8 @@ class EvalRecord:
             "correct": self.correct,
             "token_nll": self.token_nll,
             "token_count": self.token_count,
+            **({"cluster_id": self.cluster_id} if self.cluster_id is not None else {}),
+            **({"sample": self.sample} if self.sample else {}),
         }
 
     @classmethod
@@ -68,6 +72,8 @@ class EvalRecord:
             correct=int(d.get("correct", 0)),
             token_nll=float(d.get("token_nll", 0.0)),
             token_count=int(d.get("token_count", 1)),
+            cluster_id=None if d.get("cluster_id") is None else str(d["cluster_id"]),
+            sample=int(d.get("sample", 0)),
         )
 
 
@@ -104,17 +110,22 @@ def _evaluate_single(
     example: dict[str, Any],
     example_id: str,
     labels: Sequence[str] | None = None,
+    sample: int = 0,
 ) -> EvalRecord:
     prompt = spec.render_prompt(example)
     choices = example.get("choices") or labels
 
+    # Sample 0 calls the model exactly as a single-sample run does; later samples add
+    # ``sample=`` so a stochastic model can draw independently (greedy models repeat sample 0).
+    extra: dict[str, Any] = {"sample": sample} if sample else {}
     pred = model.predict(
         prompt,
         task_type=spec.type,
         choices=choices,
         example=example,
+        **extra,
     )
-    return _score_prediction(spec, model.name, example, example_id, pred)
+    return _score_prediction(spec, model.name, example, example_id, pred, sample)
 
 
 def _evaluate_one(
@@ -123,8 +134,9 @@ def _evaluate_one(
     example: dict[str, Any],
     example_id: str,
     labels: Sequence[str] | None,
+    sample: int = 0,
 ) -> list[EvalRecord]:
-    return [_evaluate_single(spec, model, example, example_id, labels)]
+    return [_evaluate_single(spec, model, example, example_id, labels, sample)]
 
 
 def _evaluate_batch(
@@ -139,7 +151,12 @@ def _evaluate_batch(
 
 
 def _score_prediction(
-    spec: TaskSpec, model_name: str, example: dict[str, Any], example_id: str, pred: Prediction
+    spec: TaskSpec,
+    model_name: str,
+    example: dict[str, Any],
+    example_id: str,
+    pred: Prediction,
+    sample: int = 0,
 ) -> EvalRecord:
     targets = _extract_targets(example)
     metrics_dict: dict[str, float] = {}
@@ -175,6 +192,8 @@ def _score_prediction(
         correct=correct_flag,
         token_nll=pred.token_nll,
         token_count=pred.token_count,
+        cluster_id=spec.cluster_of(example),
+        sample=sample,
     )
 
 
@@ -183,16 +202,23 @@ def generate_leaderboard(records: Sequence[EvalRecord]) -> LeaderboardReport:
     if not records:
         return LeaderboardReport(models=[])
 
-    # Group records by model and by (example_id, task)
+    # Group records by model and by (example_id, task); several samples of one item are
+    # averaged first, so the item (not the sample) is the unit of every statistic below.
     by_model: dict[str, list[EvalRecord]] = defaultdict(list)
+    item_samples: dict[str, dict[tuple[str, str], list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     by_example: dict[str, dict[str, float]] = defaultdict(dict)
     all_tasks: set[str] = set()
 
     for r in records:
         by_model[r.model].append(r)
-        key = f"{r.task}::{r.example_id}"
-        by_example[key][r.model] = r.score
+        item_samples[r.model][(r.task, r.example_id)].append(r.score)
+        by_example[f"{r.task}::{r.example_id}"].setdefault(r.model, 0.0)  # fixes Elo game order
         all_tasks.add(r.task)
+    for model_name, items in item_samples.items():
+        for (task, example_id), vals in items.items():
+            by_example[f"{task}::{example_id}"][model_name] = float(sum(vals) / len(vals))
 
     # Compute pairwise Elo ratings
     matches = build_pairwise_matches(by_example)
@@ -212,8 +238,8 @@ def generate_leaderboard(records: Sequence[EvalRecord]) -> LeaderboardReport:
     for model_name, recs in by_model.items():
         # Per-task means
         task_scores: dict[str, list[float]] = defaultdict(list)
-        for r in recs:
-            task_scores[r.task].append(r.score)
+        for (task, _), vals in item_samples[model_name].items():
+            task_scores[task].append(float(sum(vals) / len(vals)))
 
         per_task_means: dict[str, float] = {
             t: float(sum(scores) / len(scores)) for t, scores in task_scores.items()
@@ -282,20 +308,28 @@ def run(
     models: Sequence[Model],
     out_dir: str | Path,
     max_workers: int = 4,
+    samples: int = 1,
 ) -> EvalSummary:
     """Run evaluation benchmark across specs and models.
 
-    Resumable: skips (task, model, example_id) already stored in out_dir/results.jsonl.
-    Multi-threaded: uses ThreadPoolExecutor(max_workers).
+    Resumable: skips (task, model, example_id, sample) already stored in
+    out_dir/results.jsonl. Multi-threaded: uses ThreadPoolExecutor(max_workers).
     Outputs results.jsonl and leaderboard.md.
+
+    ``samples`` > 1 queries every item that many times (rows carry a ``sample`` index from 1;
+    sample 0 is the plain single-sample call). Models that read the ``sample`` keyword
+    (the mock ``noisy`` and ``random`` models) draw independently per sample; a greedy model
+    repeats its answer. Statistics average the samples per item (see :mod:`evalkit.samples`).
     """
+    if samples < 1:
+        raise ValueError("samples must be at least 1")
     output_path = Path(out_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     results_file = output_path / "results.jsonl"
     leaderboard_file = output_path / "leaderboard.md"
 
     existing_records: list[EvalRecord] = []
-    completed_keys: set[tuple[str, str, str]] = set()
+    completed_keys: set[tuple[str, str, str, int]] = set()
 
     if results_file.is_file():
         with open(results_file, encoding="utf-8") as f:
@@ -307,11 +341,11 @@ def run(
                     data = json.loads(line)
                     rec = EvalRecord.from_dict(data)
                     existing_records.append(rec)
-                    completed_keys.add((rec.task, rec.model, rec.example_id))
+                    completed_keys.add((rec.task, rec.model, rec.example_id, rec.sample))
                 except Exception:
                     continue
 
-    work_items: list[tuple[TaskSpec, Model, dict[str, Any], str, list[str] | None]] = []
+    work_items: list[tuple[TaskSpec, Model, dict[str, Any], str, list[str] | None, int]] = []
     total_skipped = 0
 
     for spec in specs:
@@ -325,11 +359,12 @@ def run(
         for idx, row in enumerate(rows):
             ex_id = str(row.get("id", row.get("task_id", f"ex_{idx:04d}")))
             for model in models:
-                key = (spec.name, model.name, ex_id)
-                if key in completed_keys:
-                    total_skipped += 1
-                else:
-                    work_items.append((spec, model, row, ex_id, labels))
+                for sample in range(samples):
+                    key = (spec.name, model.name, ex_id, sample)
+                    if key in completed_keys:
+                        total_skipped += 1
+                    else:
+                        work_items.append((spec, model, row, ex_id, labels, sample))
 
     newly_evaluated = 0
     new_records: list[EvalRecord] = []
@@ -341,9 +376,10 @@ def run(
         jobs: list[Callable[[], list[EvalRecord]]] = []
         grouped: dict[tuple[str, str], list[tuple[dict[str, Any], str]]] = {}
         batch_models: dict[tuple[str, str], tuple[TaskSpec, BatchModel]] = {}
-        for spec, model, row, ex_id, labels in work_items:
+        for spec, model, row, ex_id, labels, sample in work_items:
             if (
-                isinstance(model, BatchModel)
+                sample == 0
+                and isinstance(model, BatchModel)
                 and model.batch_size > 1
                 and spec.type in _BATCHABLE_TYPES
             ):
@@ -351,7 +387,7 @@ def run(
                 batch_models[group_key] = (spec, model)
                 grouped.setdefault(group_key, []).append((row, ex_id))
             else:
-                jobs.append(partial(_evaluate_one, spec, model, row, ex_id, labels))
+                jobs.append(partial(_evaluate_one, spec, model, row, ex_id, labels, sample))
         for group_key, group in grouped.items():
             spec, batch_model = batch_models[group_key]
             for start in range(0, len(group), batch_model.batch_size):
