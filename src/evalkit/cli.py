@@ -10,12 +10,32 @@ from pathlib import Path
 
 import numpy as np
 
-from .aggregate import CI_METHODS, PairResolution, compare_pairs, paired_comparison
+from .aggregate import (
+    CI_METHODS,
+    PairResolution,
+    compare_pairs,
+    compute_elo_ratings,
+    paired_comparison,
+)
 from .clustered import cluster_bootstrap_ci, encode_clusters
 from .helm import import_helm_lite
 from .helm_metrics import run_metric_check
 from .helm_study import GAPS, run_study
-from .models import Model, get_model
+from .judge import (
+    DEFAULT_RUBRIC,
+    Judge,
+    PointItem,
+    Rubric,
+    length_bias,
+    pair_item_from_row,
+    pairwise_rows,
+    point_verdict,
+    pointwise_row,
+    position_flip_rate,
+    verdict_score,
+)
+from .llmcache import CachedCompleter, CacheMiss, CallBudgetExceeded
+from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
 from .results import ClusterLabel, ItemKey, load_results, merge_clusters
 from .runner import EvalRecord, generate_leaderboard, run
 from .samples import pass_hat_k
@@ -527,6 +547,164 @@ def metric_check_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_pairs(path: Path, limit: int | None) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                rows.append(json.loads(line))
+    return rows[:limit] if limit else rows
+
+
+def _make_completer(args: argparse.Namespace) -> CachedCompleter:
+    """The cached completer for ``--judge anthropic:<model id>`` (cache-only needs no key)."""
+    kind, _, model_id = args.judge.partition(":")
+    if kind != "anthropic":
+        raise ValueError(f"--judge must be anthropic:<model id>, got {args.judge!r}")
+    model_id = model_id or DEFAULT_ANTHROPIC_MODEL
+    cache = Path(args.cache) if args.cache else Path(args.out) / "judge-cache.jsonl"
+    if args.cache_only:
+        return CachedCompleter(None, cache, model_id=model_id, max_calls=args.max_calls)
+    backend = get_model(f"anthropic:{model_id}")
+    if not isinstance(backend, Completer):
+        raise ValueError(f"{args.judge!r} cannot complete chat prompts")
+    return CachedCompleter(backend, cache, model_id=model_id, max_calls=args.max_calls)
+
+
+def judge_command(args: argparse.Namespace) -> int:
+    """LLM-as-judge over a pairs file; writes results.jsonl for compare / leaderboard."""
+    try:
+        rows = _read_pairs(Path(args.pairs), args.limit)
+        completer = _make_completer(args)
+    except (OSError, ValueError, RuntimeError, ImportError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    rubric = Rubric(args.rubric_name, args.rubric_criteria, args.scale_low, args.scale_high)
+    judge = Judge(completer, rubric=rubric, both_orders=not args.no_swap, workers=args.workers)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ids = [str(r.get("id", i)) for i, r in enumerate(rows)]
+    tasks = [str(r.get("task", args.task)) for r in rows]
+    clusters = [None if r.get("cluster_id") is None else str(r["cluster_id"]) for r in rows]
+    names_a = [str(r.get("model_a", "A")) for r in rows]
+    names_b = [str(r.get("model_b", "B")) for r in rows]
+    result_rows: list[dict[str, object]] = []
+    matches: list[tuple[str, str, float]] = []
+    judgments: list[dict[str, object]] = []
+    notes: list[str] = []
+    try:
+        if args.mode == "pairwise":
+            items = [pair_item_from_row(r) for r in rows]
+            verdicts = judge.compare_many(items)
+            for i, v in enumerate(verdicts):
+                result_rows += pairwise_rows(
+                    task=tasks[i],
+                    example_id=ids[i],
+                    model_a=names_a[i],
+                    model_b=names_b[i],
+                    resolved=v.resolved,
+                    cluster_id=clusters[i],
+                )
+                matches.append((names_a[i], names_b[i], verdict_score(v.resolved)))
+                judgments.append(
+                    {
+                        "id": ids[i],
+                        "first": v.first,
+                        "second": v.second,
+                        "resolved": v.resolved,
+                        "flipped": v.flipped,
+                    }
+                )
+            rate, n_valid, n_invalid = position_flip_rate(verdicts)
+            if args.no_swap:
+                notes.append("Position control off (--no-swap): each pair judged in one order.")
+            else:
+                notes.append(
+                    f"Position-flip rate {rate:.1%} over {n_valid} items with both replies "
+                    f"parsed; inconsistent verdicts were resolved to tie. {n_invalid} items had "
+                    "an unparsable reply (counted as tie)."
+                )
+            lb = length_bias([v.resolved for v in verdicts], [it.length_diff for it in items])
+            notes.append(
+                f"Length diagnostic: Spearman rho of verdict with length difference "
+                f"{_ratio(lb.rho)}; longer response wins {_ratio(lb.longer_wins)} of decided "
+                "pairs. Longer answers can be better; compare with a human baseline before "
+                "calling it bias."
+            )
+        else:
+            point_items: list[PointItem] = []
+            for r in rows:
+                for key in ("response_a", "response_b"):
+                    ref = r.get("reference")
+                    ins = r.get("instruction")
+                    point_items.append(
+                        PointItem(
+                            str(r["prompt"]),
+                            str(r[key]),
+                            None if ref is None else str(ref),
+                            None if ins is None else str(ins),
+                        )
+                    )
+            scored = judge.score_many(point_items)
+            missing = 0
+            for i in range(len(rows)):
+                sa, sb = scored[2 * i].score, scored[2 * i + 1].score
+                for model, s in ((names_a[i], sa), (names_b[i], sb)):
+                    if s is None:
+                        missing += 1
+                        continue
+                    result_rows.append(
+                        pointwise_row(
+                            task=tasks[i],
+                            example_id=ids[i],
+                            model=model,
+                            score=s,
+                            cluster_id=clusters[i],
+                        )
+                    )
+                if sa is not None and sb is not None:
+                    matches.append((names_a[i], names_b[i], verdict_score(point_verdict(sa, sb))))
+                judgments.append({"id": ids[i], "score_a": sa, "score_b": sb})
+            notes.append(
+                f"Pointwise scale {rubric.low}-{rubric.high}; scores are rubric points, so "
+                f"`compare` differences are in points. {missing} unparsable scores were dropped."
+            )
+    except (CacheMiss, CallBudgetExceeded) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    with open(out_dir / "results.jsonl", "w", encoding="utf-8") as f:
+        for row in result_rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    with open(out_dir / "judgments.jsonl", "w", encoding="utf-8") as f:
+        for j in judgments:
+            f.write(json.dumps(j, ensure_ascii=False) + "\n")
+    stats = completer.stats
+    elo = compute_elo_ratings(matches)
+    by_model: dict[str, list[float]] = {}
+    for row in result_rows:
+        by_model.setdefault(str(row["model"]), []).append(float(str(row["score"])))
+    print(f"\n### Judge `{args.judge}`, {args.mode}, {len(rows)} items\n")
+    print("| Model | Items | Mean judge score | Elo |")
+    print("|---|---|---|---|")
+    for model in sorted(by_model, key=lambda m: -elo.get(m, 0.0)):
+        mean = sum(by_model[model]) / len(by_model[model])
+        print(f"| {model} | {len(by_model[model])} | {mean:.3f} | {elo.get(model, 1000.0):.1f} |")
+    print()
+    for note in notes:
+        print(note + "\n")
+    print(
+        f"Elo: processed in file order, K = 32, from the resolved verdicts. API calls this run: "
+        f"{stats.live_calls} live, {stats.hits} cache hits; tokens in/out "
+        f"{stats.input_tokens}/{stats.output_tokens}. Self-preference is not controlled: do not "
+        "rank answers from the judge's own model family without a human check. No logprobs.\n"
+    )
+    print(
+        f"Next: `evalkit compare {out_dir / 'results.jsonl'} --all-pairs` (clustered SE where "
+        "rows carry a cluster_id).\n"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="evalkit",
@@ -696,6 +874,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     hs.add_argument("--out", default=None, help="also write the markdown report here")
 
+    # judge command
+    jd = subparsers.add_parser(
+        "judge", help="LLM-as-judge over a pairs file (pairwise A/B/tie or pointwise rubric)"
+    )
+    jd.add_argument("--pairs", required=True, help="JSONL: prompt, response_a, response_b, ...")
+    jd.add_argument("--mode", choices=["pairwise", "pointwise"], default="pairwise")
+    jd.add_argument("--judge", default=f"anthropic:{DEFAULT_ANTHROPIC_MODEL}")
+    jd.add_argument("--out", default="runs/judge", help="writes results.jsonl, judgments.jsonl")
+    jd.add_argument("--cache", default=None, help="call cache (default: <out>/judge-cache.jsonl)")
+    jd.add_argument(
+        "--cache-only", action="store_true", help="never call the API; a cache miss is an error"
+    )
+    jd.add_argument("--max-calls", type=int, default=4000, help="cap on live API calls")
+    jd.add_argument("--workers", type=int, default=8, help="concurrent calls (at most 8)")
+    jd.add_argument("--limit", type=int, default=0, help="judge only the first N rows")
+    jd.add_argument("--task", default="judge", help="task name for rows without one")
+    jd.add_argument(
+        "--no-swap", action="store_true", help="pairwise: one order only (no position control)"
+    )
+    jd.add_argument("--rubric-name", default=DEFAULT_RUBRIC.name)
+    jd.add_argument("--rubric-criteria", default=DEFAULT_RUBRIC.criteria)
+    jd.add_argument("--scale-low", type=int, default=DEFAULT_RUBRIC.low)
+    jd.add_argument("--scale-high", type=int, default=DEFAULT_RUBRIC.high)
+
     # metric-check command
     mc = subparsers.add_parser(
         "metric-check", help="evalkit metrics vs HELM's per-instance values on the same predictions"
@@ -720,6 +922,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return helm_study_command(args)
     elif args.subcommand == "metric-check":
         return metric_check_command(args)
+    elif args.subcommand == "judge":
+        return judge_command(args)
     else:
         parser.print_help()
         return 1

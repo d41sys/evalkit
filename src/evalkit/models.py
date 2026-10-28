@@ -23,6 +23,39 @@ class Prediction:
         return max(1, len(self.text.split()))
 
 
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+
+
+@dataclass(frozen=True)
+class Completion:
+    """One chat completion: the text, the model id the API reported and its token usage."""
+
+    text: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+
+
+@runtime_checkable
+class Completer(Protocol):
+    """What the LLM judge needs from a model: one system+user completion with usage.
+
+    ``temperature=None`` sends no sampling parameter: claude-sonnet-5-5 rejects ``temperature``
+    ("Extra inputs are not permitted", 400), so its decoding is the API default.
+    """
+
+    model_id: str
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        max_tokens: int = 512,
+        temperature: float | None = None,
+    ) -> Completion: ...
+
+
 @runtime_checkable
 class Model(Protocol):
     name: str
@@ -230,13 +263,17 @@ class RandomModel:
 
 
 class AnthropicModel:
-    """Real LLM model calling Anthropic API (requires extra [llm])."""
+    """Real LLM model calling Anthropic API (requires extra [llm]).
+
+    The API returns no token logprobs: ``logprobs`` is a constant proxy, not a measurement.
+    """
 
     def __init__(
         self,
-        model_id: str = "claude-3-5-sonnet-20241022",
+        model_id: str = DEFAULT_ANTHROPIC_MODEL,
         api_key: str | None = None,
         name: str | None = None,
+        max_retries: int = 8,
     ) -> None:
         try:
             import anthropic
@@ -251,21 +288,50 @@ class AnthropicModel:
                 "ANTHROPIC_API_KEY environment variable is missing and no api_key was provided."
             )
 
-        self.client = anthropic.Anthropic(api_key=key)
+        # The SDK retries 408/409/429/5xx (529 included) with exponential backoff.
+        self.client = anthropic.Anthropic(api_key=key, max_retries=max_retries)
         self.model_id = model_id
         self.name = name or f"anthropic:{model_id}"
 
-    def generate(self, prompt: str, **kwargs: Any) -> str:
-        max_tokens = kwargs.get("max_tokens", 256)
-        temp = kwargs.get("temperature", 0.0)
-        resp = self.client.messages.create(
-            model=self.model_id,
-            max_tokens=max_tokens,
-            temperature=temp,
-            messages=[{"role": "user", "content": prompt}],
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        max_tokens: int = 512,
+        temperature: float | None = None,
+    ) -> Completion:
+        extra: dict[str, Any] = {} if temperature is None else {"temperature": temperature}
+        if system is None:
+            resp = self.client.messages.create(
+                model=self.model_id,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+                extra_body=extra,
+            )
+        else:
+            resp = self.client.messages.create(
+                model=self.model_id,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                extra_body=extra,
+            )
+        text = "".join(getattr(block, "text", "") for block in resp.content)
+        return Completion(
+            text=text,
+            model=str(resp.model),
+            input_tokens=int(resp.usage.input_tokens),
+            output_tokens=int(resp.usage.output_tokens),
         )
-        content_block = resp.content[0]
-        return getattr(content_block, "text", "")
+
+    def generate(self, prompt: str, **kwargs: Any) -> str:
+        return self.complete(
+            prompt,
+            system=kwargs.get("system"),
+            max_tokens=kwargs.get("max_tokens", 256),
+            temperature=kwargs.get("temperature"),
+        ).text
 
     def logprobs(self, prompt: str, candidate: str) -> list[float]:
         # Anthropic API does not expose token logprobs; return proxy estimate
@@ -316,7 +382,7 @@ def get_model(spec_str: str, **kwargs: Any) -> Model:
         return RandomModel(**kwargs)
     if raw.startswith("anthropic"):
         parts = raw.split(":", 1)
-        model_id = parts[1] if len(parts) > 1 else "claude-3-5-sonnet-20241022"
+        model_id = parts[1] if len(parts) > 1 else DEFAULT_ANTHROPIC_MODEL
         return AnthropicModel(model_id=model_id, **kwargs)
     if raw.startswith("hf:"):
         from .hf import HFModel, parse_descriptor
