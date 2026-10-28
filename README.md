@@ -13,6 +13,7 @@ Evaluating LLMs accurately requires consistent metric definitions, reproducible 
 4. Perplexity and Expected Calibration Error (ECE) with reliability diagrams
 5. Bootstrap confidence intervals, deterministic Elo ratings (interleaved match order), and a resolvability layer (paired randomisation test, Holm correction, minimum detectable effect, sample size for 80% power, leaderboard tie groups)
 6. Resumable multi-threaded evaluation runner with automated markdown leaderboard generation
+7. LLM-as-judge scorer (pointwise rubric and pairwise A/B/tie) with position, reference and length controls, a disk call cache, and agreement validation against MT-Bench human judgments
 
 ## Architecture
 
@@ -49,6 +50,10 @@ uv run evalkit compare runs/demo/results.jsonl --all-pairs
 
 # Monte Carlo check of the shipped statistics (type-I error, CI coverage, power, Holm FWER)
 uv run evalkit stats-check --out runs/stats-check/report.md
+
+# LLM judge over a pairs file (needs the [llm] extra and ANTHROPIC_API_KEY; --cache-only replays a recorded run with no key)
+uv run evalkit judge --pairs data/mtbench/test.jsonl --cache data/mtbench/cache-test.jsonl --cache-only --task mt-bench --out runs/judge-mtbench
+uv run evalkit compare runs/judge-mtbench/results.jsonl --all-pairs
 
 # Reproduce the HELM Lite comparison (docs/sota-review.md): fetch public per-item results,
 # convert to results.jsonl, run the rank-gap study and the metric cross-check (no model is run).
@@ -655,6 +660,66 @@ Details behind the table, all from the report:
 
 Caveats: the generators are simple (equal ICC, symmetric differences, clusters of about 5, 20 or more clusters); the ICC is estimated, not known, in `compare` (the generators know it); the leaderboard CIs in `evalkit leaderboard` still resample items (samples are averaged per item first) and do not use clusters, only `compare` does; the HELM Lite analysis above treats items as independent and was not rerun.
 
+## LLM-as-judge with bias controls (`evalkit judge`)
+
+```bash
+uv run evalkit judge --pairs pairs.jsonl --mode pairwise --judge anthropic:claude-sonnet-5-5 --out runs/judge
+uv run evalkit judge --pairs pairs.jsonl --mode pointwise --judge anthropic:claude-sonnet-5-5
+```
+
+Pairs file: one JSON object per line with `prompt`, `response_a`, `response_b`, and optionally `id`, `model_a`, `model_b`, `task`, `cluster_id` (repeated prompts: items that share a source), `reference` (reference answer), `instruction` (extra judging guidance) and `length_a`/`length_b` (the lengths used by the length diagnostic, default words). Output: `results.jsonl` in the format `compare`, `leaderboard` and `--all-pairs` already read (pairwise: 1 / 0.5 / 0 for A and the complement for B per judged pair; pointwise: the rubric score), `judgments.jsonl` (both orders per pair) and a printed table with per-model Elo, the position-flip rate and the length diagnostic. Rows that share a `task` and a `cluster_id` are one cluster, so `compare` uses the clustered SE, the cluster bootstrap and the cluster sign-flip test on them (the demo below: clustered SE 0.95x-1.23x the naive one, ICC up to 0.72).
+
+- **Modes.** Pointwise: the judge scores one response on an integer scale (default 1-10, rubric `overall quality`; `--rubric-name`, `--rubric-criteria`, `--scale-low`, `--scale-high` for your own). Pairwise: `A`, `B` or `tie`.
+- **Position bias.** Each pair is judged in both orders. Equal verdicts stand; any disagreement, or a reply with no verdict line, resolves to `tie`. The share of pairs whose orders disagree is reported as the position-flip rate (`--no-swap` turns the control off).
+- **Reference answer.** An optional `reference` field is shown to the judge (reference-guided grading, as Zheng et al. do for math, reasoning and coding).
+- **Length bias.** Spearman rho of the resolved verdict with the length difference, and the share of decided pairs won by the longer response. A positive rho is not bias by itself, since longer answers are often better; the validation below compares it with the humans' rho on the same items.
+- **Self-preference is not controlled.** A judge can favour answers written by its own model family (Zheng et al. 2023, sec. 3.3; Panickssery et al. 2024, [arXiv 2404.13076](https://arxiv.org/abs/2404.13076)). Do not use `claude-sonnet-5-5` to rank Claude outputs without a human check.
+- **Recording.** Every call goes through `evalkit.llmcache.CachedCompleter`: a JSONL cache keyed by the SHA-256 of model, system prompt, user prompt and parameters, holding the request, the response text, the model id the API returned, token usage and a timestamp. Scoring reads the cache, so a published result is re-scored for free (`--cache-only`, no key); identical concurrent requests are sent once; `--max-calls` (default 4000) caps live calls; at most 8 calls run at once; the SDK retries 429, 529 and 5xx with backoff. The API key is read from `ANTHROPIC_API_KEY` and is never written to the cache.
+- **No temperature, no logprobs.** `claude-sonnet-5-5` rejects the `temperature` parameter (HTTP 400, "Extra inputs are not permitted"), so no sampling parameter is sent and decoding is the API default: a fresh run can differ from a recorded one, and I did not measure the test-retest rate. The API exposes no logprobs, so the judge gives no confidence.
+- `AnthropicModel` now defaults to `claude-sonnet-5-5`.
+
+### Does it agree with humans? MT-Bench validation
+
+claude-sonnet-5-5 via Anthropic API, 2026-10-29 (cache timestamps are UTC 2026-10-28 23:19 to 23:43), no logprobs.
+
+Protocol, split, prompt fingerprint and decision rules were committed before the test run: [docs/protocol-judge-mtbench.md](docs/protocol-judge-mtbench.md) (`628613b`). After the run only three things were added, none of which touches a verdict: the `rank` subcommand, hiding the position rows in the pointwise table, and the `--task` override of `evalkit judge`. Data: [`lmsys/mt_bench_human_judgments`](https://huggingface.co/datasets/lmsys/mt_bench_human_judgments) (CC-BY-4.0, 3,355 expert votes on 1,814 distinct (question, model pair, turn) items; no parquet reader was installed, so `scripts/mtbench_judge.py fetch` reads the same table through the Hugging Face datasets-server rows API). Prompts were checked on a **dev split of 60 items from 8 questions** (one per category, 120 calls); the **test split is 1,000 items from the other 72 questions** (seed 0, 1,816 human votes), so no dev question is in test. Agreement follows Zheng et al. App. D.3: S1 counts ties, S2 drops every pair with a tie; judge-human agreement is the mean over items of the share of an item's human votes the judge matches. All intervals are 95% percentile intervals from a bootstrap that resamples whole questions (2,000 resamples, seed 0).
+
+| Metric (test, 1,000 items, 72 questions) | Estimate [95% CI] |
+|---|---|
+| judge-human agreement, S1 (ties count) | 67.8% [64.9, 70.7] |
+| judge-human agreement, S2 (no ties) | 86.0% [83.8, 88.2] |
+| Cohen's kappa, S1 (3 labels) / S2 (A, B) | +0.499 [+0.453, +0.547] / +0.729 [+0.680, +0.778] |
+| human-human agreement, S1 / S2 | 66.8% [62.8, 70.8] / 84.2% [80.4, 87.8] |
+| released GPT-4 (pair) vs human on the same items, S1 / S2 | 65.2% [61.9, 68.5] / 85.4% [83.1, 87.9] |
+| judge minus GPT-4, S1 / S2 | +2.5 pp [-0.2, +5.3] / +0.6 pp [-1.5, +2.8] |
+| judge minus human-human, matched items, S1 / S2 | +1.9 pp [-1.5, +5.1] / +2.6 pp [-0.6, +5.7] |
+| position-flip rate (the two orders disagree) | 7.2% [5.5, 8.8] |
+| Spearman rho of verdict and length difference: judge / humans / difference | +0.370 / +0.379 / -0.010 [-0.055, +0.034] |
+| longer reply wins (decided pairs): judge / humans | 69.0% [64.3, 73.7] / 69.4% [65.2, 73.7] |
+
+Full tables (turns, categories, kappa, ties): [docs/results/judge-mtbench-test.md](docs/results/judge-mtbench-test.md).
+
+**Verdict by the pre-registered rules** ($\delta$ = 5 pp). Against the released GPT-4 verdicts on the same items: non-inferior at S1 and at S2, not superior (both lower bounds are below 0). Against human-human agreement: non-inferior at both, not superior. Position flips: 7.2%, below the 20% flag. Length: no excess over the humans (lower bound of rho judge minus rho human is -0.055, not above 0). So by these rules the judge agrees with the humans about as well as GPT-4 and as well as the humans agree with each other, and is not more length-biased than the humans.
+
+Against the published numbers (Zheng et al. 2023, Table 5, GPT-4 pair vs human: turn 1 66% S1 / 85% S2, turn 2 66% / 84%; human-human 63% / 81% and 67% / 82%) the judge's 68.1% / 84.2% on turn 1 and 67.4% / 87.8% on turn 2 are of the same size, but **this is indicative, not like-for-like**: our prompt differs, our judge sees no reference answers (the dataset has none; Zheng et al. gave GPT-4 references for math, reasoning and coding), claude-sonnet-5-5 cannot be run at temperature 0, and we use 1,000 of 1,814 items. The like-for-like comparison is the released GPT-4 verdicts on our items: 65.2% / 85.4%, which reproduces the published 66% / 85%, so the agreement computation matches the paper's.
+
+What does not look good, stated plainly:
+
+- **No win over GPT-4.** The judge is level with it, not ahead; the S1 gain of +2.5 pp has a lower bound of -0.2 pp.
+- **Ties.** The judge resolves 14.5% of items to tie against a human tie rate of 23.3% (per vote), so S1, the metric that counts ties, is held down by the judge being more decisive than the humans.
+- **Unparsable replies:** 11 of 1,000 items had a reply without a verdict line in one order (counted as tie); the 5% failure threshold of the protocol was not reached.
+- **Reasoning, math, coding without a reference:** S1 65.1% against 69.3% on the other categories; S2 88.4% (human-human 93.0% there). The judge minus human-human difference there is -2.4 pp [-8.5, +3.5] at S1, so I cannot say it is worse, and I cannot say the missing reference made no difference.
+- **Self-preference** is not controlled. On items that include claude-v1 (the one Claude-family model in the data) S2 is 85.2% against 86.4% elsewhere and the position-flip rate is 9.8% [6.9, 13.1] against 5.9% [4.2, 7.7]: descriptive only, and it cannot separate self-preference from quality.
+- One prompt, one judge, one run per item, 72 test questions; subgroup intervals are uncorrected.
+
+**Pointwise (secondary, first 300 test items, 600 calls).** The higher of two 1-10 scores as the verdict (equal scores: tie) agrees with humans at 68.0% [62.4, 73.3] S1 and 88.4% [83.9, 92.4] S2, kappa +0.527 / +0.803; against GPT-4 on those items +2.2 pp [-3.1, +7.8] and +0.8 pp [-3.4, +5.1]. It needs half the calls of the pairwise mode but has no position control ([docs/results/judge-mtbench-pointwise.md](docs/results/judge-mtbench-pointwise.md)).
+
+**Feeding the machinery.** `evalkit judge` on the test split from the cache, then `evalkit compare --all-pairs` (clustered by question, 15 model pairs, Holm): 14 of 15 pairs resolved; gpt-3.5-turbo vs claude-v1 is **unresolved** (sign test p = 0.037 would call it, the cluster randomisation p = 0.064 does not; ICC 0.46, clustered SE 1.10x the naive one). Elo from the judge, from the human majority and from the released GPT-4 verdicts gives the same model order (gpt-4, claude-v1, gpt-3.5-turbo, vicuna-13b, alpaca-13b, llama-13b; [Elo table](docs/results/judge-mtbench-elo.md), [compare output](docs/results/judge-mtbench-cli-demo.md)); six models is a weak test of rank agreement.
+
+**Cost.** 2,551 live API calls in total (cap 4,000): 2 probes (one rejected for `temperature`), 8 discarded smoke calls, 120 dev, 1,978 test pairwise (22 duplicates served from cache), 443 test pointwise (157 duplicates served from cache); about 3.31M input and 0.74M output tokens. Every recorded call is in `data/mtbench/cache-{dev,test}.jsonl` (2,541 calls; the API reported `claude-sonnet-5-5` as the model for all of them).
+
+Reproduce the numbers with no key: `uv run python scripts/mtbench_judge.py score --split test` reads only the cache (add `--out report.md` to write a file); with a key, `scripts/mtbench_judge.py run --split test` re-runs the calls (new answers can differ, see above).
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
@@ -676,7 +741,7 @@ Verdict, plainly:
 
 1. **Where evalkit is ahead.** It ships paired tests on shared items, Holm correction, power and tie groups, which I found in none of the six harnesses compared (documentation and key source files only; the weak spots are listed in [docs/sota-review.md](docs/sota-review.md#9-notes-sources-and-weak-spots)). On HELM Lite it shows that about half of the adjacent rank gaps are unresolved at the data's own size and that the published order and the pooled item means disagree in 16 resolved cases (a scenario-weighting choice the table hides). It reproduces HELM's published numbers exactly from per-item data.
 2. **Where evalkit loses on this benchmark.** Its token F1 is a different statistic (59-80% item-identical), GSM8K matching is more lenient, and its ECE binning differs. The pooled means move by at most 0.013 and model order is kept, but item-level differences feed the paired tests. These metrics were reported, not changed, in this work.
-3. **Where evalkit loses on features** (not tested on a benchmark): Bradley-Terry, LLM-judge scorers or judge-aware inference, IRT or adaptive testing, contamination or label-error audit, agent evals are missing. Clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data) and multi-sample averaging with pass^k were added after this comparison, see the section above; they are validated on simulated data only, and the HELM Lite rows here were computed without them. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
+3. **Where evalkit loses on features** (not tested on a benchmark): Bradley-Terry, judge-aware inference (PPI-style calibration of a judge against a human set), IRT or adaptive testing, contamination or label-error audit, agent evals are missing. An LLM-as-judge scorer with position, reference and length controls was added after this comparison, see the section above. Clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data) and multi-sample averaging with pass^k were added after this comparison too, see the section above; they are validated on simulated data only, and the HELM Lite rows here were computed without them. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
 4. **Not done.** The Open LLM Leaderboard per-item data is gated (HTTP 401 without a Hugging Face login), so there is no `import-openllm`. The Chatbot Arena Elo-versus-Bradley-Terry comparison was skipped (184 MB vote file, no Bradley-Terry fit to compare). Details and the table of numbers that are not comparable: [docs/sota-review.md](docs/sota-review.md#3-published-numbers-that-are-not-comparable).
 5. **Caveats.** Pooled micro-averaging is evalkit's weighting, not HELM's (the bootstrap row uses HELM's). Items are treated as independent. Imported rows have no confidence, so the ECE and Brier columns of `evalkit leaderboard` are constants there. The first fetch downloaded about 0.7 GB of raw JSON, above the 300 MB guidance (a sizing mistake); 37 MB are kept on disk.
 
