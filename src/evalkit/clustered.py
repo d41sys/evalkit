@@ -110,8 +110,8 @@ def cluster_bootstrap_ci(
 def effective_cluster_size(codes: np.ndarray) -> float:
     """``sum_c m_c^2 / N``: the cluster size that enters the design effect.
 
-    Equals ``m`` for equal clusters and ``mean(m) (1 + cv^2)`` for unequal ones (Eldridge et
-    al. 2009, the design effect for unequal cluster sizes). 1 for singletons.
+    Equals ``m`` for equal clusters and ``mean(m) (1 + cv^2)`` for unequal ones (Eldridge,
+    Ashby & Kerry 2006, the design effect for unequal cluster sizes). 1 for singletons.
     """
     sizes = np.bincount(codes).astype(np.float64)
     return float((sizes * sizes).sum() / sizes.sum())
