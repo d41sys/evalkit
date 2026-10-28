@@ -29,6 +29,11 @@ from .statscheck import (
     render_markdown,
     run_stats_check,
 )
+from .statscheck_cluster import (
+    ClusterCheckConfig,
+    render_cluster_markdown,
+    run_cluster_check,
+)
 
 
 def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
@@ -437,7 +442,24 @@ def stats_check_command(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     started = time.perf_counter()
-    text = render_markdown(run_stats_check(config))
+    text = ""
+    if not args.only_clustered:
+        text += render_markdown(run_stats_check(config))
+    if args.clustered or args.only_clustered:
+        text += render_cluster_markdown(
+            run_cluster_check(
+                ClusterCheckConfig(
+                    seed=args.seed,
+                    reps=args.cluster_reps,
+                    power_reps=args.cluster_power_reps,
+                    resamples=args.cluster_resamples,
+                    draws=args.draws,
+                    iccs=parse_floats(args.cluster_iccs),
+                    counts=parse_ints(args.cluster_counts),
+                    workers=config.workers,
+                )
+            )
+        )
     text += f"\nWall time {time.perf_counter() - started:.0f} s on {config.workers} worker(s).\n"
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -631,6 +653,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--workers", type=int, default=0, help="worker processes (0: min(8, cpu count))"
     )
     sc_parser.add_argument("--out", default=None, help="also write the markdown report here")
+    sc_parser.add_argument(
+        "--clustered",
+        action="store_true",
+        help="also run the clustered-data grid (ICC 0, 0.1, 0.3; docs/protocol-clustered-se.md)",
+    )
+    sc_parser.add_argument(
+        "--only-clustered", action="store_true", help="run only the clustered-data grid"
+    )
+    sc_parser.add_argument("--cluster-iccs", default="0,0.1,0.3", help="ICC values (clustered)")
+    sc_parser.add_argument(
+        "--cluster-counts", default="20,50,100", help="numbers of clusters (clustered)"
+    )
+    sc_parser.add_argument(
+        "--cluster-reps", type=int, default=2000, help="replications per clustered cell"
+    )
+    sc_parser.add_argument(
+        "--cluster-power-reps", type=int, default=2000, help="replications per clustered power cell"
+    )
+    sc_parser.add_argument(
+        "--cluster-resamples", type=int, default=1000, help="bootstrap resamples (clustered)"
+    )
 
     # import-helm command
     ih = subparsers.add_parser(
