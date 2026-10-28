@@ -30,14 +30,18 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from evalkit.aggregate import compute_elo_ratings
 from evalkit.judge import (
     DEFAULT_RUBRIC,
+    Decision,
     Judge,
     PointItem,
     PointVerdict,
     pair_item_from_row,
     point_verdict,
     prompt_fingerprint,
+    spearman,
+    verdict_score,
 )
 from evalkit.judge_stats import AgreementData, Estimate, ValItem, cluster_bootstrap
 from evalkit.llmcache import CachedCompleter, summarize_cache
@@ -281,7 +285,9 @@ PAPER = {  # Zheng et al. 2023, Table 5 (a)/(b): G4-Pair vs Human and Human vs H
 }
 
 
-def _group_table(name: str, est: dict[str, Estimate], counts: dict[str, int]) -> list[str]:
+def _group_table(
+    name: str, est: dict[str, Estimate], counts: dict[str, int], pairwise: bool = True
+) -> list[str]:
     lines = [
         f"#### {name}",
         "",
@@ -308,8 +314,15 @@ def _group_table(name: str, est: dict[str, Estimate], counts: dict[str, int]) ->
             f"| judge minus GPT-4 S2 | {_fmt_pp(est['diff_s2_vs_other'])} |",
         ]
     lines += [
-        f"| position-flip rate (orders disagree) | {_fmt(est['flip_rate'])} |",
-        f"| same-slot rate (same position wins in both orders) | {_fmt(est['same_slot_rate'])} |",
+        *(
+            [
+                f"| position-flip rate (orders disagree) | {_fmt(est['flip_rate'])} |",
+                f"| same-slot rate (same position wins in both orders) "
+                f"| {_fmt(est['same_slot_rate'])} |",
+            ]
+            if pairwise
+            else []
+        ),
         f"| resolved-tie rate, judge | {_fmt(est['judge_tie_rate'])} |",
         f"| tie rate, humans (per vote) | {_fmt(est['human_tie_rate'])} |",
         f"| Spearman rho, judge verdict vs length diff | {_fmt(est['len_rho_judge'], False)} |",
@@ -408,7 +421,7 @@ def score_pointwise(args: argparse.Namespace) -> int:
         "",
         f"Unparsable scores {missing} of {len(scored)} (the pair is then a tie).",
         "",
-        *_group_table("Pointwise (score A vs score B; equal = tie)", est, data.counts()),
+        *_group_table("Pointwise (score A vs score B; equal = tie)", est, data.counts(), False),
     ]
     text = "\n".join(lines)
     print(text)
@@ -417,12 +430,63 @@ def score_pointwise(args: argparse.Namespace) -> int:
     return 0
 
 
+def rank(args: argparse.Namespace) -> int:
+    """Elo ratings of the six models from judge, human-majority and released GPT-4 verdicts.
+
+    Matches are played in file order (the seeded sample order, so interleaved) through
+    ``evalkit.aggregate.compute_elo_ratings``; a split human vote is a tie.
+    """
+    rows = _read_pairs(args.split)
+    judge = Judge(CachedCompleter(None, args.cache, model_id=args.model))
+    verdicts = judge.compare_many([pair_item_from_row(r) for r in rows])
+
+    def majority(votes: list[list[str]]) -> Decision:
+        a = sum(1 for _, v in votes if v == "A")
+        b = sum(1 for _, v in votes if v == "B")
+        return "A" if a > b else ("B" if b > a else "tie")
+
+    labels: dict[str, list[Decision]] = {
+        "judge (claude-sonnet-5-5)": [v.resolved for v in verdicts],
+        "human majority": [majority(r["human_votes"]) for r in rows],
+        "released GPT-4 pair": [r["gpt4_verdict"] for r in rows],
+    }
+    elo = {
+        name: compute_elo_ratings(
+            [
+                (r["model_a"], r["model_b"], verdict_score(lab))
+                for r, lab in zip(rows, labs, strict=True)
+            ]
+        )
+        for name, labs in labels.items()
+    }
+    models = sorted(elo["human majority"], key=lambda m: -elo["human majority"][m])
+    names = list(labels)
+    lines = [
+        f"### Elo from {len(rows)} `{args.split}` items (K = 32, file order, ties 0.5)",
+        "",
+        "| Model | " + " | ".join(names) + " |",
+        "|---|" + "---|" * len(names),
+    ]
+    for m in models:
+        lines.append(f"| {m} | " + " | ".join(f"{elo[n][m]:.0f}" for n in names) + " |")
+    ref = [elo["human majority"][m] for m in models]
+    lines += [""]
+    for n in names[::2]:
+        rho = spearman(ref, [elo[n][m] for m in models])
+        lines.append(f"Spearman rank correlation of {n} Elo with human-majority Elo: {rho:.3f}.")
+    text = "\n".join(lines) + "\n"
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("fetch")
     sub.add_parser("build")
-    for name in ("run", "score", "score-pointwise"):
+    for name in ("run", "score", "score-pointwise", "rank"):
         sp = sub.add_parser(name)
         sp.add_argument("--split", choices=["dev", "test"], default="dev")
         sp.add_argument("--cache", default=None, help="default: data/mtbench/cache-<split>.jsonl")
@@ -445,6 +509,8 @@ def main(argv: list[str] | None = None) -> int:
         return run(args)
     if args.cmd == "score":
         return score(args)
+    if args.cmd == "rank":
+        return rank(args)
     if args.cmd == "score-pointwise":
         args.limit = args.limit or POINTWISE_ITEMS
         return score_pointwise(args)

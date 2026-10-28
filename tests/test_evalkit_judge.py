@@ -39,6 +39,7 @@ from evalkit.llmcache import (
     summarize_cache,
 )
 from evalkit.models import DEFAULT_ANTHROPIC_MODEL, AnthropicModel, Completer, Completion
+from evalkit.results import load_results
 
 _RESP = re.compile(r"\[Response( A| B|)\]\n(.*?)\n\[End of Response", re.DOTALL)
 
@@ -527,6 +528,34 @@ def test_cli_judge_pointwise(
     assert {r["score"] for r in rows if r["model"] == "big"} == {9.0}
     assert "rubric points" in capsys.readouterr().out
     assert cli.main(["compare", str(out / "results.jsonl"), "--a", "big", "--b", "mid"]) == 0
+
+
+def test_cli_judge_task_override_makes_turns_share_a_cluster(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pairs = tmp_path / "pairs.jsonl"
+    rows = [
+        {
+            "id": f"q{q}-t{t}",
+            "task": f"turn{t}",
+            "cluster_id": f"q{q}",
+            "prompt": f"question {q} turn {t}",
+            "response_a": "w w w w",
+            "response_b": "w",
+            "model_a": "big",
+            "model_b": "small",
+        }
+        for q in range(5)
+        for t in (1, 2)
+    ]
+    pairs.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    monkeypatch.setattr(cli, "get_model", lambda spec, **kw: FakeModel())
+    for task, expected_clusters in ((None, 10), ("mt", 5)):
+        out = tmp_path / f"out-{task}"
+        argv = ["judge", "--pairs", str(pairs), "--out", str(out), "--judge", "anthropic:x"]
+        assert cli.main(argv + (["--task", task] if task else [])) == 0
+        table = load_results(out / "results.jsonl")
+        assert len(set(table.clusters.values())) == expected_clusters
 
 
 def test_cli_judge_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

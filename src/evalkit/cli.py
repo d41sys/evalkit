@@ -584,7 +584,7 @@ def judge_command(args: argparse.Namespace) -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     ids = [str(r.get("id", i)) for i, r in enumerate(rows)]
-    tasks = [str(r.get("task", args.task)) for r in rows]
+    tasks = [str(args.task or r.get("task", "judge")) for r in rows]
     clusters = [None if r.get("cluster_id") is None else str(r["cluster_id"]) for r in rows]
     names_a = [str(r.get("model_a", "A")) for r in rows]
     names_b = [str(r.get("model_b", "B")) for r in rows]
@@ -889,7 +889,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     jd.add_argument("--max-calls", type=int, default=4000, help="cap on live API calls")
     jd.add_argument("--workers", type=int, default=8, help="concurrent calls (at most 8)")
     jd.add_argument("--limit", type=int, default=0, help="judge only the first N rows")
-    jd.add_argument("--task", default="judge", help="task name for rows without one")
+    jd.add_argument(
+        "--task",
+        default=None,
+        help="task name for every row (default: the row's `task`, else 'judge'); rows that "
+        "share a task and a cluster_id are one cluster in `compare`",
+    )
     jd.add_argument(
         "--no-swap", action="store_true", help="pairwise: one order only (no position control)"
     )
