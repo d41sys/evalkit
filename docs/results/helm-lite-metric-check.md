@@ -28,15 +28,30 @@ First disagreements (prediction tail | evalkit gold | evalkit | HELM):
 - gsm8k: `'6.00 = \\$4.00 \\]\n\nTherefore, Carl receives $4.00 in change. The answer is $4.00.'` | `A pack of cookies costs 6 x $0.10 = $<<6*0.1=0.60>>0.60. Thu` | 1.000 | 0.000
 - gsm8k: `'total amount of money the tooth fairy left Sharon is $9.00. The answer is $9.00.'` | `She got $1.00 on three teeth so she got 1*3 = $<<1*3=3.00>>3` | 1.000 | 0.000
 
+## helm mode (`evalkit.metrics.helm_compat`, `--metric-mode helm`)
+
+The same predictions scored with evalkit's HELM-compatible metrics (set-based token F1, HELM's `normalize_text` order, strict `exact_match`, `final_number_exact_match`), 12 models. Total: 81543 of 81543 instances identical (100.0000%).
+
+| scenario | helm-mode metric | instances | identical to HELM | evalkit higher | evalkit lower | mean evalkit | mean HELM | mean abs diff | Kendall tau of the model means |
+|---|---|---|---|---|---|---|---|---|---|
+| openbookqa | helm:exact_match | 6000 | 100.0000% | 0 | 0 | 0.8330 | 0.8330 | 0.0000 | 0.98 |
+| mmlu | helm:exact_match | 6168 | 100.0000% | 0 | 0 | 0.6334 | 0.6334 | 0.0000 | 0.98 |
+| medqa | helm:quasi_exact_match | 6036 | 100.0000% | 0 | 0 | 0.6306 | 0.6306 | 0.0000 | 1.00 |
+| legalbench | helm:quasi_exact_match | 24079 | 100.0000% | 0 | 0 | 0.5141 | 0.5141 | 0.0000 | 1.00 |
+| narrativeqa | helm:f1_score | 4260 | 100.0000% | 0 | 0 | 0.6765 | 0.6765 | 0.0000 | 1.00 |
+| naturalquestions_open | helm:f1_score | 12000 | 100.0000% | 0 | 0 | 0.6593 | 0.6593 | 0.0000 | 1.00 |
+| naturalquestions_closed | helm:f1_score | 12000 | 100.0000% | 0 | 0 | 0.3682 | 0.3682 | 0.0000 | 1.00 |
+| gsm8k | helm:final_number_exact_match | 11000 | 100.0000% | 0 | 0 | 0.7059 | 0.7059 | 0.0000 | 1.00 |
+
 ## ECE
 
-HELM computes `ece_1_bin` and `ece_10_bin` (equal-mass bins, `calibration` package, `basic_metrics.py`) from each instance's `max_prob` and `exact_match`. evalkit's `expected_calibration_error` uses equal-width bins; with one bin both are |mean confidence - accuracy|. Runs of models without log-probs have no HELM ECE.
+HELM computes `ece_1_bin` and `ece_10_bin` (equal-mass bins, `calibration` package, `basic_metrics.py`) from each instance's `max_prob` and `exact_match`. evalkit's default `expected_calibration_error` uses equal-width bins; with one bin both are |mean confidence - accuracy|. `expected_calibration_error_equal_mass` (helm mode, `--metric-mode helm`) is the equal-mass estimator. Runs of models without log-probs have no HELM ECE.
 
-| model | scenario | n | HELM ece_1_bin | evalkit ECE (1 bin) | HELM ece_10_bin (equal-mass) | evalkit ECE (10 equal-width bins) |
-|---|---|---|---|---|---|---|
-| Qwen2 Instruct (72B) | medqa | 503 | 0.2545 | 0.2545 | 0.2545 | 0.2545 |
-| Qwen2 Instruct (72B) | openbookqa | 500 | 0.0460 | 0.0460 | 0.0460 | 0.0460 |
-| Phi-3 (7B) | medqa | 503 | 0.3260 | 0.3260 | 0.3260 | 0.3260 |
-| Phi-3 (7B) | openbookqa | 500 | 0.0870 | 0.0870 | 0.0870 | 0.0890 |
-| Jurassic-2 Jumbo (178B) | medqa | 503 | 0.2768 | 0.2768 | 0.2768 | 0.2802 |
-| Jurassic-2 Jumbo (178B) | openbookqa | 500 | 0.1750 | 0.1750 | 0.1750 | 0.1750 |
+| model | scenario | n | HELM ece_1_bin | evalkit ECE (1 bin) | HELM ece_10_bin (equal-mass) | evalkit default (10 equal-width bins) | evalkit helm mode (10 equal-mass bins) | helm mode identical to HELM (1e-9) |
+|---|---|---|---|---|---|---|---|---|
+| Qwen2 Instruct (72B) | medqa | 503 | 0.2545 | 0.2545 | 0.2545 | 0.2545 | 0.2545 | yes |
+| Qwen2 Instruct (72B) | openbookqa | 500 | 0.0460 | 0.0460 | 0.0460 | 0.0460 | 0.0460 | yes |
+| Phi-3 (7B) | medqa | 503 | 0.3260 | 0.3260 | 0.3260 | 0.3260 | 0.3260 | yes |
+| Phi-3 (7B) | openbookqa | 500 | 0.0870 | 0.0870 | 0.0870 | 0.0890 | 0.0870 | yes |
+| Jurassic-2 Jumbo (178B) | medqa | 503 | 0.2768 | 0.2768 | 0.2768 | 0.2802 | 0.2768 | yes |
+| Jurassic-2 Jumbo (178B) | openbookqa | 500 | 0.1750 | 0.1750 | 0.1750 | 0.1750 | 0.1750 | yes |

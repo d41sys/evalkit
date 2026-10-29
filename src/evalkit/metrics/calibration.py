@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -81,6 +82,37 @@ def expected_calibration_error(
         total_ece += (bin_size / n) * abs(bin_conf - bin_acc)
 
     return float(total_ece)
+
+
+def expected_calibration_error_equal_mass(
+    confidences: Sequence[float],
+    correct: Sequence[int | bool],
+    n_bins: int = 10,
+) -> float:
+    """ECE with equal-mass bins, as HELM's ``ece_10_bin`` (``get_ece_em`` of Kumar et al. 2019).
+
+    The sorted confidences are split into ``n_bins`` parts of (almost) equal size
+    (``numpy.array_split``); the edge between two parts is the midpoint of the last confidence of
+    one and the first of the next, the last edge is 1.0, duplicate edges are merged, and a
+    confidence equal to an edge falls in the lower bin. ECE = sum over bins of
+    (bin share) * |mean confidence - mean correct|, plug-in (no debiasing). With ``n_bins=1`` this
+    equals :func:`expected_calibration_error` with one bin.
+    """
+    if n_bins <= 0:
+        raise ValueError("n_bins must be positive")
+    conf, corr = _validate_conf_corr(confidences, correct)
+    n = conf.size
+    if n == 0:
+        return 0.0
+    parts = np.array_split(np.sort(conf), min(n_bins, n))
+    mids = ((float(a[-1]) + float(b[0])) / 2.0 for a, b in pairwise(parts))
+    edges = np.asarray(sorted({*mids, 1.0}))
+    index = np.searchsorted(edges, conf, side="left")
+    total = 0.0
+    for b in np.unique(index):
+        mask = index == b
+        total += (int(mask.sum()) / n) * abs(float(conf[mask].mean()) - float(corr[mask].mean()))
+    return float(total)
 
 
 def brier_score(

@@ -35,9 +35,10 @@ from .judge import (
     verdict_score,
 )
 from .llmcache import CachedCompleter, CacheMiss, CallBudgetExceeded
+from .metrics.helm_compat import helm_metric_name
 from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
 from .results import ClusterLabel, ItemKey, load_results, merge_clusters
-from .runner import EvalRecord, generate_leaderboard, run
+from .runner import EceBinning, EvalRecord, generate_leaderboard, run
 from .samples import pass_hat_k
 from .spec import SpecError, TaskSpec
 from .statscheck import (
@@ -97,6 +98,15 @@ def parse_models(models_str: str, hf_batch_size: int = 1) -> list[Model]:
     ]
 
 
+def _ece_binning(metric_mode: str) -> EceBinning:
+    return "equal_mass" if metric_mode == "helm" else "equal_width"
+
+
+def _helm_metrics(names: Sequence[str]) -> list[str]:
+    """The same metric list in HELM mode (``helm:`` prefix; ValueError if HELM has no such one)."""
+    return [n if n.startswith("helm:") else f"helm:{helm_metric_name(n)}" for n in names]
+
+
 def run_command(args: argparse.Namespace) -> int:
     tasks_path = Path(args.tasks)
     specs = find_task_specs(tasks_path)
@@ -111,7 +121,16 @@ def run_command(args: argparse.Namespace) -> int:
             print(f"  {m.name}: resolved revision {revision}")
     print(f"Executing evaluations -> {out_dir}")
 
-    summary = run(specs, models, out_dir, max_workers=args.workers, samples=args.samples)
+    if args.metric_mode == "helm":
+        specs = [s.model_copy(update={"metrics": _helm_metrics(s.metrics)}) for s in specs]
+    summary = run(
+        specs,
+        models,
+        out_dir,
+        max_workers=args.workers,
+        samples=args.samples,
+        ece_binning=_ece_binning(args.metric_mode),
+    )
 
     print(f"\nDone! Evaluated: {summary.total_evaluated}, Skipped: {summary.total_skipped}")
     print(f"Results written to: {summary.results_path}")
@@ -144,7 +163,7 @@ def leaderboard_command(args: argparse.Namespace) -> int:
             except Exception:
                 continue
 
-    leaderboard = generate_leaderboard(records)
+    leaderboard = generate_leaderboard(records, ece_binning=_ece_binning(args.metric_mode))
     md = leaderboard.to_markdown()
     with open(board_file, "w", encoding="utf-8") as f:
         f.write(md + "\n")
@@ -750,6 +769,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=1,
         help="query every item this many times (rows get a `sample` index; default 1)",
     )
+    run_parser.add_argument(
+        "--metric-mode",
+        choices=["evalkit", "helm"],
+        default="evalkit",
+        help="helm: score with HELM's metric definitions (exact_match is HELM's strict strip "
+        "equality; use quasi_exact_match, f1_score, final_number_exact_match) and report ECE "
+        "with HELM's equal-mass 10 bins. Use a fresh --out: resumed rows keep their old scores",
+    )
 
     # leaderboard command
     board_parser = subparsers.add_parser("leaderboard", help="View or recompute leaderboard")
@@ -762,6 +789,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--recompute",
         action="store_true",
         help="Recompute leaderboard from results.jsonl",
+    )
+    board_parser.add_argument(
+        "--metric-mode",
+        choices=["evalkit", "helm"],
+        default="evalkit",
+        help="helm: ECE with HELM's equal-mass 10 bins (ece_10_bin) instead of 15 equal-width",
     )
 
     # compare command

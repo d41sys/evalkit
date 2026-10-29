@@ -234,15 +234,23 @@ def test_metric_check_article_only_answers_match_helm(tmp_path: Path) -> None:
     assert gold_texts("mmlu", [["a", False], ["b", True]]) == ["B"]
     assert gold_texts("legalbench", [["Yes", True], ["No", False]]) == ["Yes"]
     text = run_metric_check(tmp_path, stride=1)
+    default_text, _, helm_text = text.partition("## helm mode")
     # "The" vs gold letter A: evalkit strips the articles "the" and "a" to "" and credits it
     rows = {
-        line.split("|")[1].strip(): line for line in text.splitlines() if line.startswith("| m")
+        line.split("|")[1].strip(): line
+        for line in default_text.splitlines()
+        if line.startswith("| m")
     }
     cells = [c.strip() for c in rows["mmlu"].split("|")]
     assert cells[3:7] == ["12", "100.00%", "0", "0"]  # instances, identical, higher, lower
-    gsm_line = next(x for x in text.splitlines() if x.startswith("| gsm8k"))
+    gsm_line = next(x for x in default_text.splitlines() if x.startswith("| gsm8k"))
     gsm = [c.strip() for c in gsm_line.split("|")]
     assert gsm[3:7] == ["12", "91.67%", "1", "0"]  # Beta "7.00": numeric equality vs string
+    # helm mode reproduces HELM's value: string equality of the final number, strict MC mapping
+    helm_gsm = [
+        c.strip() for c in next(x for x in helm_text.splitlines() if "| gsm8k" in x).split("|")
+    ]
+    assert helm_gsm[3:7] == ["12", "100.0000%", "0", "0"]
     assert kendall_tau([1, 2, 3], [1, 2, 3]) == 1.0 and kendall_tau([1, 2, 3], [3, 2, 1]) == -1.0
 
 

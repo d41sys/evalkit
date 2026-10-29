@@ -5,6 +5,9 @@ import re
 import string
 from collections import Counter
 from collections.abc import Sequence
+from typing import Literal
+
+from .helm_compat import score_helm
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
@@ -283,8 +286,26 @@ def chrf(
     )
 
 
-def score_classical(metric_name: str, prediction: str, targets: Sequence[str] | str) -> float:
-    """Dispatch classical metric by name."""
+MetricMode = Literal["evalkit", "helm"]
+
+
+def score_classical(
+    metric_name: str,
+    prediction: str,
+    targets: Sequence[str] | str,
+    mode: MetricMode = "evalkit",
+) -> float:
+    """Dispatch classical metric by name.
+
+    ``mode="helm"`` (or a ``helm:`` prefix on the name, e.g. ``helm:f1_score``) uses HELM's
+    definitions, see :mod:`evalkit.metrics.helm_compat`; the default mode is evalkit's own.
+    """
+    if metric_name.startswith("helm:"):
+        return score_helm(metric_name[len("helm:") :], prediction, targets)
+    if mode == "helm":
+        return score_helm(metric_name, prediction, targets)
+    if mode != "evalkit":
+        raise ValueError(f"Unknown metric mode: {mode!r} (use 'evalkit' or 'helm')")
     name = metric_name.lower().strip()
     if name in ("exact_match", "em"):
         return exact_match(prediction, targets)

@@ -64,6 +64,12 @@ def main() -> int:
     ap.add_argument("--out", default="data/raw/helm-lite")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--text-stride", type=int, default=8)
+    ap.add_argument(
+        "--check-only",
+        action="store_true",
+        help="fetch only what `evalkit metric-check` needs: the text-stride models, and not "
+        "the scenarios it skips (MATH, WMT); the rank studies need the full fetch",
+    )
     args = ap.parse_args()
     out = Path(args.out)
     rel = f"{BASE}/releases/{args.release}"
@@ -81,8 +87,10 @@ def main() -> int:
 
     # (run name, task, keep_text), one entry per run
     runs: list[tuple[str, str, bool]] = []
-    for model in table.models:
+    for model in text_models if args.check_only else table.models:
         for task, names in table.runs[model].items():
+            if args.check_only and task in {"math", "wmt14"}:
+                continue
             runs.extend((n, task, model in text_models and task != "wmt14") for n in names)
     task_of = {n: t for n, t, _ in runs}
     run_url = lambda run: f"{BASE}/runs/{suites[run]}/{urllib.parse.quote(run)}"  # noqa: E731

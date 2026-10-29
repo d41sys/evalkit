@@ -17,10 +17,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .helm import CALIBRATION_TASKS, HelmTable, read_table, reference_file, run_file
-from .metrics.calibration import expected_calibration_error
-from .metrics.classical import exact_match, f1_score, numeric_match
+from .helm import CALIBRATION_TASKS, SCENARIOS, HelmTable, read_table, reference_file, run_file
+from .metrics.calibration import expected_calibration_error, expected_calibration_error_equal_mass
+from .metrics.classical import MetricMode, exact_match, f1_score, numeric_match
+from .metrics.helm_compat import score_helm, score_helm_multiple_choice
 
+HELM_METRIC = {s.task: s.metric for s in SCENARIOS}
 MC_TASKS = frozenset({"openbookqa", "mmlu", "medqa"})
 Scorer = Callable[[str, list[str]], float]
 
@@ -62,9 +64,21 @@ def gold_texts(task: str, references: Sequence[Sequence[object]]) -> list[str]:
 
 
 def check_task_runs(
-    root: Path, table: HelmTable, task: str, models: Sequence[str], max_examples: int = 3
+    root: Path,
+    table: HelmTable,
+    task: str,
+    models: Sequence[str],
+    max_examples: int = 3,
+    mode: MetricMode = "evalkit",
 ) -> TaskCheck:
     metric_name, scorer = CHECKS[task]
+    if mode == "helm":
+        helm_name = HELM_METRIC[task]
+        metric_name = f"helm:{helm_name}"
+
+        def scorer(pred: str, gold: list[str]) -> float:
+            return score_helm(helm_name, pred, gold)
+
     out = TaskCheck(task, metric_name)
     for model in models:
         for run in table.runs[model].get(task, []):
@@ -76,7 +90,15 @@ def check_task_runs(
             for iid, helm_score in data["scores"].items():
                 gold = gold_texts(task, refs[iid])
                 pred = preds[iid]
-                ours = scorer(pred, gold)
+                if mode == "helm" and task in MC_TASKS:
+                    ours = score_helm_multiple_choice(
+                        HELM_METRIC[task],
+                        pred,
+                        [str(text) for text, _ in refs[iid]],
+                        [bool(ok) for _, ok in refs[iid]],
+                    )
+                else:
+                    ours = scorer(pred, gold)
                 out.n += 1
                 out.sum_evalkit += ours
                 out.sum_helm += helm_score
@@ -117,6 +139,7 @@ class CalibrationCheck:
     evalkit_ece_1: float
     helm_ece_10: float
     evalkit_ece_10: float
+    evalkit_ece_10_mass: float
 
 
 def check_calibration(
@@ -142,13 +165,17 @@ def check_calibration(
                         expected_calibration_error(conf, correct, n_bins=1),
                         float(cal["ece_10_bin"]),
                         expected_calibration_error(conf, correct, n_bins=10),
+                        expected_calibration_error_equal_mass(conf, correct, n_bins=10),
                     )
                 )
     return out
 
 
 def render_metric_check(
-    checks: Sequence[TaskCheck], n_models: int, calibration: Sequence[CalibrationCheck] = ()
+    checks: Sequence[TaskCheck],
+    n_models: int,
+    calibration: Sequence[CalibrationCheck] = (),
+    helm_checks: Sequence[TaskCheck] = (),
 ) -> str:
     lines = [
         "# evalkit metrics vs HELM reference values, same predictions",
@@ -183,30 +210,77 @@ def render_metric_check(
         for pred, gold, mine, ref in c.examples:
             lines.append(f"- {c.task}: `{pred!r}` | `{gold}` | {mine:.3f} | {ref:.3f}")
     lines.append("")
+    if helm_checks:
+        lines += _render_helm_mode(helm_checks, n_models)
     if calibration:
         lines += [
             "## ECE",
             "",
             "HELM computes `ece_1_bin` and `ece_10_bin` (equal-mass bins, `calibration` package, "
             "`basic_metrics.py`) from each instance's `max_prob` and `exact_match`. evalkit's "
-            "`expected_calibration_error` uses equal-width bins; with one bin both are "
-            "|mean confidence - accuracy|. Runs of models without log-probs have no HELM ECE.",
+            "default `expected_calibration_error` uses equal-width bins; with one bin both are "
+            "|mean confidence - accuracy|. `expected_calibration_error_equal_mass` (helm mode, "
+            "`--metric-mode helm`) is the equal-mass estimator. Runs of models without log-probs "
+            "have no HELM ECE.",
             "",
             "| model | scenario | n | HELM ece_1_bin | evalkit ECE (1 bin) | HELM ece_10_bin "
-            "(equal-mass) | evalkit ECE (10 equal-width bins) |",
-            "|---|---|---|---|---|---|---|",
+            "(equal-mass) | evalkit default (10 equal-width bins) | evalkit helm mode "
+            "(10 equal-mass bins) | helm mode identical to HELM (1e-9) |",
+            "|---|---|---|---|---|---|---|---|---|",
         ]
         lines += [
             f"| {c.model} | {c.task} | {c.n} | {c.helm_ece_1:.4f} | {c.evalkit_ece_1:.4f} | "
-            f"{c.helm_ece_10:.4f} | {c.evalkit_ece_10:.4f} |"
+            f"{c.helm_ece_10:.4f} | {c.evalkit_ece_10:.4f} | {c.evalkit_ece_10_mass:.4f} | "
+            f"{'yes' if abs(c.evalkit_ece_10_mass - c.helm_ece_10) < 1e-9 else 'NO'} |"
             for c in calibration
         ]
         lines.append("")
     return "\n".join(lines)
 
 
+def _render_helm_mode(helm_checks: Sequence[TaskCheck], n_models: int) -> list[str]:
+    total = sum(c.n for c in helm_checks)
+    same = sum(c.agree for c in helm_checks)
+    lines = [
+        "## helm mode (`evalkit.metrics.helm_compat`, `--metric-mode helm`)",
+        "",
+        "The same predictions scored with evalkit's HELM-compatible metrics (set-based token F1, "
+        "HELM's `normalize_text` order, strict `exact_match`, `final_number_exact_match`), "
+        f"{n_models} models. Total: {same} of {total} instances identical "
+        f"({same / total:.4%}).",
+        "",
+        "| scenario | helm-mode metric | instances | identical to HELM | evalkit higher | "
+        "evalkit lower | mean evalkit | mean HELM | mean abs diff | "
+        "Kendall tau of the model means |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for c in helm_checks:
+        if c.n == 0:
+            continue
+        models = sorted(c.per_model)
+        ours = [c.per_model[m][0] / c.per_model[m][2] for m in models]
+        helm = [c.per_model[m][1] / c.per_model[m][2] for m in models]
+        lines.append(
+            f"| {c.task} | {c.evalkit_metric} | {c.n} | {c.agree / c.n:.4%} | "
+            f"{c.evalkit_higher} | {c.evalkit_lower} | "
+            f"{c.sum_evalkit / c.n:.4f} | {c.sum_helm / c.n:.4f} | {c.sum_abs_diff / c.n:.4f} | "
+            f"{kendall_tau(ours, helm):.2f} |"
+        )
+    unequal = [c for c in helm_checks if c.examples]
+    if unequal:
+        lines += ["", "Remaining disagreements (prediction tail | gold | helm mode | HELM):", ""]
+        for c in unequal:
+            for pred, gold, mine, ref in c.examples:
+                lines.append(f"- {c.task}: `{pred!r}` | `{gold}` | {mine:.3f} | {ref:.3f}")
+    lines.append("")
+    return lines
+
+
 def run_metric_check(root: Path, stride: int = 8) -> str:
     table = read_table(root)
     models = table.models[::stride]
     checks = [check_task_runs(root, table, task, models) for task in CHECKS]
-    return render_metric_check(checks, len(models), check_calibration(root, table, models))
+    helm_checks = [check_task_runs(root, table, task, models, mode="helm") for task in CHECKS]
+    return render_metric_check(
+        checks, len(models), check_calibration(root, table, models), helm_checks
+    )

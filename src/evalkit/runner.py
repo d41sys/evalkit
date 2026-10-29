@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .aggregate import (
     LeaderboardReport,
@@ -18,11 +18,18 @@ from .aggregate import (
     compare_pairs,
     compute_elo_ratings,
 )
-from .metrics.calibration import brier_score, expected_calibration_error
+from .metrics.calibration import (
+    brier_score,
+    expected_calibration_error,
+    expected_calibration_error_equal_mass,
+)
 from .metrics.classical import score_classical
 from .metrics.code_exec import run_code_exec
 from .models import BatchModel, Model, Prediction
 from .spec import TaskSpec
+
+EceBinning = Literal["equal_width", "equal_mass"]
+# equal_width: evalkit default (15 equal-width bins); equal_mass: HELM ece_10_bin (10 bins).
 
 
 @dataclass
@@ -197,7 +204,9 @@ def _score_prediction(
     )
 
 
-def generate_leaderboard(records: Sequence[EvalRecord]) -> LeaderboardReport:
+def generate_leaderboard(
+    records: Sequence[EvalRecord], ece_binning: EceBinning = "equal_width"
+) -> LeaderboardReport:
     """Build LeaderboardReport from all evaluation records."""
     if not records:
         return LeaderboardReport(models=[])
@@ -251,7 +260,10 @@ def generate_leaderboard(records: Sequence[EvalRecord]) -> LeaderboardReport:
         # Calibration
         confs = [r.confidence for r in recs]
         corrs = [r.correct for r in recs]
-        ece = expected_calibration_error(confs, corrs, n_bins=15)
+        if ece_binning == "equal_mass":
+            ece = expected_calibration_error_equal_mass(confs, corrs, n_bins=10)
+        else:
+            ece = expected_calibration_error(confs, corrs, n_bins=15)
         brier = brier_score(confs, corrs)
 
         # Win rate
@@ -309,6 +321,7 @@ def run(
     out_dir: str | Path,
     max_workers: int = 4,
     samples: int = 1,
+    ece_binning: EceBinning = "equal_width",
 ) -> EvalSummary:
     """Run evaluation benchmark across specs and models.
 
@@ -408,7 +421,7 @@ def run(
                             out_f.flush()
 
     all_records = existing_records + new_records
-    leaderboard = generate_leaderboard(all_records)
+    leaderboard = generate_leaderboard(all_records, ece_binning=ece_binning)
 
     with open(leaderboard_file, "w", encoding="utf-8") as f:
         f.write(leaderboard.to_markdown() + "\n")
