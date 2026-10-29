@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import threading
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import partial
@@ -26,6 +26,7 @@ from .metrics.calibration import (
 from .metrics.classical import score_classical
 from .metrics.code_exec import run_code_exec
 from .models import BatchModel, Model, Prediction
+from .ranking import bradley_terry_bootstrap
 from .spec import TaskSpec
 
 EceBinning = Literal["equal_width", "equal_mass"]
@@ -205,7 +206,10 @@ def _score_prediction(
 
 
 def generate_leaderboard(
-    records: Sequence[EvalRecord], ece_binning: EceBinning = "equal_width"
+    records: Sequence[EvalRecord],
+    ece_binning: EceBinning = "equal_width",
+    bradley_terry: bool = False,
+    bt_resamples: int = 200,
 ) -> LeaderboardReport:
     """Build LeaderboardReport from all evaluation records."""
     if not records:
@@ -228,6 +232,14 @@ def generate_leaderboard(
     for model_name, items in item_samples.items():
         for (task, example_id), vals in items.items():
             by_example[f"{task}::{example_id}"][model_name] = float(sum(vals) / len(vals))
+
+    # Cluster ids (items that share a source): ``(task, cluster_id)`` per item, and per Elo key
+    item_cluster: dict[tuple[str, str], Hashable] = {}
+    for r in records:
+        if r.cluster_id is not None:
+            item_cluster[(r.task, r.example_id)] = (r.task, r.cluster_id)
+    clustered_tasks = {task for task, _ in item_cluster}
+    cluster_of: dict[str, Hashable] = {f"{t}::{e}": lab for (t, e), lab in item_cluster.items()}
 
     # Compute pairwise Elo ratings
     matches = build_pairwise_matches(by_example)
@@ -254,8 +266,17 @@ def generate_leaderboard(
             t: float(sum(scores) / len(scores)) for t, scores in task_scores.items()
         }
 
-        # Macro average with a stratified bootstrap CI over the same statistic
-        macro_mean, ci_lo, ci_hi = bootstrap_macro_ci(task_scores, num_resamples=1000, seed=0)
+        # Macro average with a stratified bootstrap CI over the same statistic; tasks whose rows
+        # carry a cluster_id resample whole clusters
+        task_labels: dict[str, list[Hashable]] = defaultdict(list)
+        for task, example_id in item_samples[model_name]:
+            task_labels[task].append(
+                item_cluster.get((task, example_id), ("\0singleton", example_id))
+            )
+        clustered_scores = {t: task_labels[t] for t in task_scores if t in clustered_tasks}
+        macro_mean, ci_lo, ci_hi = bootstrap_macro_ci(
+            task_scores, num_resamples=1000, seed=0, task_clusters=clustered_scores or None
+        )
 
         # Calibration
         confs = [r.confidence for r in recs]
@@ -284,20 +305,55 @@ def generate_leaderboard(
                 brier=brier,
                 total_examples=len(recs),
                 per_task_means=per_task_means,
+                clustered_tasks=sum(len(set(lab)) >= 2 for lab in clustered_scores.values()),
             )
         )
 
     # Sort descending by macro_mean then elo_rating
     model_summaries.sort(key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
-    assign_tie_groups(model_summaries, by_example)
-    return LeaderboardReport(models=model_summaries)
+    assign_tie_groups(model_summaries, by_example, clusters=cluster_of or None)
+    if bradley_terry:
+        _attach_bradley_terry(model_summaries, by_example, cluster_of or None, bt_resamples)
+    return LeaderboardReport(
+        models=model_summaries,
+        ece_label="10 equal-mass bins" if ece_binning == "equal_mass" else "15 bins",
+    )
+
+
+def _attach_bradley_terry(
+    summaries: Sequence[ModelSummary],
+    by_example: Mapping[str, Mapping[str, float]],
+    clusters: Mapping[Any, Hashable] | None,
+    resamples: int,
+) -> None:
+    """Fill the Bradley-Terry columns (needs at least two models sharing items)."""
+    if len(summaries) < 2:
+        return
+    scores: dict[str, dict[Hashable, float]] = {m.model_name: {} for m in summaries}
+    for key, per_model in by_example.items():
+        for model, score in per_model.items():
+            scores[model][key] = score
+    try:
+        bt = bradley_terry_bootstrap(scores, clusters=clusters, resamples=resamples, seed=0)
+    except ValueError:  # no shared items or a disconnected comparison graph: no BT column
+        return
+    for m in summaries:
+        i = bt.models.index(m.model_name)
+        m.bt_rating = float(bt.ratings[i])
+        m.bt_ci_lower = float(bt.ci_lo[i])
+        m.bt_ci_upper = float(bt.ci_hi[i])
 
 
 def assign_tie_groups(
-    ranked: Sequence[ModelSummary], by_example: Mapping[str, Mapping[str, float]]
+    ranked: Sequence[ModelSummary],
+    by_example: Mapping[str, Mapping[str, float]],
+    clusters: Mapping[Any, Hashable] | None = None,
 ) -> None:
     """Set ``tie_group`` on ranked models: a model starts a new group only when it is
-    resolved from the model ranked directly above it (Holm over the adjacent pairs)."""
+    resolved from the model ranked directly above it (Holm over the adjacent pairs).
+
+    ``clusters`` maps an example key (``task::example_id``) to its cluster label; as in
+    ``evalkit compare`` the test then flips whole clusters."""
     if len(ranked) < 2:
         for m in ranked:
             m.tie_group = 1
@@ -309,7 +365,8 @@ def assign_tie_groups(
     pairs = [(ranked[i].model_name, ranked[i + 1].model_name) for i in range(len(ranked) - 1)]
     group = 1
     ranked[0].tie_group = group
-    for nxt, res in zip(ranked[1:], compare_pairs(scores, pairs, with_power=False), strict=True):
+    resolutions = compare_pairs(scores, pairs, with_power=False, clusters=clusters)
+    for nxt, res in zip(ranked[1:], resolutions, strict=True):
         if res.resolved:
             group += 1
         nxt.tie_group = group

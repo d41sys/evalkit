@@ -16,6 +16,7 @@ work on it unchanged.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.parse
 from collections import defaultdict
@@ -100,6 +101,30 @@ def compact_references(
         for inst in instances
         if inst.get("split") == split
     }
+
+
+# Scenarios whose input is "<passage>\nQuestion: <question>": questions about one passage share a
+# source, so their scores are correlated and the passage is the cluster. In HELM Lite 1.13.0 this
+# is real for NaturalQuestions open-book only (8 passages are shared by 2-3 of 1,000 questions);
+# every NarrativeQA test question comes with its own passage.
+PASSAGE_TASKS = frozenset({"narrativeqa", "naturalquestions_open"})
+
+
+def cluster_file(root: Path, run_name: str) -> Path:
+    return root / "clusters" / f"{urllib.parse.quote(family_of(run_name), safe='')}.json"
+
+
+def compact_clusters(instances: Sequence[Mapping[str, Any]], split: str) -> dict[str, str]:
+    """``{id: passage hash}`` for the instances of ``split`` whose input is passage + question."""
+    out: dict[str, str] = {}
+    for inst in instances:
+        if inst.get("split") != split:
+            continue
+        text = str(inst["input"]["text"])
+        cut = text.rfind("\nQuestion:")
+        if cut >= 0:
+            out[str(inst["id"])] = hashlib.sha1(text[:cut].encode("utf-8")).hexdigest()[:12]
+    return out
 
 
 # Scenarios whose runs carry HELM's calibration statistics and are large enough to be worth
@@ -208,6 +233,20 @@ def read_scores(root: Path, table: HelmTable, model: str) -> dict[str, dict[str,
     return dict(out)
 
 
+def read_clusters(root: Path, table: HelmTable, model: str) -> dict[str, dict[str, str]]:
+    """task -> example_id -> cluster id (shared passage) for the passage scenarios of a model.
+
+    Empty for a task whose cluster file was not fetched (an older extract)."""
+    out: dict[str, dict[str, str]] = {}
+    for task in PASSAGE_TASKS & set(table.runs[model]):
+        names = table.runs[model][task]
+        for name in names:
+            path = cluster_file(root, name)
+            if path.is_file():
+                out.setdefault(task, {}).update(json.loads(path.read_text(encoding="utf-8")))
+    return out
+
+
 @dataclass(frozen=True)
 class ImportStats:
     models: int
@@ -239,25 +278,24 @@ def import_helm_lite(
         for model in wanted:
             try:
                 per_task = read_scores(root, table, model)
+                cluster_ids = read_clusters(root, table, model)
             except FileNotFoundError:
                 skipped.append(model)
                 continue
             done.append(model)
             for task in sorted(per_task):
                 tasks.add(task)
+                clusters = cluster_ids.get(task, {})
                 for iid, score in sorted(per_task[task].items()):
-                    f.write(
-                        json.dumps(
-                            {
-                                "task": task,
-                                "model": model,
-                                "example_id": iid,
-                                "score": score,
-                                "metrics": {metric_of[task]: score},
-                            },
-                            ensure_ascii=False,
-                        )
-                        + "\n"
-                    )
+                    row: dict[str, Any] = {
+                        "task": task,
+                        "model": model,
+                        "example_id": iid,
+                        "score": score,
+                        "metrics": {metric_of[task]: score},
+                    }
+                    if iid in clusters:
+                        row["cluster_id"] = clusters[iid]
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
                     rows += 1
     return ImportStats(len(done), sorted(tasks), rows, skipped)

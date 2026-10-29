@@ -12,6 +12,7 @@ import numpy as np
 from .clustered import (
     ClusterStats,
     cluster_bootstrap_ci,
+    cluster_bootstrap_means,
     cluster_stats,
     cluster_sums,
     encode_clusters,
@@ -175,24 +176,51 @@ def bootstrap_macro_ci(
     num_resamples: int = 1000,
     confidence_level: float = 0.95,
     seed: int = 0,
+    task_clusters: Mapping[str, Sequence[Hashable]] | None = None,
 ) -> tuple[float, float, float]:
     """Macro mean with a stratified bootstrap CI: resample examples within each task,
     then average the per-task means, so the interval matches the macro statistic.
 
-    Scores are sorted per task first, so the result does not depend on the order
-    records arrived in (e.g. thread completion order)."""
-    tasks = [np.sort(np.asarray(task_scores[t], dtype=np.float64)) for t in sorted(task_scores)]
-    tasks = [a for a in tasks if a.size > 0]
-    if not tasks:
+    ``task_clusters[task]`` gives one cluster label per score of that task (same order as
+    ``task_scores[task]``). A task with at least two distinct labels resamples whole clusters
+    (:func:`evalkit.clustered.cluster_bootstrap_means`), as ``compare`` does for a pair; a task
+    without labels, or with a single one, resamples items. Without ``task_clusters`` the result
+    is the plain item bootstrap.
+
+    Scores are sorted per task first (by cluster label, then score), so the result does not
+    depend on the order records arrived in (e.g. thread completion order)."""
+    arrays: list[np.ndarray] = []
+    codes_by_task: list[np.ndarray | None] = []
+    for t in sorted(task_scores):
+        scores = np.asarray(task_scores[t], dtype=np.float64)
+        if scores.size == 0:
+            continue
+        labels = None if task_clusters is None else task_clusters.get(t)
+        if labels is not None and len(labels) != scores.size:
+            raise ValueError(f"task {t!r}: one cluster label per score is required")
+        codes: np.ndarray | None = None
+        if labels is not None and len(set(labels)) >= 2:
+            order = sorted(range(scores.size), key=lambda i: (repr(labels[i]), scores[i]))
+            scores = scores[order]
+            codes = encode_clusters([labels[i] for i in order])
+        else:
+            scores = np.sort(scores)
+        arrays.append(scores)
+        codes_by_task.append(codes)
+    if not arrays:
         return (0.0, 0.0, 0.0)
-    point = float(np.mean([a.mean() for a in tasks]))
+    point = float(np.mean([a.mean() for a in arrays]))
     if num_resamples <= 0:
         return (point, point, point)
     rng = np.random.default_rng(seed)
-    per_task = np.stack(
-        [rng.choice(a, size=(num_resamples, a.size), replace=True).mean(axis=1) for a in tasks]
-    )
-    macro = per_task.mean(axis=0)
+    rows = []
+    for a, codes in zip(arrays, codes_by_task, strict=True):
+        if codes is None:
+            rows.append(rng.choice(a, size=(num_resamples, a.size), replace=True).mean(axis=1))
+        else:
+            sums, sizes = cluster_sums(a, codes)
+            rows.append(cluster_bootstrap_means(sums, sizes, num_resamples, rng))
+    macro = np.stack(rows).mean(axis=0)
     alpha = 1.0 - confidence_level
     lo = float(np.percentile(macro, 100.0 * (alpha / 2.0)))
     hi = float(np.percentile(macro, 100.0 * (1.0 - alpha / 2.0)))
@@ -287,46 +315,82 @@ class ModelSummary:
     per_task_means: dict[str, float] = field(default_factory=dict)
     # 1-based; models in the same group are not resolved from their ranked neighbour.
     tie_group: int | None = None
+    # number of tasks whose CI resampled whole clusters (rows carried a cluster_id)
+    clustered_tasks: int = 0
+    bt_rating: float | None = None
+    bt_ci_lower: float | None = None
+    bt_ci_upper: float | None = None
 
 
 @dataclass
 class LeaderboardReport:
     models: list[ModelSummary]
+    ece_label: str = "15 bins"
 
     def to_markdown(self) -> str:
         # Sort models descending by macro_mean then elo_rating
         ranked = sorted(self.models, key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
         grouped = any(m.tie_group is not None for m in ranked)
+        with_bt = any(m.bt_rating is not None for m in ranked)
+        head = ["Rank", "Model", "Macro Mean", "95% CI", "Win Rate", "Elo Rating"]
+        if with_bt:
+            head.append("Bradley-Terry [95% CI]")
+        head += ["ECE (" + self.ece_label + ")", "Brier", "Tasks Evaluated"]
+        if grouped:
+            head.append("Tie group")
         lines: list[str] = [
             "# Evaluation Leaderboard",
             "",
-            (
-                "| Rank | Model | Macro Mean | 95% CI | Win Rate | Elo Rating | "
-                "ECE (15 bins) | Brier | Tasks Evaluated |" + (" Tie group |" if grouped else "")
-            ),
-            (
-                "|------|-------|------------|--------|----------|------------|"
-                "---------------|-------|-----------------|" + ("------------|" if grouped else "")
-            ),
+            "| " + " | ".join(head) + " |",
+            "|" + "|".join("-" * (len(h) + 2) for h in head) + "|",
         ]
         for rank, m in enumerate(ranked, start=1):
-            ci_str = f"[{m.ci_lower:.3f}, {m.ci_upper:.3f}]"
-            tasks_count = len(m.per_task_means)
-            group_cell = f" {m.tie_group if m.tie_group is not None else '-'} |" if grouped else ""
-            lines.append(
-                f"| {rank} | {m.model_name} | {m.macro_mean:.3f} | {ci_str} | {m.win_rate:.3f} | "
-                f"{m.elo_rating:.1f} | {m.ece:.3f} | {m.brier:.3f} | {tasks_count} |" + group_cell
+            cells = [
+                str(rank),
+                m.model_name,
+                f"{m.macro_mean:.3f}",
+                f"[{m.ci_lower:.3f}, {m.ci_upper:.3f}]",
+                f"{m.win_rate:.3f}",
+                f"{m.elo_rating:.1f}",
+            ]
+            if with_bt:
+                if m.bt_rating is None or m.bt_ci_lower is None or m.bt_ci_upper is None:
+                    cells.append("-")
+                else:
+                    cells.append(f"{m.bt_rating:.1f} [{m.bt_ci_lower:.1f}, {m.bt_ci_upper:.1f}]")
+            cells += [f"{m.ece:.3f}", f"{m.brier:.3f}", str(len(m.per_task_means))]
+            if grouped:
+                cells.append(str(m.tie_group) if m.tie_group is not None else "-")
+            lines.append("| " + " | ".join(cells) + " |")
+        notes: list[str] = []
+        clustered = max((m.clustered_tasks for m in ranked), default=0)
+        if clustered:
+            notes.append(
+                f"95% CI: stratified bootstrap over tasks; in the {clustered} task(s) whose rows "
+                "carry a cluster_id whole clusters are resampled (the same cluster bootstrap "
+                "`evalkit compare` uses), elsewhere single items."
+            )
+        if with_bt:
+            notes.append(
+                "Bradley-Terry: maximum-likelihood strengths from the per-item pairwise outcomes "
+                "(ties count as half a win each), on the Elo scale (400 points per factor 10 in "
+                "odds, mean rating 1000); the interval is a bootstrap over items"
+                + (" (whole clusters where rows carry a cluster_id)." if clustered else ".")
             )
         if grouped:
-            lines.extend(
-                [
-                    "",
-                    "Tie group: a model joins the group of the model ranked directly "
-                    "above it unless the paired randomisation test on their per-example "
-                    "differences is resolved (Holm-adjusted p < 0.05 over the adjacent pairs). "
-                    "Models sharing a group are not separated by this data.",
-                ]
+            notes.append(
+                "Tie group: a model joins the group of the model ranked directly "
+                "above it unless the paired randomisation test on their per-example "
+                "differences is resolved (Holm-adjusted p < 0.05 over the adjacent pairs"
+                + (
+                    "; whole clusters are flipped where rows carry a cluster_id"
+                    if clustered
+                    else ""
+                )
+                + "). Models sharing a group are not separated by this data."
             )
+        for note in notes:
+            lines.extend(["", note])
 
         if ranked and ranked[0].per_task_means:
             lines.extend(["", "## Per-Task Breakdown", ""])

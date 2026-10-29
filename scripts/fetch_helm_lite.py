@@ -24,8 +24,11 @@ from urllib.request import urlopen
 
 from evalkit.helm import (
     CALIBRATION_TASKS,
+    PASSAGE_TASKS,
     SCENARIOS,
+    cluster_file,
     compact_calibration,
+    compact_clusters,
     compact_references,
     compact_run,
     family_of,
@@ -100,11 +103,17 @@ def main() -> int:
         families.setdefault(family_of(run), run)
 
     def fetch_refs(run: str) -> None:
+        task = task_of[run]
         dest = reference_file(out, run)
-        if dest.exists():
+        cdest = cluster_file(out, run)
+        want_clusters = task in PASSAGE_TASKS and not cdest.exists()
+        if dest.exists() and not want_clusters:
             return
         instances = json.loads(get(f"{run_url(run)}/instances.json"))
-        write_json(dest, compact_references(instances, METRIC[task_of[run]].split))
+        if not dest.exists():
+            write_json(dest, compact_references(instances, METRIC[task].split))
+        if want_clusters:
+            write_json(cdest, compact_clusters(instances, METRIC[task].split))
 
     with ThreadPoolExecutor(args.workers) as pool:
         list(pool.map(fetch_refs, families.values()))

@@ -71,6 +71,26 @@ def clustered_se(values: Sequence[float] | np.ndarray, codes: np.ndarray) -> flo
     return math.sqrt(max(var, 0.0))
 
 
+def cluster_bootstrap_means(
+    sums: np.ndarray, sizes: np.ndarray, num_resamples: int, rng: np.random.Generator
+) -> np.ndarray:
+    """Means of ``num_resamples`` cluster-bootstrap resamples (total score / total items).
+
+    Each resample draws ``C`` clusters with replacement from the per-cluster ``sums`` and
+    ``sizes`` (see :func:`cluster_sums`). Draws are made in chunks that bound the index matrix
+    to about 16 MB; the stream of random numbers depends only on ``rng``, ``C`` and
+    ``num_resamples``.
+    """
+    c = sums.size
+    means = np.empty(num_resamples, dtype=np.float64)
+    chunk = max(1, 2_000_000 // c)
+    for start in range(0, num_resamples, chunk):
+        m = min(chunk, num_resamples - start)
+        idx = rng.integers(0, c, size=(m, c))
+        means[start : start + m] = sums[idx].sum(axis=1) / sizes[idx].sum(axis=1)
+    return means
+
+
 def cluster_bootstrap_ci(
     values: Sequence[float] | np.ndarray,
     codes: np.ndarray,
@@ -94,13 +114,7 @@ def cluster_bootstrap_ci(
     mean = float(x.mean())
     if num_resamples <= 0:
         return (mean, mean, mean)
-    rng = np.random.default_rng(seed)
-    means = np.empty(num_resamples, dtype=np.float64)
-    chunk = max(1, 2_000_000 // c)  # bound the (resamples x clusters) index matrix to ~16 MB
-    for start in range(0, num_resamples, chunk):
-        m = min(chunk, num_resamples - start)
-        idx = rng.integers(0, c, size=(m, c))
-        means[start : start + m] = sums[idx].sum(axis=1) / sizes[idx].sum(axis=1)
+    means = cluster_bootstrap_means(sums, sizes, num_resamples, np.random.default_rng(seed))
     alpha = 1.0 - confidence_level
     lo = float(np.percentile(means, 100.0 * (alpha / 2.0)))
     hi = float(np.percentile(means, 100.0 * (1.0 - alpha / 2.0)))

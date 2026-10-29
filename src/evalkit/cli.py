@@ -13,6 +13,7 @@ import numpy as np
 from .aggregate import (
     CI_METHODS,
     PairResolution,
+    build_pairwise_matches,
     compare_pairs,
     compute_elo_ratings,
     paired_comparison,
@@ -37,6 +38,7 @@ from .judge import (
 from .llmcache import CachedCompleter, CacheMiss, CallBudgetExceeded
 from .metrics.helm_compat import helm_metric_name
 from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
+from .ranking import bradley_terry_bootstrap, render_bradley_terry
 from .results import ClusterLabel, ItemKey, load_results, merge_clusters
 from .runner import EceBinning, EvalRecord, generate_leaderboard, run
 from .samples import pass_hat_k
@@ -163,7 +165,9 @@ def leaderboard_command(args: argparse.Namespace) -> int:
             except Exception:
                 continue
 
-    leaderboard = generate_leaderboard(records, ece_binning=_ece_binning(args.metric_mode))
+    leaderboard = generate_leaderboard(
+        records, ece_binning=_ece_binning(args.metric_mode), bradley_terry=args.bt
+    )
     md = leaderboard.to_markdown()
     with open(board_file, "w", encoding="utf-8") as f:
         f.write(md + "\n")
@@ -543,6 +547,9 @@ def helm_study_command(args: argparse.Namespace) -> int:
         seed=args.seed,
         resamples=args.resamples,
         gaps=parse_ints(args.gaps),
+        cluster_modes=[c.strip() for c in args.cluster_modes.split(",") if c.strip()],
+        cluster_resamples=args.cluster_resamples,
+        bt_resamples=args.bt_resamples,
     )
     text += f"\nWall time {time.perf_counter() - started:.0f} s.\n"
     if args.out:
@@ -559,6 +566,46 @@ def metric_check_command(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Error: {root}/core_scenarios.json not found\n")
         return 1
     text = run_metric_check(root, stride=args.stride)
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
+def rank_command(args: argparse.Namespace) -> int:
+    """Bradley-Terry ratings with bootstrap intervals and online Elo from a results file."""
+    try:
+        table = load_results(args.results)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    scores = table.all_item_scores()
+    if len(scores) < 2:
+        sys.stderr.write("Error: need at least two models\n")
+        return 1
+    clusters = None if args.ignore_clusters or not table.has_clusters else dict(table.clusters)
+    try:
+        bt = bradley_terry_bootstrap(
+            {m: dict(s) for m, s in scores.items()},
+            clusters=clusters,
+            resamples=args.resamples,
+            seed=args.seed,
+            ridge=args.ridge,
+        )
+    except ValueError as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    by_item: dict[str, dict[str, float]] = {}
+    for model, items in scores.items():
+        for key, value in items.items():
+            by_item.setdefault(repr(key), {})[model] = float(value)
+    elo = compute_elo_ratings(build_pairwise_matches(by_item))
+    text = (
+        f"# Bradley-Terry ranking of {len(bt.models)} models, {args.results}\n\n"
+        + render_bradley_terry(bt, elo)
+        + "\n"
+    )
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(text, encoding="utf-8")
@@ -796,6 +843,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="evalkit",
         help="helm: ECE with HELM's equal-mass 10 bins (ece_10_bin) instead of 15 equal-width",
     )
+    board_parser.add_argument(
+        "--bt",
+        action="store_true",
+        help="add Bradley-Terry ratings with bootstrap intervals next to Elo (recompute only)",
+    )
 
     # compare command
     cmp_parser = subparsers.add_parser("compare", help="Paired comparison of two models")
@@ -906,6 +958,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--gaps", default=",".join(str(g) for g in GAPS), help="published rank distances to test"
     )
     hs.add_argument("--out", default=None, help="also write the markdown report here")
+    hs.add_argument(
+        "--cluster-modes",
+        default="passage,subset",
+        help="comma-separated clusterings for the clustered pair families (passage, subset); "
+        "empty to skip",
+    )
+    hs.add_argument(
+        "--cluster-resamples", type=int, default=2000, help="cluster bootstrap resamples per pair"
+    )
+    hs.add_argument(
+        "--bt-resamples",
+        type=int,
+        default=200,
+        help="Bradley-Terry bootstrap resamples (0 skips the section)",
+    )
 
     # judge command
     jd = subparsers.add_parser(
@@ -944,6 +1011,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     mc.add_argument("--stride", type=int, default=8, help="use every Nth model of the ranking")
     mc.add_argument("--out", default=None, help="also write the markdown report here")
 
+    # rank command
+    rk = subparsers.add_parser(
+        "rank", help="Bradley-Terry ranking with bootstrap intervals, next to online Elo"
+    )
+    rk.add_argument("results", help="results.jsonl (rows with a cluster_id are resampled whole)")
+    rk.add_argument("--resamples", type=int, default=200, help="bootstrap resamples")
+    rk.add_argument("--seed", type=int, default=0)
+    rk.add_argument(
+        "--ridge",
+        type=float,
+        default=0.0,
+        help="Gaussian prior on the log-strengths, for data where the MLE does not exist",
+    )
+    rk.add_argument(
+        "--ignore-clusters", action="store_true", help="resample items even if rows have clusters"
+    )
+    rk.add_argument("--out", default=None, help="also write the markdown report here")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -960,6 +1045,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return helm_study_command(args)
     elif args.subcommand == "metric-check":
         return metric_check_command(args)
+    elif args.subcommand == "rank":
+        return rank_command(args)
     elif args.subcommand == "judge":
         return judge_command(args)
     else:
