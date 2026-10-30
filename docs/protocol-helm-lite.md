@@ -28,5 +28,6 @@ evalkit is a harness, so "compare with SOTA" is tested the way a harness should 
 ## Scope limits stated up front
 
 - Open LLM Leaderboard `details` datasets: gated ("auto" approval, needs a logged-in Hugging Face token; unauthenticated file requests return HTTP 401 `GatedRepo`, checked 2026-10-26). They were not used and there is no `import-openllm`.
-- Chatbot Arena: the public vote files are large (the 55k battles CSV is 184 MB) and evalkit has no Bradley-Terry fit to compare against the published ranking, so this part was not attempted.
+- Chatbot Arena: the public vote files are large (the 55k battles CSV is 184 MB) and, at the time of this protocol, evalkit had no Bradley-Terry fit to compare against the published ranking, so this part was not attempted. (Update: `evalkit rank` now fits Bradley-Terry with bootstrap intervals; see [protocol-rankings.md](protocol-rankings.md). It was run on HELM Lite per-item data, not on Arena votes.)
 - The first fetch of HELM files pulled about 0.7 GB of raw JSON before compaction (the per-run files turned out larger than estimated), above the 300 MB guidance; only about 37 MB remain on disk. This was an error in sizing the download, not a design choice.
+- `scripts/fetch_helm_lite.py --check-only` downloads only the text-scenario runs of the 12 metric-check models (skipping MATH and WMT, whose item values the metric check does not reproduce); the full fetch (91 models) was rerun for the Phase K study and also stores a passage hash per instance for NarrativeQA and NQ open-book (`clusters/`).

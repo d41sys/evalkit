@@ -63,6 +63,8 @@ uv run evalkit import-helm                                    # -> runs/helm-lit
 uv run evalkit helm-study --out docs/results/helm-lite-study.md   # ~5 min
 uv run evalkit metric-check --out docs/results/helm-lite-metric-check.md
 uv run evalkit compare runs/helm-lite/results.jsonl --all-pairs --models "GPT-4o (2024-05-13),DeepSeek v3,GPT-4 (0613)"
+uv run evalkit leaderboard runs/helm-lite --recompute --metric-mode helm --bt   # HELM's ECE binning, Bradley-Terry column
+uv run evalkit rank runs/helm-lite/results.jsonl --resamples 200 --out docs/results/helm-lite-bt.md   # Bradley-Terry ratings, bootstrap CIs (cluster-aware)
 
 # Real local models (needs the [hf] extra: torch + transformers)
 uv run --extra hf evalkit run --tasks tasks --models oracle,random,hf:Qwen/Qwen2.5-0.5B-Instruct --workers 1
@@ -673,7 +675,7 @@ Pairs file: one JSON object per line with `prompt`, `response_a`, `response_b`, 
 - **Position bias.** Each pair is judged in both orders. Equal verdicts stand; any disagreement, or a reply with no verdict line, resolves to `tie`. The share of pairs whose orders disagree is reported as the position-flip rate (`--no-swap` turns the control off).
 - **Reference answer.** An optional `reference` field is shown to the judge (reference-guided grading, as Zheng et al. do for math, reasoning and coding).
 - **Length bias.** Spearman rho of the resolved verdict with the length difference, and the share of decided pairs won by the longer response. A positive rho is not bias by itself, since longer answers are often better; the validation below compares it with the humans' rho on the same items.
-- **Self-preference is not controlled.** A judge can favour answers written by its own model family (Zheng et al. 2023, sec. 3.3; Panickssery et al. 2024, [arXiv 2404.13076](https://arxiv.org/abs/2404.13076)). Do not use `claude-sonnet-5-5` to rank Claude outputs without a human check.
+- **Self-preference** (a judge favouring its own model family; Zheng et al. 2023, sec. 3.3; Panickssery et al. 2024, [arXiv 2404.13076](https://arxiv.org/abs/2404.13076)) is measured, not removed: see "Judge panel and self-preference" below. On MT-Bench it was not detectable for Haiku, Sonnet or Opus on 96 claude-v1 items, but the intervals are wide (about +-0.15 on a 1-point scale); still do not use a judge to rank its own family's outputs without a human check.
 - **Recording.** Every call goes through `evalkit.llmcache.CachedCompleter`: a JSONL cache keyed by the SHA-256 of model, system prompt, user prompt and parameters, holding the request, the response text, the model id the API returned, token usage and a timestamp. Scoring reads the cache, so a published result is re-scored for free (`--cache-only`, no key); identical concurrent requests are sent once; `--max-calls` (default 4000) caps live calls; at most 8 calls run at once; the SDK retries 429, 529 and 5xx with backoff. The API key is read from `ANTHROPIC_API_KEY` and is never written to the cache.
 - **No temperature, no logprobs.** `claude-sonnet-5-5` rejects the `temperature` parameter (HTTP 400, "Extra inputs are not permitted"), so no sampling parameter is sent and decoding is the API default: a fresh run can differ from a recorded one, and I did not measure the test-retest rate. The API exposes no logprobs, so the judge gives no confidence.
 - `AnthropicModel` now defaults to `claude-sonnet-5-5`.
@@ -709,7 +711,7 @@ What does not look good, stated plainly:
 - **Ties.** The judge resolves 14.5% of items to tie against a human tie rate of 23.3% (per vote), so S1, the metric that counts ties, is held down by the judge being more decisive than the humans.
 - **Unparsable replies:** 11 of 1,000 items had a reply without a verdict line in one order (counted as tie); the 5% failure threshold of the protocol was not reached.
 - **Reasoning, math, coding without a reference:** S1 65.1% against 69.3% on the other categories; S2 88.4% (human-human 93.0% there). The judge minus human-human difference there is -2.4 pp [-8.5, +3.5] at S1, so I cannot say it is worse, and I cannot say the missing reference made no difference.
-- **Self-preference** is not controlled. On items that include claude-v1 (the one Claude-family model in the data) S2 is 85.2% against 86.4% elsewhere and the position-flip rate is 9.8% [6.9, 13.1] against 5.9% [4.2, 7.7]: descriptive only, and it cannot separate self-preference from quality.
+- **Self-preference** is not controlled by the judge itself; the panel study below measures it. Descriptive on the full test split: on items that include claude-v1 (the one Claude-family model in the data) S2 is 85.2% against 86.4% elsewhere and the position-flip rate is 9.8% [6.9, 13.1] against 5.9% [4.2, 7.7]; that cannot separate self-preference from quality.
 - One prompt, one judge, one run per item, 72 test questions; subgroup intervals are uncorrected.
 
 **Pointwise (secondary, first 300 test items, 600 calls).** The higher of two 1-10 scores as the verdict (equal scores: tie) agrees with humans at 68.0% [62.4, 73.3] S1 and 88.4% [83.9, 92.4] S2, kappa +0.527 / +0.803; against GPT-4 on those items +2.2 pp [-3.1, +7.8] and +0.8 pp [-3.4, +5.1]. It needs half the calls of the pairwise mode but has no position control ([docs/results/judge-mtbench-pointwise.md](docs/results/judge-mtbench-pointwise.md)).
@@ -719,6 +721,81 @@ What does not look good, stated plainly:
 **Cost.** 2,551 live API calls in total (cap 4,000): 2 probes (one rejected for `temperature`), 8 discarded smoke calls, 120 dev, 1,978 test pairwise (22 duplicates served from cache), 443 test pointwise (157 duplicates served from cache); about 3.31M input and 0.74M output tokens. Every recorded call is in `data/mtbench/cache-{dev,test}.jsonl` (2,541 calls; the API reported `claude-sonnet-5-5` as the model for all of them).
 
 Reproduce the numbers with no key: `uv run python scripts/mtbench_judge.py score --split test` reads only the cache (add `--out report.md` to write a file); with a key, `scripts/mtbench_judge.py run --split test` re-runs the calls (new answers can differ, see above).
+
+## Fidelity and ranking additions (Phase K)
+
+Each part has a protocol committed before the scored run: [protocol-rankings.md](docs/protocol-rankings.md), [protocol-judge-panel.md](docs/protocol-judge-panel.md), [protocol-contamination.md](docs/protocol-contamination.md), [protocol-mink.md](docs/protocol-mink.md); the metric check follows [protocol-helm-lite.md](docs/protocol-helm-lite.md). Cached API calls are committed, so scoring replays with no key and no network.
+
+### HELM-compatible metrics (`--metric-mode helm`, `helm:` metric names)
+
+`evalkit.metrics.helm_compat` ports HELM's reference metrics (`evaluate_reference_metrics.py`): `exact_match` (strict, strip only), `quasi_exact_match` (lower, punctuation, articles, whitespace), set-based nltk-style `f1_score`, `final_number_exact_match`, and the multiple-choice output mapping (predicted letter to choice text). `ece_10_bin` is HELM's equal-mass binning (`verified_calibration.get_ece_em`). evalkit's default definitions are unchanged and documented as different; `run` and `leaderboard` take `--metric-mode helm`.
+
+| Check on the same predictions (12 models, `docs/results/helm-lite-metric-check.md`) | evalkit default | `--metric-mode helm` |
+|---|---|---|
+| item-identical to HELM, all 8 text scenarios | 58.85-100% by scenario (narrativeqa 58.85, NQ open 74.95, NQ closed 79.87, GSM8K 98.60; MC and LegalBench 99.7-100) | **81,543 of 81,543 (100.0000%)** |
+| ECE, 6 runs with log-probs (OpenbookQA, MedQA) vs `ece_10_bin` | equal-width differs on 2 runs (0.0890 vs 0.0870, 0.2802 vs 0.2768) | equal to 1e-9 on 6 of 6 |
+
+Not covered: MATH (needs LaTeX equivalence), WMT BLEU (`word_tokenize`), ECE on models without log-probs. The last 2 mismatches of the first pass were HELM's output mapping for MC (prediction `The`, gold letter `A`) and are fixed by implementing the mapping.
+
+### Bradley-Terry ranking and cluster-aware leaderboard (`evalkit rank`, `leaderboard --bt`)
+
+`evalkit rank results.jsonl` fits Bradley-Terry strengths by maximum likelihood (ties half a win, damped Newton, Elo scale centred at 1000, optional `--ridge`; a comparison graph that is not strongly connected is an error) and bootstraps over items, or whole clusters where rows carry a `cluster_id` (`--ignore-clusters` turns that off). `leaderboard` now resamples whole clusters in its macro CI and uses the cluster sign-flip test for tie groups, the same machinery as `compare`, so the two commands agree; `leaderboard --recompute --bt` adds the Bradley-Terry column. `import-helm` writes passage clusters for NarrativeQA and NQ open-book.
+
+**HELM Lite rerun** ([helm-lite-study.md](docs/results/helm-lite-study.md), 91 models, 10,200 items, seed 0; predictions and outcome in the protocol):
+
+| Question | Result |
+|---|---|
+| item-level numbers reproduce | 41 of 90 adjacent pairs resolved, 42 tie groups; 5 / 9 / 19 pairs at 97.5 / 95 / 90% bootstrap (identical to before) |
+| passage clusters (8 clusters, 17 items: HELM Lite has almost no shared sources) | adjacent verdicts changed: 0 of 90; other rank distances: 2, 1, 1, 0 of 89, 88, 86, 81; design effect 1.00 |
+| subset clusters (22 MMLU, LegalBench, MATH, WMT subsets as clusters; sensitivity, not an estimate) | 8 of 90 adjacent pairs resolved (from 41), 9 tie groups (from 42); design effect about 40, clustered SE about 3.8-4.1 times naive. A subset is a fixed stratum, so this is an upper bound on the dependence, not the answer |
+| Bradley-Terry (pooled items, 200 resamples) vs the published order | Kendall tau 0.866 (predicted at least 0.9: **wrong**); published adjacent order holds in at least 97.5% of resamples for 41 of 90 pairs (HELM's own statistic: 5 of 90); median 95% rank interval 4 ranks; DeepSeek v3 is published 3rd, BT rank 10 (8-12) |
+
+Plainly: the clustered statistics change nothing on HELM Lite because it has almost no clusters, so this does not test clustering where it matters (the simulation in the clustered-SE section and the MT-Bench question clusters do). BT sees far more separation than HELM's mean win rate because it ranks pooled item wins and each rating borrows from all other models; I did not simulate the coverage of the BT bootstrap with item-model interaction.
+
+### Judge panel and self-preference (MT-Bench, API)
+
+Panel of claude-haiku-5-5, claude-sonnet-5-5 and claude-opus-5-5 on a 160-item test subsample (96 claude-v1 items, 64 others, 67 questions; cost forced the size), both orders, cluster bootstrap over questions (2,000 resamples). Protocol and `01d6620` before scoring; [results](docs/results/judge-panel-mtbench.md).
+
+| Judge | S1 agreement with humans | S2 | kappa (S1) | flip rate |
+|---|---|---|---|---|
+| Haiku | 71.6% | 87.3% | 0.528 | 8.1% |
+| Sonnet | 70.6% | 86.8% | 0.514 | 6.2% |
+| Opus | 74.8% | 85.7% | 0.568 | 6.2% |
+| Panel, majority | 73.5% [66.5, 80.1] | 87.0% | 0.557 | 2.5% |
+| Panel, mean score | 71.7% | 86.8% | 0.518 | 3.8% |
+| released GPT-4 / human-human (same items) | 72.2% / 63.4% | 89.5% / 83.2% | | |
+
+Panel majority minus Sonnet: S1 +2.9 pp [+0.4, +5.9] ("superior" by the pre-registered rule, but the lower bound is barely above 0, there is no multiplicity correction and n is 160; most of the gain is Opus, panel minus Opus is -1.3 pp [-3.9, +0.8]); S2 +0.2 pp [-1.9, +1.9]. Cost per 1,000 verdicts at assumed list prices: Haiku $8.17, Sonnet $17.44, Opus $31.52, panel $57.13 (3.3 times Sonnet).
+
+**Self-preference** (mean judge score minus human score on the 96 claude-v1 items, cluster bootstrap): Haiku +0.013 [-0.14, +0.17], Sonnet +0.034 [-0.14, +0.19], Opus -0.008 [-0.17, +0.15], released GPT-4 as control -0.029 [-0.17, +0.11]. All include 0: **no detectable effect**, with intervals too wide to exclude +-0.15. Sonnet over all 319 claude-v1 pairs: +0.074 [-0.012, +0.170].
+
+### Contamination probe (GSM-Symbolic style, API)
+
+140 GSM8K test problems, each with the original and 2 variants in which only the numbers change; the gold of every variant comes from a deterministic solver, no LLM writes it. Drop = original minus variants accuracy, 95% cluster bootstrap over source problems, Holm over 2 models. Dataset and protocol `c52d082` before any call.
+
+| Model | original | variants | drop [95% CI] | Holm p | MDE (80%) |
+|---|---|---|---|---|---|
+| claude-haiku-5-5 | 96.4% | 94.3% | +2.1 pp [0.0, +4.6] | 0.219 | 3.4 pp |
+| claude-sonnet-4-5-20250929 | 95.7% | 97.1% | -1.4 pp [-3.9, +0.4] | 0.375 | 3.5 pp |
+
+**No detectable drop for either model**; drops below about 3.5 pp are not excluded, and a null does not prove the absence of contamination. A positive drop could be memorisation or brittleness to new numbers; the probe cannot separate them. Variant golds average about 10% larger than the originals (kept from the numeric range, stated in the protocol). Not comparable with Mirzadeh et al. 2024 (different items, prompts, models). [results](docs/results/contamination-gsm.md)
+
+### Min-K% Prob demo (local model + API paraphrases)
+
+`Qwen/Qwen2.5-0.5B` (revision `060db6499f32faf8b98477b0a26969ef7d8b9987`, float32, MPS) scores 132 GSM8K test questions against Claude (haiku-5-5) paraphrases; AUROC of originals vs paraphrases, paired bootstrap over questions. **A method demo, not a contamination audit of Qwen or GSM8K.**
+
+| Score | AUROC [95% CI] |
+|---|---|
+| Min-K% K=20 (primary) | 0.535 [0.477, 0.594]: no detectable effect |
+| Min-K% K=10 / 30 / 50 | 0.486 / 0.555 / 0.589 |
+| mean log-prob | 0.624 [0.568, 0.677] |
+| zlib ratio | 0.531 [0.475, 0.585] |
+
+Mean log-prob beats Min-K% K=20 by 0.089 [0.051, 0.125], but paraphrases are longer and in a different style (token count alone gives AUROC 0.421), so that separation is not memorisation evidence. Three of four pre-registered predictions were wrong or moot ([mink-demo.md](docs/results/mink-demo.md)). The optional extra stays optional: the core path imports no model library.
+
+### Cost and disk
+
+API calls (list prices ASSUMED, not read from the API: Haiku $1/$5, Sonnet 4.5 $3/$15, Opus $5/$25 per million input/output tokens): panel 728 calls, about $7.03; contamination 876 calls, about $1.88; Min-K% paraphrases 150 calls, about $0.16; 1,754 calls and about $9.07 in total (Sonnet panel verdicts reused the earlier MT-Bench cache). The Qwen2.5-0.5B snapshot is 954 MB in the Hugging Face cache; the HELM raw fetch is transient and about 40 MB is kept.
 
 ## Comparison with SOTA
 
@@ -740,10 +817,10 @@ Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota
 Verdict, plainly:
 
 1. **Where evalkit is ahead.** It ships paired tests on shared items, Holm correction, power and tie groups, which I found in none of the six harnesses compared (documentation and key source files only; the weak spots are listed in [docs/sota-review.md](docs/sota-review.md#9-notes-sources-and-weak-spots)). On HELM Lite it shows that about half of the adjacent rank gaps are unresolved at the data's own size and that the published order and the pooled item means disagree in 16 resolved cases (a scenario-weighting choice the table hides). It reproduces HELM's published numbers exactly from per-item data.
-2. **Where evalkit loses on this benchmark.** Its token F1 is a different statistic (59-80% item-identical), GSM8K matching is more lenient, and its ECE binning differs. The pooled means move by at most 0.013 and model order is kept, but item-level differences feed the paired tests. These metrics were reported, not changed, in this work.
-3. **Where evalkit loses on features** (not tested on a benchmark): Bradley-Terry, judge-aware inference (PPI-style calibration of a judge against a human set), IRT or adaptive testing, contamination or label-error audit, agent evals are missing. An LLM-as-judge scorer with position, reference and length controls was added after this comparison, see the section above. Clustered SE (Miller 2024 reports clustered SEs 1.1-3.05x the naive ones on real data) and multi-sample averaging with pass^k were added after this comparison too, see the section above; they are validated on simulated data only, and the HELM Lite rows here were computed without them. inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
-4. **Not done.** The Open LLM Leaderboard per-item data is gated (HTTP 401 without a Hugging Face login), so there is no `import-openllm`. The Chatbot Arena Elo-versus-Bradley-Terry comparison was skipped (184 MB vote file, no Bradley-Terry fit to compare). Details and the table of numbers that are not comparable: [docs/sota-review.md](docs/sota-review.md#3-published-numbers-that-are-not-comparable).
-5. **Caveats.** Pooled micro-averaging is evalkit's weighting, not HELM's (the bootstrap row uses HELM's). Items are treated as independent. Imported rows have no confidence, so the ECE and Brier columns of `evalkit leaderboard` are constants there. The first fetch downloaded about 0.7 GB of raw JSON, above the 300 MB guidance (a sizing mistake); 37 MB are kept on disk.
+2. **Where evalkit loses on this benchmark.** In its default mode its token F1 is a different statistic (59-80% item-identical), GSM8K matching is more lenient, and its ECE binning differs. The pooled means move by at most 0.013 and model order is kept, but item-level differences feed the paired tests. After this comparison the defaults were left alone and a `--metric-mode helm` was added: it is 100.0000% item-identical to HELM on all 81,543 instances of the 8 text scenarios and equal to `ece_10_bin` on 6 of 6 runs (MATH and WMT are not covered); see "Fidelity and ranking additions".
+3. **Where evalkit loses on features** (not tested on a benchmark): judge-aware inference (PPI-style calibration of a judge against a human set), IRT or adaptive testing, label-error audit, agent evals are missing. Added after this comparison: the LLM-as-judge scorer, clustered SE (Miller 2024 reports 1.1-3.05x the naive ones on real data), multi-sample averaging with pass^k, a Bradley-Terry ranking with bootstrap CIs, a judge panel with a self-preference estimate, a GSM-Symbolic-style contamination probe and a Min-K% Prob demo; see the sections above, in particular "Fidelity and ranking additions". inspect_ai has clustered SE and model-graded scorers; HELM, promptfoo, DeepEval and OpenAI evals have judge-style scoring.
+4. **Not done.** The Open LLM Leaderboard per-item data is gated (HTTP 401 without a Hugging Face login), so there is no `import-openllm`. The Chatbot Arena Elo-versus-Bradley-Terry comparison was skipped (184 MB vote file); `evalkit rank` now provides the Bradley-Terry fit, but it was not run on Arena votes. Details and the table of numbers that are not comparable: [docs/sota-review.md](docs/sota-review.md#3-published-numbers-that-are-not-comparable).
+5. **Caveats.** Pooled micro-averaging is evalkit's weighting, not HELM's (the bootstrap row uses HELM's). The table rows above treat items as independent; the rerun with clusters is in "Fidelity and ranking additions" (HELM Lite has almost no shared sources, so it changed nothing on passage clusters). Imported rows have no confidence, so the ECE and Brier columns of `evalkit leaderboard` are constants there. The first fetch downloaded about 0.7 GB of raw JSON, above the 300 MB guidance (a sizing mistake); about 40 MB are kept on disk.
 
 ## Design Decisions
 
