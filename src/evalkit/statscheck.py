@@ -30,17 +30,18 @@ import math
 import os
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from statistics import NormalDist
 
 import numpy as np
 
 from .aggregate import (
+    ASYMMETRIC_METHOD,
     compare_pairs,
+    mean_test_p,
     minimum_detectable_effect,
     minimum_detectable_effect_binary,
     paired_comparison,
-    randomization_test_p,
     required_sample_size,
     required_sample_size_binary,
     skewness_warning,
@@ -253,6 +254,8 @@ class CellJob:
     draws: int
     group: str  # "h0", "mde" or "fixed"
     ci_method: str = "auto"
+    rand_method: str = "auto"
+    rand_fallback: str = ASYMMETRIC_METHOD
 
 
 @dataclass(frozen=True)
@@ -283,7 +286,9 @@ def run_cell(job: CellJob) -> CellResult:
             seed=s,
             ci_method=job.ci_method,
         )
-        p_rand = randomization_test_p(a[i] - b[i], num_draws=job.draws, seed=s)
+        p_rand, _ = mean_test_p(
+            a[i] - b[i], job.rand_method, num_draws=job.draws, seed=s, fallback=job.rand_fallback
+        )
         rand_rej += p_rand < ALPHA
         sign_rej += cmp.sign_p < ALPHA
         excl += not (cmp.diff_ci_lo <= 0.0 <= cmp.diff_ci_hi)
@@ -314,6 +319,8 @@ class FwerJob:
     reps: int
     seed: int
     draws: int
+    rand_method: str = "auto"
+    rand_fallback: str = ASYMMETRIC_METHOD
 
     @property
     def m(self) -> int:
@@ -362,7 +369,14 @@ def run_fwer(job: FwerJob) -> FwerResult:
             scores = _all_pairs_scores(job.kind, job.size, job.n, rng)
             pairs = list(itertools.combinations(scores, 2))
         res = compare_pairs(
-            scores, pairs, num_resamples=0, num_draws=job.draws, seed=s, with_power=False
+            scores,
+            pairs,
+            num_resamples=0,
+            num_draws=job.draws,
+            seed=s,
+            with_power=False,
+            rand_method=job.rand_method,
+            rand_fallback=job.rand_fallback,
         )
         raw += any(r.rand_p < ALPHA for r in res)
         holm += any(r.resolved for r in res)
@@ -386,6 +400,8 @@ class StatsCheckConfig:
     fixed_effects: tuple[float, ...] = FIXED_EFFECTS
     workers: int = 1
     ci_method: str = "auto"
+    rand_method: str = "auto"
+    rand_fallback: str = ASYMMETRIC_METHOD
 
 
 @dataclass(frozen=True)
@@ -482,6 +498,15 @@ def plan(
                             config.draws,
                         )
                     )
+    h0 = [
+        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in h0
+    ]
+    h1 = [
+        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in h1
+    ]
+    fwer = [
+        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in fwer
+    ]
     return h0, h1, skipped, fwer
 
 
@@ -563,6 +588,9 @@ def render_markdown(report: StatsCheckReport) -> str:
         f"FWER {cfg.reps_fwer}; bootstrap resamples {cfg.resamples}; randomisation draws "
         f"{cfg.draws} (exact enumeration up to 20 nonzero differences); CI method "
         f"`{cfg.ci_method}`. Intervals are Wilson {MC_LEVEL:.0%} over replications.\n"
+    )
+    lines.append(
+        f"randomisation-test method `{cfg.rand_method}` (fallback `{cfg.rand_fallback}`).\n"
     )
     lines.append("### Type-I error at alpha = 0.05 (H0: true difference 0)\n")
     lines.append("| kind | tie rate | n | randomisation | sign test | CI excludes 0 | warn rate |")

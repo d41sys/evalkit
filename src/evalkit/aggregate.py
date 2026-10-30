@@ -578,6 +578,125 @@ def cluster_randomization_test_p(
     )
 
 
+RAND_METHODS = ("auto", "signflip", "boott", "johnson")
+ASYMMETRIC_METHODS = ("boott", "johnson")
+ASYMMETRIC_METHOD = "boott"
+"""The test ``auto`` switches to when the asymmetry gate fires (chosen on development seed 1,
+``docs/protocol-skew-fix.md``)."""
+
+
+def asymmetry_gate(diffs: Sequence[float] | np.ndarray) -> tuple[float, int, bool]:
+    """(skewness of the nonzero differences, their count k, gate fires).
+
+    The sign-flip test is exact for 0/1 scores (every nonzero ``|d|`` is equal, so it is the
+    conditional McNemar test) and for symmetric differences. The gate fires when the scores
+    are not of that equal-magnitude kind and ``k < 25 g^2`` (Cochran's rule for how many
+    observations a mean needs at skewness ``g``), with ties removed first: zeros inflate the
+    skewness of all differences, and a mostly-zero symmetric difference is still symmetric.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    d = d[np.abs(d) > 1e-12]
+    k = int(d.size)
+    if k < 3:
+        return 0.0, k, False
+    if float(np.ptp(np.abs(d))) <= 1e-9 * float(np.abs(d).max()):
+        return 0.0, k, False
+    g = sample_skewness(d)
+    return g, k, bool(k < SKEW_RULE * g * g)
+
+
+def bootstrap_t_test_p(
+    diffs: Sequence[float] | np.ndarray, num_draws: int = 10000, seed: int = 0
+) -> float:
+    """Two-sided bootstrap-t test of mean(diffs) = 0 (Efron & Tibshirani 1993, ch. 16).
+
+    ``t = mean / (sd / sqrt(n))``; the null distribution of ``t`` is that of the studentised
+    mean of resamples from the mean-centred differences (so the resampling population has
+    mean 0 and the observed skewness). ``p = (1 + #{|t*| >= |t|}) / (B + 1)`` over the
+    resamples with a nonzero SD. Second-order accurate for the mean, which the sign-flip
+    test is not when the differences are asymmetric. Constant nonzero differences have no
+    spread to studentise and use the sign-flip test; all zeros give 1.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    n = int(d.size)
+    if n == 0 or not np.any(np.abs(d) > 1e-12):
+        return 1.0
+    sd = float(d.std(ddof=1)) if n > 1 else 0.0
+    if sd <= 1e-12 * float(np.abs(d).max()):
+        return randomization_test_p(d, num_draws=num_draws, seed=seed)
+    root_n = math.sqrt(n)
+    mean = float(d.mean())
+    t_obs = abs(mean) / (sd / root_n)
+    centred = d - mean
+    rng = np.random.default_rng(seed)
+    chunk = max(1, 2_000_000 // n)
+    hits = 0
+    used = 0
+    done = 0
+    while done < num_draws:
+        m = min(chunk, num_draws - done)
+        res = centred[rng.integers(0, n, size=(m, n))]
+        sd_star = res.std(axis=1, ddof=1)
+        ok = sd_star > 1e-12 * sd
+        t_star = np.abs(res.mean(axis=1)[ok]) / (sd_star[ok] / root_n)
+        hits += int(np.count_nonzero(t_star >= t_obs - 1e-12))
+        used += int(ok.sum())
+        done += m
+    if used == 0:
+        return randomization_test_p(d, num_draws=num_draws, seed=seed)
+    return (hits + 1) / (used + 1)
+
+
+def johnson_test_p(diffs: Sequence[float] | np.ndarray) -> float:
+    """Two-sided skewness-corrected t test of mean(diffs) = 0 (Johnson 1978; Hall 1992).
+
+    The Edgeworth expansion ``P(T <= x) = Phi(x) + n^-1/2 (g/6)(2x^2 + 1) phi(x)`` is
+    inverted by the monotone cubic ``G(x) = ((1 + a x)^3 - 1) / (3a) + a / 2`` with
+    ``a = g / (3 sqrt(n))`` and ``g`` the sample skewness, so ``F(t) = Phi(G(t))`` and
+    ``p = min(1, 2 min(F, 1 - F))``. Closed form, no resampling noise; ``g = 0`` is the
+    normal-theory t test. Constant nonzero differences use the sign-flip test.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    n = int(d.size)
+    if n == 0 or not np.any(np.abs(d) > 1e-12):
+        return 1.0
+    sd = float(d.std(ddof=1)) if n > 1 else 0.0
+    if sd <= 1e-12 * float(np.abs(d).max()):
+        return randomization_test_p(d)
+    t = float(d.mean()) / (sd / math.sqrt(n))
+    a = sample_skewness(d) / (3.0 * math.sqrt(n))
+    g_t = t + a / 2.0 if abs(a) < 1e-12 else ((1.0 + a * t) ** 3 - 1.0) / (3.0 * a) + a / 2.0
+    f = NormalDist().cdf(g_t)
+    return float(min(1.0, 2.0 * min(f, 1.0 - f)))
+
+
+def mean_test_p(
+    diffs: Sequence[float] | np.ndarray,
+    method: str = "auto",
+    num_draws: int = 10000,
+    seed: int = 0,
+    fallback: str = ASYMMETRIC_METHOD,
+) -> tuple[float, str]:
+    """(two-sided p of mean(diffs) = 0, the concrete test used).
+
+    ``signflip``: :func:`randomization_test_p` (exact for 0/1 and for symmetric
+    differences, anti-conservative for skewed ones); ``boott``: :func:`bootstrap_t_test_p`;
+    ``johnson``: :func:`johnson_test_p`. ``auto``: ``signflip`` unless :func:`asymmetry_gate`
+    fires, then ``fallback`` (default :data:`ASYMMETRIC_METHOD`).
+    """
+    if method not in RAND_METHODS:
+        raise ValueError(f"unknown randomisation method {method!r}; choose from {RAND_METHODS}")
+    if fallback not in ASYMMETRIC_METHODS:
+        raise ValueError(f"unknown fallback {fallback!r}; choose from {ASYMMETRIC_METHODS}")
+    if method == "auto":
+        method = fallback if asymmetry_gate(diffs)[2] else "signflip"
+    if method == "boott":
+        return bootstrap_t_test_p(diffs, num_draws=num_draws, seed=seed), method
+    if method == "johnson":
+        return johnson_test_p(diffs), method
+    return randomization_test_p(diffs, num_draws=num_draws, seed=seed), method
+
+
 def holm_bonferroni(p_values: Sequence[float]) -> list[float]:
     """Holm (1979) step-down adjusted p-values, returned in the input order.
 
@@ -968,6 +1087,7 @@ class PairResolution:
     skew_warning: bool
     ci_method: str
     clustering: ClusterStats | None = None
+    p_method: str = "signflip"
 
 
 @dataclass(frozen=True)
@@ -978,6 +1098,7 @@ class _PairStats:
     binary: bool
     skewness: float
     skew_warning: bool
+    p_method: str
 
 
 def compare_pairs(
@@ -992,6 +1113,8 @@ def compare_pairs(
     ci_method: str = "auto",
     with_power: bool = True,
     clusters: Mapping[Any, Hashable] | None = None,
+    rand_method: str = "auto",
+    rand_fallback: str = ASYMMETRIC_METHOD,
 ) -> list[PairResolution]:
     """Paired resolvability analysis for ``pairs`` (A, B) of models.
 
@@ -1032,11 +1155,14 @@ def compare_pairs(
         diffs = np.asarray(va, dtype=np.float64) - np.asarray(vb, dtype=np.float64)
         if labels is not None and c.clustering is not None:
             p = cluster_randomization_test_p(diffs, labels, num_draws=num_draws, seed=seed)
+            used = "cluster-signflip"
         else:
-            p = randomization_test_p(diffs, num_draws=num_draws, seed=seed)
+            p, used = mean_test_p(
+                diffs, rand_method, num_draws=num_draws, seed=seed, fallback=rand_fallback
+            )
         sd = float(diffs.std(ddof=1)) if diffs.size > 1 else 0.0
         skew, warn = skewness_warning(diffs)
-        stats.append(_PairStats(c, p, sd, is_binary(va) and is_binary(vb), skew, warn))
+        stats.append(_PairStats(c, p, sd, is_binary(va) and is_binary(vb), skew, warn, used))
     holm = holm_bonferroni([s.rand_p for s in stats])
     out: list[PairResolution] = []
     for (a_name, b_name), s, hp in zip(pairs, stats, holm, strict=True):
@@ -1087,6 +1213,7 @@ def compare_pairs(
                 skew_warning=s.skew_warning,
                 ci_method=c.ci_method,
                 clustering=c.clustering,
+                p_method=s.p_method,
             )
         )
     return out
