@@ -1,0 +1,256 @@
+{
+  "protocol": "docs/protocol-contamination.md",
+  "prompt_version": "gsm-cot-v1",
+  "max_tokens": 1024,
+  "n_sources": 140,
+  "models": [
+    "claude-haiku-5-5",
+    "claude-sonnet-4-5-20250929"
+  ],
+  "neutrality": {
+    "n_sources": 140.0,
+    "mean_digits_original": 2.55,
+    "mean_digits_perturbed": 2.5714285714285716,
+    "share_same_digit_count": 0.8571428571428571,
+    "share_perturbed_more_digits": 0.08214285714285714,
+    "share_perturbed_fewer_digits": 0.060714285714285714,
+    "median_gold_original": 76.5,
+    "median_gold_perturbed": 79.5,
+    "mean_log10_ratio": 0.043755380105484805,
+    "share_perturbed_larger": 0.6392857142857142
+  },
+  "results": {
+    "numeric": {
+      "claude-haiku-5-5": {
+        "n": 140,
+        "acc_original": 0.9642857142857143,
+        "acc_variants": [
+          0.9428571428571428,
+          0.9428571428571428
+        ],
+        "drop": 0.02142857142857143,
+        "ci95": [
+          0.0,
+          0.04642857142857143
+        ],
+        "ci975": [
+          0.0,
+          0.05
+        ],
+        "p_signflip": 0.109375,
+        "sd_diff": 0.13237493855581856,
+        "mde_80": 0.03134336289429559,
+        "mde_80_alpha025": 0.03449202194609448,
+        "orig_right_pert_wrong": [
+          3,
+          4
+        ],
+        "orig_wrong_pert_right": [
+          0,
+          1
+        ],
+        "mcnemar_p_first": 0.25,
+        "drop_first": 0.02142857142857143,
+        "ci95_first": [
+          0.0,
+          0.05
+        ]
+      },
+      "claude-sonnet-4-5-20250929": {
+        "n": 140,
+        "acc_original": 0.9571428571428572,
+        "acc_variants": [
+          0.9714285714285714,
+          0.9714285714285714
+        ],
+        "drop": -0.014285714285714285,
+        "ci95": [
+          -0.039285714285714285,
+          0.0035714285714285713
+        ],
+        "ci975": [
+          -0.04285714285714286,
+          0.007142857142857143
+        ],
+        "p_signflip": 0.375,
+        "sd_diff": 0.133341897635191,
+        "mde_80": 0.03157231672543127,
+        "mde_80_alpha025": 0.03474397578381147,
+        "orig_right_pert_wrong": [
+          0,
+          1
+        ],
+        "orig_wrong_pert_right": [
+          2,
+          3
+        ],
+        "mcnemar_p_first": 0.5,
+        "drop_first": -0.014285714285714285,
+        "ci95_first": [
+          -0.03571428571428571,
+          0.0
+        ]
+      }
+    },
+    "helm": {
+      "claude-haiku-5-5": {
+        "n": 140,
+        "acc_original": 0.9642857142857143,
+        "acc_variants": [
+          0.9428571428571428,
+          0.9428571428571428
+        ],
+        "drop": 0.02142857142857143,
+        "ci95": [
+          0.0,
+          0.04642857142857143
+        ],
+        "ci975": [
+          0.0,
+          0.05
+        ],
+        "p_signflip": 0.109375,
+        "sd_diff": 0.13237493855581856,
+        "mde_80": 0.03134336289429559,
+        "mde_80_alpha025": 0.03449202194609448,
+        "orig_right_pert_wrong": [
+          3,
+          4
+        ],
+        "orig_wrong_pert_right": [
+          0,
+          1
+        ],
+        "mcnemar_p_first": 0.25,
+        "drop_first": 0.02142857142857143,
+        "ci95_first": [
+          0.0,
+          0.05
+        ]
+      },
+      "claude-sonnet-4-5-20250929": {
+        "n": 140,
+        "acc_original": 0.9571428571428572,
+        "acc_variants": [
+          0.9714285714285714,
+          0.9714285714285714
+        ],
+        "drop": -0.014285714285714285,
+        "ci95": [
+          -0.039285714285714285,
+          0.0035714285714285713
+        ],
+        "ci975": [
+          -0.04285714285714286,
+          0.007142857142857143
+        ],
+        "p_signflip": 0.375,
+        "sd_diff": 0.133341897635191,
+        "mde_80": 0.03157231672543127,
+        "mde_80_alpha025": 0.03474397578381147,
+        "orig_right_pert_wrong": [
+          0,
+          1
+        ],
+        "orig_wrong_pert_right": [
+          2,
+          3
+        ],
+        "mcnemar_p_first": 0.5,
+        "drop_first": -0.014285714285714285,
+        "ci95_first": [
+          -0.03571428571428571,
+          0.0
+        ]
+      }
+    }
+  },
+  "holm_adjusted_p": {
+    "numeric": {
+      "claude-haiku-5-5": 0.21875,
+      "claude-sonnet-4-5-20250929": 0.375
+    },
+    "helm": {
+      "claude-haiku-5-5": 0.21875,
+      "claude-sonnet-4-5-20250929": 0.375
+    }
+  },
+  "drop_difference_second_minus_first_model": {
+    "mean": -0.03571428571428571,
+    "ci95_lo": -0.06785714285714285,
+    "ci95_hi": -0.010714285714285714
+  },
+  "verdicts": {
+    "numeric": {
+      "claude-haiku-5-5": "no detectable drop",
+      "claude-sonnet-4-5-20250929": "negative drop (perturbed accuracy higher), not significant"
+    },
+    "helm": {
+      "claude-haiku-5-5": "no detectable drop",
+      "claude-sonnet-4-5-20250929": "negative drop (perturbed accuracy higher), not significant"
+    }
+  },
+  "reply_info": {
+    "claude-haiku-5-5": {
+      "numeric": {
+        "truncated": 0,
+        "no_answer_line": 0,
+        "missing": 0
+      },
+      "helm": {
+        "truncated": 0,
+        "no_answer_line": 0,
+        "missing": 0
+      }
+    },
+    "claude-sonnet-4-5-20250929": {
+      "numeric": {
+        "truncated": 0,
+        "no_answer_line": 0,
+        "missing": 0
+      },
+      "helm": {
+        "truncated": 0,
+        "no_answer_line": 0,
+        "missing": 0
+      }
+    }
+  },
+  "ledger": {
+    "claude-haiku-5-5": {
+      "calls": 438,
+      "input_tokens": 66475,
+      "output_tokens": 77487,
+      "models_returned": [
+        "claude-haiku-5-5"
+      ],
+      "first": "2026-10-30T00:23:06+00:00",
+      "last": "2026-10-30T00:25:29+00:00",
+      "cost_usd": 0.45391,
+      "price_in_out_per_mtok_ASSUMED": [
+        1.0,
+        5.0
+      ]
+    },
+    "claude-sonnet-4-5-20250929": {
+      "calls": 438,
+      "input_tokens": 52890,
+      "output_tokens": 84341,
+      "models_returned": [
+        "claude-sonnet-4-5-20250929"
+      ],
+      "first": "2026-10-30T00:23:14+00:00",
+      "last": "2026-10-30T00:29:20+00:00",
+      "cost_usd": 1.423785,
+      "price_in_out_per_mtok_ASSUMED": [
+        3.0,
+        15.0
+      ]
+    },
+    "total": {
+      "calls": 876,
+      "cost_usd": 1.8776950000000001,
+      "call_cap": 900
+    }
+  }
+}
