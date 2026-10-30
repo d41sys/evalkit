@@ -51,3 +51,9 @@ A method **beats** the baseline if the 95% percentile bootstrap CI over splits o
 3. The headline method is within 0.03 tau of `stratified` in either direction; "no detectable difference" is the most likely outcome under the decision rule; I would not be surprised if it loses on MAE.
 4. `random` (unstratified) is worse than `stratified` on MAE.
 5. 1PL and 2PL give p-irt MAE within 0.005 of each other.
+
+## Amendments (made before the first scoring run, while writing the code; nothing had been scored)
+
+1. **Anchor pool = all 10,200 instances**, not only those every model has. Excluding every instance missing for any model would drop all of gsm8k (one model lacks it) and parts of legalbench and wmt14, leaving a scenario without anchors for every method. Missing scores are masked in the IRT fit; for a test model an anchor it lacks is dropped and the remaining anchor weights are renormalised (within the scenario for `stratified`, globally otherwise); `p-irt` uses the available anchors only. For the k-means features a missing training score is imputed with the item's mean over the training models that have it.
+2. **`anchor-correct` features are the raw training-model score vectors** (no per-item standardisation): z-scoring would scale near-constant items (BLEU near 0 for every model) up to unit variance and cluster on noise, and tinyBenchmarks clusters raw correctness vectors. `anchor-irt` standardises its 2-D `(a_i, b_i)` embedding as written.
+3. The reference in evaluation item 3 is `random` and `stratified`, each over 1000 random draws, against the true scores of all 91 models.
