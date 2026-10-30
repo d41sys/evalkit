@@ -137,5 +137,89 @@ Adjacent pairs: 41 of 90 resolved, i.e. 49 unresolved; the published list shows 
 | 88-89 | Luminous Extended (30B) vs Falcon (7B) | 0.078 / 0.064 | +0.0150 | [+0.0073, +0.0226] | 1891 / 1944 / 6365 | 0.0002 | 0.0112 | 5396 | 0.99 | resolved |
 | 89-90 | Falcon (7B) vs OLMo (7B) | 0.064 / 0.052 | -0.0007 | [-0.0084, +0.0072] | 2035 / 1995 / 6170 | 0.857 | 1 | 2759133 | 0.95 | unresolved |
 | 90-91 | OLMo (7B) vs Luminous Base (13B) | 0.052 / 0.041 | +0.0118 | [+0.0041, +0.0195] | 2288 / 1774 / 6138 | 0.004 | 0.172 | 8822 | 0.97 | unresolved |
+## 5. The same pairs with clustered statistics
 
-Wall time 311 s.
+Where items share a source their scores are correlated, and the item-level test overstates the evidence. With a cluster map `compare_pairs` replaces the sign-flip test by the cluster sign-flip test (whole clusters change sign together), the bootstrap CI by the cluster bootstrap, and plans power with the design effect `1 + (m - 1) ICC` of the paired differences. Holm runs over the same families as section 2.
+
+### Clusters: passage
+
+items that share a source passage (`cluster_id` of the imported rows). 8 clusters hold two or more items (17 of 10200 items; largest cluster 3 items).
+
+| rank distance | pairs | resolved, item-level | resolved, clustered | pairs whose verdict differs | median design effect | median clustered / naive SE |
+|---|---|---|---|---|---|---|
+| 1 | 90 | 41 | 41 | 0 | 1.00 | 1.00 |
+| 2 | 89 | 49 | 47 | 2 | 1.00 | 1.00 |
+| 3 | 88 | 52 | 51 | 1 | 1.00 | 1.00 |
+| 5 | 86 | 56 | 55 | 1 | 1.00 | 1.00 |
+| 10 | 81 | 68 | 68 | 0 | 1.00 | 1.00 |
+
+Adjacent pairs whose verdict changes (0):
+
+- none
+
+Tie groups on the adjacent pairs: item-level 42, clustered 42.
+
+### Clusters: subset
+
+sensitivity analysis: every subset (MMLU subject, LegalBench task, MATH subject, WMT language pair) is one cluster; tasks without subsets keep single-item clusters. 22 clusters hold two or more items (5842 of 10200 items; largest cluster 1000 items).
+
+| rank distance | pairs | resolved, item-level | resolved, clustered | pairs whose verdict differs | median design effect | median clustered / naive SE |
+|---|---|---|---|---|---|---|
+| 1 | 90 | 41 | 8 | 33 | 40.26 | 3.83 |
+| 2 | 89 | 49 | 9 | 40 | 38.03 | 3.94 |
+| 3 | 88 | 52 | 12 | 40 | 36.08 | 4.00 |
+| 5 | 86 | 56 | 15 | 41 | 42.79 | 4.12 |
+| 10 | 81 | 68 | 27 | 41 | 44.79 | 3.95 |
+
+Adjacent pairs whose verdict changes (33):
+
+- Claude 3.5 Sonnet (20241022) vs Gemini 1.5 Pro (002) (resolved -> unresolved, Holm p 0.009 -> 1)
+- Gemini 1.5 Pro (002) vs Llama 3.2 Vision Instruct Turbo (90B) (resolved -> unresolved, Holm p 0.009 -> 1)
+- Qwen2.5 Instruct Turbo (72B) vs Mistral Large 2 (2407) (resolved -> unresolved, Holm p 0.009 -> 1)
+- Mistral Large 2 (2407) vs Gemini 1.5 Pro (001) (resolved -> unresolved, Holm p 0.009 -> 1)
+- GPT-4 Turbo (1106 preview) vs Claude 3 Opus (20240229) (resolved -> unresolved, Holm p 0.009 -> 1)
+- Palmyra X V3 (72B) vs Gemma 2 Instruct (27B) (resolved -> unresolved, Holm p 0.009 -> 1)
+- Qwen1.5 Chat (110B) vs Qwen1.5 (32B) (resolved -> unresolved, Holm p 0.0112 -> 1)
+- Qwen1.5 (32B) vs Claude 3.5 Haiku (20241022) (resolved -> unresolved, Holm p 0.009 -> 1)
+- PaLM-2 (Bison) vs Amazon Nova Micro (resolved -> unresolved, Holm p 0.009 -> 1)
+- Phi-3 (14B) vs Claude 2.0 (resolved -> unresolved, Holm p 0.009 -> 1)
+- ... and 23 more
+
+Tie groups on the adjacent pairs: item-level 42, clustered 9.
+
+## 6. Bradley-Terry ranking of the same data
+
+Maximum-likelihood Bradley-Terry strengths from the pooled per-item outcomes (each item both models were scored on is a game, the higher score wins, equal scores split it; 10200 items), on the Elo scale. Intervals: 200 of 200 item-bootstrap resamples; passage clusters resampled whole: 200 of 200. This ranks by pooled item wins, not by HELM's scenario-balanced mean win rate, so the two orders can differ.
+
+Kendall tau between the published order and the Bradley-Terry order: 0.866.
+
+Adjacent pairs of the published order in which the higher-ranked model is rated above the lower-ranked one in at least the given share of the resamples (section 3 has the same count for HELM's own statistic):
+
+| share of resamples | Bradley-Terry (items) | Bradley-Terry (passage clusters) | mean win rate bootstrap (section 3) |
+|---|---|---|---|
+| 97.5% | 41 of 90 | 42 of 90 | 5 of 90 |
+| 95.0% | 44 of 90 | 44 of 90 | 9 of 90 |
+| 90.0% | 46 of 90 | 46 of 90 | 19 of 90 |
+
+Median 95% rank interval width under Bradley-Terry: 4 ranks (min 0, max 7); models whose interval is one rank: 6 of 91.
+
+| published rank | model | Bradley-Terry [95% CI] | Bradley-Terry rank (95% interval) |
+|---|---|---|---|
+| 1 | GPT-4o (2024-05-13) | 1067.6 [1064.8, 1069.9] | 1 (1-2) |
+| 2 | GPT-4o (2024-08-06) | 1065.8 [1063.2, 1068.2] | 2 (1-3) |
+| 3 | DeepSeek v3 | 1054.8 [1052.6, 1057.6] | 10 (8-12) |
+| 4 | Claude 3.5 Sonnet (20240620) | 1062.8 [1060.4, 1065.8] | 4 (2-5) |
+| 5 | Amazon Nova Pro | 1063.8 [1061.3, 1066.7] | 3 (2-5) |
+| 6 | GPT-4 (0613) | 1055.3 [1052.5, 1058.0] | 9 (7-13) |
+| 7 | GPT-4 Turbo (2024-04-09) | 1057.7 [1055.0, 1060.5] | 8 (6-10) |
+| 8 | Llama 3.1 Instruct Turbo (405B) | 1060.2 [1057.4, 1063.2] | 6 (4-8) |
+| 9 | Claude 3.5 Sonnet (20241022) | 1053.9 [1050.6, 1056.8] | 11 (8-15) |
+| 10 | Gemini 1.5 Pro (002) | 1060.8 [1057.9, 1063.6] | 5 (4-7) |
+| 11 | Llama 3.2 Vision Instruct Turbo (90B) | 1051.5 [1048.9, 1054.3] | 13 (11-16) |
+| 12 | Gemini 2.0 Flash (Experimental) | 1044.8 [1042.0, 1047.8] | 20 (17-20) |
+| 13 | Llama 3.3 Instruct Turbo (70B) | 1050.9 [1048.2, 1053.8] | 15 (12-16) |
+| 14 | Llama 3.1 Instruct Turbo (70B) | 1051.4 [1048.9, 1053.9] | 14 (11-16) |
+| 15 | Palmyra-X-004 | 1047.8 [1044.7, 1050.4] | 16 (15-20) |
+
+
+Wall time 1354 s.

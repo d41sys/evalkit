@@ -39,3 +39,20 @@ Which items share a source, measured on the release (checked 2026-10-30 on `inst
 * HELM Lite items are not exchangeable draws from one population; the pooled analyses weigh scenarios by instance count.
 * BT ignores scenario structure and any item-model interaction; the bootstrap treats items as independent (or whole clusters as independent), nothing more.
 * The metric check (K-E1) is separate: `docs/results/helm-lite-metric-check.md`.
+
+## Outcome (scored run, seed 0, `docs/results/helm-lite-study.md`, 1,354 s)
+
+Predictions against what happened. The protocol above was committed in `f54d9d2` before this run.
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | A reproduces 41 of 90 / 42 tie groups; 5, 9, 19 at 97.5/95/90% | 41 of 90, 42 tie groups; 5, 9, 19 | held |
+| 2 | B changes at most 1 adjacent verdict, at most 2 in any family | adjacent 0; distance 2: 2 (49 to 47 resolved), 3: 1, 5: 1, 10: 0; median design effect 1.00, SE ratio 1.00 | held. The data have 8 clusters (17 of 10,200 items), so this says HELM Lite barely has source clusters, not that clustering is harmless |
+| 3 | C resolves fewer adjacent pairs than 41 | 8 of 90 resolved (distance 2, 3, 5, 10: 9, 12, 15, 27); 42 tie groups become 9; median design effect about 40, clustered SE about 3.8-4.1 times the naive one | held, by a wide margin |
+| 4 | Kendall tau (published vs BT) at least 0.9, and fewer than half of adjacent pairs at 97.5% | tau = 0.866; 41 of 90 adjacent pairs at 97.5% (42 with passage clusters) | tau part **wrong** (0.866 < 0.9); second part held (41 < 45) |
+
+Reading, stated with its limits:
+
+* **C is an upper bound on dependence, not an estimate of it.** A subset is a fixed stratum of the benchmark, not a draw from a population of subsets. Treating the 22 subsets as sampled clusters asks "would the verdicts survive if the benchmark's subjects were a random sample of subjects"; the answer is mostly no (the models' relative strength changes from subject to subject, so paired differences are strongly correlated inside a subset). Whether that is the right question depends on what the leaderboard is meant to generalise to; the item-level analysis answers a narrower one (the same 22 subsets, new items).
+* **BT separates far more adjacent pairs (41 of 90 at 97.5%) than HELM's own statistic (5 of 90).** The two do not measure the same thing: BT ranks pooled item wins and each rating borrows information from the other 90 models, so the interval of an adjacent pair is narrower than the direct paired comparison; the mean win rate is scenario-balanced and rank-based. The published pooled paired test resolves 25 of 90 adjacent pairs in the published direction (41 resolved, 16 reversed). I did not run a simulation that checks the coverage of the BT bootstrap on data with item-model interaction, so the 97.5% counts are descriptions of the resampling, not tested error rates. DeepSeek v3 (published rank 3) has BT rank 10 (8-12); that disagreement is a weighting effect, not noise.
+* BT with passage clusters moves 1 adjacent count at 97.5% (41 to 42): consistent with prediction 2.
