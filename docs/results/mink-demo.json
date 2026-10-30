@@ -1,0 +1,238 @@
+{
+  "results": {
+    "scores": {
+      "minK10": {
+        "auroc": 0.4862,
+        "ci": [
+          0.4252,
+          0.546
+        ],
+        "verdict": "no detectable effect",
+        "auroc_matched": 0.4854,
+        "ci_matched": [
+          0.4201,
+          0.5557
+        ],
+        "auroc_residualised": 0.4871,
+        "ci_residualised": [
+          0.4261,
+          0.5449
+        ],
+        "paired_win_rate": 0.5,
+        "ci_paired_win_rate": [
+          0.4167,
+          0.5833
+        ],
+        "mean_original": -9.368,
+        "mean_paraphrase": -9.2224
+      },
+      "minK20": {
+        "auroc": 0.535,
+        "ci": [
+          0.4769,
+          0.594
+        ],
+        "verdict": "no detectable effect",
+        "auroc_matched": 0.5507,
+        "ci_matched": [
+          0.4895,
+          0.616
+        ],
+        "auroc_residualised": 0.5332,
+        "ci_residualised": [
+          0.4752,
+          0.5923
+        ],
+        "paired_win_rate": 0.5606,
+        "ci_paired_win_rate": [
+          0.4773,
+          0.6364
+        ],
+        "mean_original": -7.2464,
+        "mean_paraphrase": -7.3593
+      },
+      "minK30": {
+        "auroc": 0.5549,
+        "ci": [
+          0.4983,
+          0.6112
+        ],
+        "verdict": "no detectable effect",
+        "auroc_matched": 0.5737,
+        "ci_matched": [
+          0.5108,
+          0.6416
+        ],
+        "auroc_residualised": 0.5524,
+        "ci_residualised": [
+          0.4954,
+          0.6096
+        ],
+        "paired_win_rate": 0.5833,
+        "ci_paired_win_rate": [
+          0.5,
+          0.6591
+        ],
+        "mean_original": -5.987,
+        "mean_paraphrase": -6.1479
+      },
+      "minK50": {
+        "auroc": 0.5891,
+        "ci": [
+          0.533,
+          0.6434
+        ],
+        "verdict": "separates",
+        "auroc_matched": 0.6022,
+        "ci_matched": [
+          0.5381,
+          0.6698
+        ],
+        "auroc_residualised": 0.5846,
+        "ci_residualised": [
+          0.5279,
+          0.639
+        ],
+        "paired_win_rate": 0.6591,
+        "ci_paired_win_rate": [
+          0.5758,
+          0.7348
+        ],
+        "mean_original": -4.34,
+        "mean_paraphrase": -4.5505
+      },
+      "mean_logprob": {
+        "auroc": 0.6236,
+        "ci": [
+          0.5677,
+          0.6772
+        ],
+        "verdict": "separates",
+        "auroc_matched": 0.6275,
+        "ci_matched": [
+          0.5615,
+          0.6974
+        ],
+        "auroc_residualised": 0.6221,
+        "ci_residualised": [
+          0.5674,
+          0.6738
+        ],
+        "paired_win_rate": 0.697,
+        "ci_paired_win_rate": [
+          0.6136,
+          0.7727
+        ],
+        "mean_original": -2.3429,
+        "mean_paraphrase": -2.5233
+      },
+      "zlib_ratio": {
+        "auroc": 0.5306,
+        "ci": [
+          0.4749,
+          0.5845
+        ],
+        "verdict": "no detectable effect",
+        "auroc_matched": 0.5243,
+        "ci_matched": [
+          0.4559,
+          0.5973
+        ],
+        "auroc_residualised": 0.5127,
+        "ci_residualised": [
+          0.4551,
+          0.5715
+        ],
+        "paired_win_rate": 0.5758,
+        "ci_paired_win_rate": [
+          0.4924,
+          0.6591
+        ],
+        "mean_original": -0.9101,
+        "mean_paraphrase": -0.9266
+      }
+    },
+    "difference_vs_primary": {
+      "mean_logprob": {
+        "diff": -0.0886,
+        "ci": [
+          -0.1248,
+          -0.0514
+        ],
+        "excludes_0": true
+      },
+      "zlib_ratio": {
+        "diff": 0.0043,
+        "ci": [
+          -0.0314,
+          0.0414
+        ],
+        "excludes_0": false
+      },
+      "minK10": {
+        "diff": 0.0487,
+        "ci": [
+          0.0225,
+          0.0759
+        ],
+        "excludes_0": true
+      },
+      "minK30": {
+        "diff": -0.02,
+        "ci": [
+          -0.0366,
+          -0.0045
+        ],
+        "excludes_0": true
+      },
+      "minK50": {
+        "diff": -0.0541,
+        "ci": [
+          -0.0836,
+          -0.0267
+        ],
+        "excludes_0": true
+      }
+    },
+    "token_count": {
+      "median_original": 57.5,
+      "median_paraphrase": 64.0,
+      "mean_original": 63.11,
+      "mean_paraphrase": 67.55,
+      "auroc_of_length_alone": 0.4215,
+      "ci": [
+        0.3963,
+        0.4427
+      ],
+      "zlib_bytes_median_original": 154.0,
+      "zlib_bytes_median_paraphrase": 178.0
+    },
+    "n_selected": 150,
+    "status_counts": {
+      "kept": 132,
+      "numbers_differ": 18
+    },
+    "n_pairs": 132,
+    "n_matched_pairs": 2878,
+    "n_possible_pairs": 17424,
+    "match_diff_tokens": 5,
+    "n_boot": 2000,
+    "seed": 0,
+    "primary": "minK20",
+    "model": "Qwen/Qwen2.5-0.5B",
+    "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+  },
+  "ledger": {
+    "live_calls": 150,
+    "input_tokens": 40107,
+    "output_tokens": 23508,
+    "models_returned": [
+      "claude-haiku-5-5"
+    ],
+    "assumed_price_usd_per_million": {
+      "input": 1.0,
+      "output": 5.0
+    },
+    "cost_usd_assumed": 0.1576
+  }
+}
