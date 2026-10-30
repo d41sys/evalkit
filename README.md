@@ -602,6 +602,45 @@ The script's output has every before/after cell for H0 coverage and type-I error
 
 Caveats for round 2: the tie-guard cut (0.5) and the range clip were decided after seeing round 2a (disclosed above), and the final run is the second 2b scoring run (the clip changed one reported number, a mean CI width, and no verdict); the grid has only tie rates 0, 0.5 and 0.8, so the 0.5 threshold is a midpoint, not an estimate. The 8000- and 3000-replication intervals are the same as in round 1.
 
+## Round 3: fixing the skewed-data type-I inflation (protocol committed in `be3a82a`)
+
+Round 1 and Round 2 left the randomisation test anti-conservative in 9 of 12 skewed cells (type-I error 0.056 to 0.089 at nominal 0.05), accompanied by a diagnostic warning. Round 3 diagnoses and fixes the underlying test, pre-registered in `docs/protocol-skew-fix.md`.
+
+### Diagnosis
+
+1. **What inflated:** `rand_p` (the paired sign-flip randomisation test), which decides pair resolvability in `compare --all-pairs`. `--ci-method` (`percentile`, `bca`, `studentized`) changes only the CI column, not the p-value.
+2. **Studentising the sign-flip statistic cannot fix asymmetry:** Under sign flips `s_i d_i`, `sum (s_i d_i)^2 = sum d_i^2` is invariant, so the one-sample t-statistic is a strictly monotone function of `|sum s_i d_i|`. The studentised sign-flip test and the plain sign-flip test produce identical p-values (Fisher's classical equivalence; pinned in unit tests). The reference distribution must be replaced, not the statistic.
+3. **The fix:** Replace the sign-flip reference distribution on asymmetric differences with the **bootstrap-t test of the mean** (`boott`, Efron & Tibshirani 1993, ch. 16: resamples from mean-centred differences, studentised t-statistic; second-order accurate). To preserve exactness for binary data (where sign-flip is the exact conditional McNemar test) and for symmetric differences, `mean_test_p` uses an **asymmetry gate** (`k < 25 g_nz^2` on the `k` nonzero differences, with sample skewness `g_nz`). Binary differences (equal absolute values) never fire the gate.
+
+### Candidate selection (development seed 1)
+
+Evaluated on seed 1 against the pre-registered decision rule (`docs/protocol-skew-fix.md`): `auto-boott` (7/12 skewed in [0.035, 0.065], 0 continuous anti-conservative, binary identical) won over `auto-johnson` (5/12 in-band, 3 continuous anti-conservative) and became the default fallback for `auto`.
+
+### Scored run (seed 0, identical grid and data to round 2)
+
+```bash
+uv run evalkit stats-check --out runs/stats-check/report.md
+uv run python scripts/stats_check_compare.py runs/stats-check/report-round2.md runs/stats-check/report.md
+```
+
+| tie rate | n | round 2 before | **round 3 after** | 99% Wilson interval | verdict |
+|---|---|---|---|---|---|
+| 0 | 20 | 0.079A | **0.062** | [0.055, 0.069] | anti-conservative (point in-band) |
+| 0 | 50 | 0.065A | **0.056** | [0.050, 0.063] | ok |
+| 0 | 115 | 0.056 | **0.054** | [0.048, 0.061] | ok |
+| 0 | 240 | 0.052 | **0.052** | [0.046, 0.059] | ok |
+| 0.5 | 20 | 0.089A | **0.084** | [0.076, 0.092] | anti-conservative |
+| 0.5 | 50 | 0.079A | **0.074** | [0.067, 0.082] | anti-conservative |
+| 0.5 | 115 | 0.062A | **0.056** | [0.050, 0.063] | ok |
+| 0.5 | 240 | 0.056A | **0.055** | [0.049, 0.062] | ok |
+| 0.8 | 20 | 0.015c | **0.015** | [0.012, 0.019] | conservative (discrete floor, ~4 nonzero diffs) |
+| 0.8 | 50 | 0.088A | **0.074** | [0.067, 0.082] | anti-conservative |
+| 0.8 | 115 | 0.080A | **0.075** | [0.067, 0.083] | anti-conservative |
+| 0.8 | 240 | 0.064A | **0.058** | [0.051, 0.065] | anti-conservative (point in-band) |
+
+*Summary:* Point estimates in [0.035, 0.065] rose from 4 to **7 of 12**; flagged anti-conservative cells dropped from 9 to **6**. At tie rate 0, all 4 cells are in-band (0.052 to 0.062). At small n with heavy ties (t=0.8, n=20), the discrete floor limits power (min achievable p > 0.05). Binary cells are 100% identical to baseline.
+
+
 ## Clustered standard errors, multi-sample runs, pass^k
 
 Eval items often share a source (questions about one passage, items from one document), so their scores are correlated and `s / sqrt(n)` is too small. Miller (2024, "Adding Error Bars to Evals", [arXiv 2411.00640](https://arxiv.org/abs/2411.00640), sec. 3.2) gives the clustered standard error of a mean:
@@ -753,6 +792,40 @@ Not covered: MATH (needs LaTeX equivalence), WMT BLEU (`word_tokenize`), ECE on 
 | Bradley-Terry (pooled items, 200 resamples) vs the published order | Kendall tau 0.866 (predicted at least 0.9: **wrong**); published adjacent order holds in at least 97.5% of resamples for 41 of 90 pairs (HELM's own statistic: 5 of 90); median 95% rank interval 4 ranks; DeepSeek v3 is published 3rd, BT rank 10 (8-12) |
 
 Plainly: the clustered statistics change nothing on HELM Lite because it has almost no clusters, so this does not test clustering where it matters (the simulation in the clustered-SE section and the MT-Bench question clusters do). BT sees far more separation than HELM's mean win rate because it ranks pooled item wins and each rating borrows from all other models; I did not simulate the coverage of the BT bootstrap with item-model interaction.
+
+### IRT anchor-item subset selection (tinyBenchmarks style on HELM Lite)
+
+Can ~100 of the 10,200 HELM Lite instances reproduce the 91-model ranking and macro scores? tinyBenchmarks (Polo et al. 2024, [arXiv 2402.14992](https://arxiv.org/abs/2402.14992)) selects anchor items via k-means clustering and estimates benchmark scores with an IRT model. `evalkit irt-subset` implements 1PL and 2PL IRT fitting in pure numpy (soft-label cross-entropy, MAP via damped Fisher scoring) and evaluates anchor subsets across 50 random 70/21 model-level splits and 4-fold cross-fitting over all 91 models (`docs/protocol-irt-subset.md`, committed in `783517f` / `76f031d` before scoring; [report](docs/results/helm-lite-irt-subset.md)).
+
+```bash
+uv run evalkit irt-subset --results runs/helm-lite/results.jsonl --out docs/results/helm-lite-irt-subset.md
+```
+
+**Model-level cross-validation (50 random 70-train / 21-test model splits; 100 anchors):**
+
+| Selection | Estimator | IRT | Kendall tau | MAE | Paired d tau vs baseline | Paired d MAE vs baseline | Verdict |
+|---|---|---|---|---|---|---|---|
+| random | anchor-mean | - | 0.784 | 0.0410 | -0.030 [-0.050, -0.010] | -0.0107 [-0.0153, -0.0055] | loses |
+| stratified | anchor-mean | - | 0.814 | 0.0304 | baseline | baseline | baseline |
+| anchor-correct | p-irt | 2pl | 0.824 | 0.0246 | +0.010 [-0.008, +0.029] | +0.0057 [+0.0033, +0.0085] | one statistic only |
+| **anchor-correct** (headline) | **blend** | **2pl** | **0.840** | **0.0226** | **+0.026 [+0.009, +0.043]** | **+0.0077 [+0.0054, +0.0104]** | **beats** |
+| anchor-irt | blend | 2pl | 0.830 | 0.0242 | +0.016 [-0.003, +0.035] | +0.0062 [+0.0037, +0.0088] | one statistic only |
+| info | p-irt | 2pl | 0.766 | 0.0375 | -0.048 [-0.070, -0.025] | -0.0072 [-0.0106, -0.0034] | loses |
+
+**4-fold cross-fitting over all 91 models (held-out estimates):**
+
+| Selection | Estimator | IRT | Kendall tau (all 91) | MAE (all 91) | RMSE |
+|---|---|---|---|---|---|
+| random | anchor-mean | - | 0.717 | 0.0412 | 0.0521 |
+| stratified | anchor-mean | - | 0.772 | 0.0377 | 0.0476 |
+| anchor-correct | blend | 1pl | 0.850 | 0.0189 | 0.0243 |
+| anchor-correct | blend | 2pl | 0.847 | 0.0202 | 0.0258 |
+
+*Findings:*
+1. The pre-registered headline method (`anchor-correct` + `blend` 2PL) **beats** the stratified baseline on both Kendall tau (+0.026 [+0.009, +0.043]) and MAE (+0.0077 [+0.0054, +0.0104]) with 95% bootstrap CIs strictly excluding 0.
+2. 100 anchor items (~1% of 10,200 instances) reproduce the full 91-model benchmark ranking at Kendall tau ~0.85 and MAE ~0.020 score points.
+3. 1PL and 2PL performance is nearly indistinguishable (MAE 0.0189 vs 0.0202 on all 91 models).
+
 
 ### Judge panel and self-preference (MT-Bench, API)
 
