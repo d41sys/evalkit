@@ -1,0 +1,41 @@
+{
+  "raw_file_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+  "raw_rows": 1319,
+  "permutation_seed": 0,
+  "funnel": {
+    "candidates": 1319,
+    "rejected_by_reason": {
+      "no_annotations": 18,
+      "unsupported_question_format": 14,
+      "unsupported_expression": 53,
+      "annotation_mismatch": 0,
+      "final_mismatch": 66,
+      "ambiguous_operand": 288,
+      "unmapped_constant": 185,
+      "no_perturbable_slot": 48,
+      "no_feasible_variants": 115
+    },
+    "templates_kept_by_solver_checks": 532
+  },
+  "eyeball": {
+    "pool_items_examined_in_order": 152,
+    "dropped_as_incoherent": 6,
+    "dropped_ids": {
+      "gsm8k_test_0789": "perturbed freezing threshold (up to 55 degrees) contradicts the physical constant 32",
+      "gsm8k_test_0247": "'three ways with her two parents' ties two counts together; perturbing one leaves an inconsistent text",
+      "gsm8k_test_0643": "February has 28 days; perturbing the number of days in the month is incoherent",
+      "gsm8k_test_0534": "'two equal groups of girls and boys' becomes four groups",
+      "gsm8k_test_0588": "'the three measurements' is tied to the number of tests; perturbing it contradicts the text",
+      "gsm8k_test_0449": "'ten packets' equals 'six' plus 'four' packets; perturbing one breaks the sum"
+    },
+    "kept": 146
+  },
+  "split_sizes": {
+    "dev": 6,
+    "test": 140
+  },
+  "variants_per_source": 2,
+  "slots_total": 555,
+  "slots_frozen": 165,
+  "prompts": 438
+}

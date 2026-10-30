@@ -1,0 +1,8 @@
+{
+  "gsm8k_test_0789": "perturbed freezing threshold (up to 55 degrees) contradicts the physical constant 32",
+  "gsm8k_test_0247": "'three ways with her two parents' ties two counts together; perturbing one leaves an inconsistent text",
+  "gsm8k_test_0643": "February has 28 days; perturbing the number of days in the month is incoherent",
+  "gsm8k_test_0534": "'two equal groups of girls and boys' becomes four groups",
+  "gsm8k_test_0588": "'the three measurements' is tied to the number of tests; perturbing it contradicts the text",
+  "gsm8k_test_0449": "'ten packets' equals 'six' plus 'four' packets; perturbing one breaks the sum"
+}
