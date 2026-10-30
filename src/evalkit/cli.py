@@ -11,7 +11,10 @@ from pathlib import Path
 import numpy as np
 
 from .aggregate import (
+    ASYMMETRIC_METHOD,
+    ASYMMETRIC_METHODS,
     CI_METHODS,
+    RAND_METHODS,
     PairResolution,
     build_pairwise_matches,
     compare_pairs,
@@ -22,6 +25,18 @@ from .clustered import cluster_bootstrap_ci, encode_clusters
 from .helm import import_helm_lite
 from .helm_metrics import run_metric_check
 from .helm_study import GAPS, run_study
+from .irt_subset import (
+    N_FOLDS,
+    N_REFERENCE_DRAWS,
+    N_SPLITS,
+    N_TEST,
+)
+from .irt_subset import (
+    render_markdown as render_irt_markdown,
+)
+from .irt_subset import (
+    run_study as run_irt_study,
+)
 from .judge import (
     DEFAULT_RUBRIC,
     Judge,
@@ -338,7 +353,8 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
         "cluster sums, else 10,000 seeded Monte Carlo draws)"
         if clustered
         else "paired sign-flip test (exact for <= 20 nonzero differences, else 10,000 seeded "
-        "Monte Carlo draws)"
+        "Monte Carlo draws; pairs with asymmetric nonzero differences use the "
+        f"{ASYMMETRIC_METHOD} test instead, see below)"
     )
     print(
         f"\nrandomisation p: two-sided {flip}. Holm p: Holm-Bonferroni over "
@@ -362,16 +378,18 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             "sizes / n; MDE and n for power are inflated by it (n is a count of items). Items "
             "without a cluster id are their own cluster.\n"
         )
-    warned = [r for r in rows if r.skew_warning]
-    if warned:
-        warned_pairs = "; ".join(
-            f"{r.model_a} vs {r.model_b} (n = {r.n}, skewness {r.skewness:+.2f})" for r in warned
+    switched = [r for r in rows if r.p_method not in ("signflip", "cluster-signflip")]
+    if switched:
+        switched_pairs = "; ".join(
+            f"{r.model_a} vs {r.model_b} ({r.p_method}; n = {r.n}, skewness {r.skewness:+.2f})"
+            for r in switched
         )
         print(
-            "Skewness warning (n < 25 * skewness^2, Cochran's rule): the randomisation test "
-            "assumes the differences are symmetric around 0 under H0 and is anti-conservative "
-            "on skewed differences, so read its p-value as approximate for: "
-            f"{warned_pairs}.\n"
+            "Asymmetric differences (the nonzero differences satisfy k < 25 * skewness^2, "
+            "Cochran's rule): the sign-flip test assumes each difference is symmetric around 0 "
+            "and is anti-conservative otherwise (`evalkit stats-check`), so the randomisation "
+            "p column for these pairs is the "
+            f"{ASYMMETRIC_METHOD} test of the mean instead: {switched_pairs}.\n"
         )
     return _print_pass_k(
         [(m, table.samples[m]) for m in names], table.clusters or None, args.pass_k, args.seed
@@ -478,6 +496,8 @@ def stats_check_command(args: argparse.Namespace) -> int:
         fixed_effects=parse_floats(args.fixed_effects),
         workers=args.workers if args.workers > 0 else default_workers(),
         ci_method=args.ci_method,
+        rand_method=args.rand_method,
+        rand_fallback=args.rand_fallback,
     )
     try:
         check_args(config.ns + config.fwer_ns, config.ties)
@@ -551,6 +571,30 @@ def helm_study_command(args: argparse.Namespace) -> int:
         cluster_resamples=args.cluster_resamples,
         bt_resamples=args.bt_resamples,
     )
+    text += f"\nWall time {time.perf_counter() - started:.0f} s.\n"
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
+def irt_subset_command(args: argparse.Namespace) -> int:
+    """TinyBenchmarks-style IRT subset selection on HELM Lite."""
+    results = Path(args.results)
+    if not results.is_file():
+        sys.stderr.write(f"Error: {results} not found; run `evalkit import-helm` first\n")
+        return 1
+    started = time.perf_counter()
+    study = run_irt_study(
+        results,
+        n_splits=args.splits,
+        test_size=args.test_size,
+        n_folds=args.folds,
+        draws=args.draws,
+        seed=args.seed,
+    )
+    text = render_irt_markdown(study)
     text += f"\nWall time {time.perf_counter() - started:.0f} s.\n"
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -895,6 +939,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     sc_parser.add_argument(
         "--ci-method", choices=CI_METHODS, default="auto", help="bootstrap CI method under test"
     )
+    sc_parser.add_argument(
+        "--rand-method",
+        choices=RAND_METHODS,
+        default="auto",
+        help="randomisation-test method under test (auto: sign-flip unless asymmetric)",
+    )
+    sc_parser.add_argument(
+        "--rand-fallback",
+        choices=ASYMMETRIC_METHODS,
+        default=ASYMMETRIC_METHOD,
+        help="test that auto switches to for asymmetric differences",
+    )
     sc_parser.add_argument("--reps-h0", type=int, default=8000, help="replications per H0 cell")
     sc_parser.add_argument(
         "--reps-power", type=int, default=3000, help="replications per power/coverage cell"
@@ -973,6 +1029,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=200,
         help="Bradley-Terry bootstrap resamples (0 skips the section)",
     )
+    # irt-subset command
+    ir = subparsers.add_parser(
+        "irt-subset",
+        help="TinyBenchmarks-style IRT subset selection on HELM Lite (~100 anchor items)",
+    )
+    ir.add_argument("--results", default="runs/helm-lite/results.jsonl")
+    ir.add_argument("--seed", type=int, default=0)
+    ir.add_argument("--splits", type=int, default=N_SPLITS, help="number of 70/21 model splits")
+    ir.add_argument("--test-size", type=int, default=N_TEST, help="test models per split")
+    ir.add_argument(
+        "--folds", type=int, default=N_FOLDS, help="cross-fitting folds over all models"
+    )
+    ir.add_argument(
+        "--draws",
+        type=int,
+        default=N_REFERENCE_DRAWS,
+        help="reference random-subset draws over all models",
+    )
+    ir.add_argument("--out", default=None, help="write the markdown report here")
 
     # judge command
     jd = subparsers.add_parser(
@@ -1043,6 +1118,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return import_helm_command(args)
     elif args.subcommand == "helm-study":
         return helm_study_command(args)
+    elif args.subcommand == "irt-subset":
+        return irt_subset_command(args)
     elif args.subcommand == "metric-check":
         return metric_check_command(args)
     elif args.subcommand == "rank":
