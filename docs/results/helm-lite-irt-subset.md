@@ -85,3 +85,53 @@ Every model gets one estimate from a fit that never saw it (about 69 training mo
 | stratified (anchor-mean) | 0.825 (0.773 to 0.866) | 0.0311 (0.0214 to 0.0538) |
 
 Wall time 276 s.
+
+## Predictions vs outcome
+
+The five predictions of `docs/protocol-irt-subset.md`, quoted verbatim, scored against the tables above (60 sweeps, the committed run). Where a prediction does not name a statistic, the choice is stated. The 240-sweep rerun below changes none of these verdicts.
+
+| # | Prediction (verbatim) | Observed | Verdict |
+|---|---|---|---|
+| 1 | "`stratified` achieves a mean tau of at least 0.85 and MAE below 0.03 on the 70/21 splits (the per-scenario means are close to unbiased and models differ by a lot)." | `stratified` + `anchor-mean`: tau 0.814 (needs at least 0.85), MAE 0.0304 (needs below 0.03). Both thresholds missed. | **failed** (both parts; MAE by 0.0004) |
+| 2 | "Pooling the 10 scenarios into one ability dimension fits badly for BLEU / F1 scenarios, so `p-irt` alone is not better than `anchor-mean` for `anchor-correct`. [PREDICTION]" | `anchor-correct`, 70/21 splits: `p-irt` 2pl tau 0.824, MAE 0.0246 against `anchor-mean` tau 0.816, MAE 0.0274 (better on both point estimates); `p-irt` 1pl tau 0.811, MAE 0.0273 (about equal). Four-fold cross-fit: 2pl 0.811 / 0.0249 against 0.812 / 0.0240 (not better). The protocol set no CI rule for this comparison, so this is judged on point estimates. | **failed** on the primary 70/21 splits for the 2pl fit (it is better on both statistics); not contradicted by the 1pl fit or the cross-fit |
+| 3a | "The headline method is within 0.03 tau of `stratified` in either direction;" | headline minus `stratified` + `anchor-mean`: +0.026 [+0.009, +0.043] | **held** (point estimate; the CI's upper end, +0.043, is beyond 0.03) |
+| 3b | "\"no detectable difference\" is the most likely outcome under the decision rule;" | verdict **beats**: both CIs exclude 0 (tau +0.026 [+0.009, +0.043], MAE +0.0077 [+0.0054, +0.0104]) | **failed** |
+| 3c | "I would not be surprised if it loses on MAE." | The headline's MAE is better than the baseline's by +0.0077 [+0.0054, +0.0104]; it does not lose. | **failed** (a hedge, not a firm claim) |
+| 4 | "`random` (unstratified) is worse than `stratified` on MAE." | `random` + `anchor-mean` MAE 0.0410 against 0.0304, paired difference -0.0107 [-0.0153, -0.0055] (verdict loses); reference draws 0.0418 against 0.0311 | **held** |
+| 5 | "1PL and 2PL give p-irt MAE within 0.005 of each other." | 70/21 splits, per selection (1pl vs 2pl): stratified 0.0246 / 0.0256 (0.0010), anchor-correct 0.0273 / 0.0246 (0.0027), random 0.0322 / 0.0263 (0.0059), anchor-irt 0.0329 / 0.0255 (0.0074), info 0.0943 / 0.0375 (0.0568) | **failed** as stated without qualification (held for 2 of the 5 selections, including the headline's `anchor-correct`; failed for `random`, `anchor-irt`, `info`) |
+
+Score: 2 held (3a, 4), 5 failed (1, 2, 3b, 3c, 5). The honest summary is that the headline did better than predicted, and the baseline did worse.
+
+## Convergence check: 60 versus 240 sweeps
+
+Pre-registered in `docs/protocol-irt-subset.md` (addendum 2026-11-06, commit `27b92d0`) before any rerun. The committed fits used a fixed 60 sweeps and their last-sweep change in the penalised log-likelihood was not near zero (table at the top). Two runs, same data and seed:
+
+```bash
+uv run --offline evalkit irt-subset --sweeps 60 --out runs/irt-subset/sweeps60.md                # control
+uv run --offline evalkit irt-subset --sweeps 240 --tol 1e-4 --out runs/irt-subset/sweeps240.md   # test
+```
+
+**Control.** The 60-sweep rerun reproduces sections 1 to 3 of this report digit for digit (diff of the tables is empty).
+
+**Fit diagnostics (240 sweeps, stop early below 1e-4), 50 splits:**
+
+| IRT model | median abs change over the last sweep | max | fits with change < 1e-4 |
+|---|---|---|---|
+| 1pl | 0.00236 (60 sweeps: 0.172) | 0.00558 (0.373) | 0 / 50 |
+| 2pl | 0.016 (0.0332) | 0.0318 (0.131) | 2 / 50 |
+
+So the 240-sweep fits are closer to a fixed point (1pl: 70 times smaller change) but, as pre-registered, a fit that reaches 240 sweeps with the change at or above 1e-4 is reported as not converged: 48 of 50 2pl fits and all 50 1pl fits are not converged at the tolerance. The 2pl objective is still creeping up by about 0.02 per sweep on a likelihood of order 10^5, which is far below the size of anything the ranking depends on (see below), but it is not zero.
+
+**Decision rule (headline `anchor-correct` + `blend` 2pl, section 1, means over 50 splits):**
+
+| | tau | MAE | verdict vs `stratified` + `anchor-mean` |
+|---|---|---|---|
+| 60 sweeps | 0.840 | 0.0226 | beats: d tau +0.026 [+0.009, +0.043], d MAE +0.0077 [+0.0054, +0.0104] |
+| 240 sweeps | 0.840 | 0.0226 | beats: d tau +0.026 [+0.009, +0.043], d MAE +0.0077 [+0.0054, +0.0105] |
+| difference | +0.000 | +0.0000 | unchanged |
+
+`|dMAE| = 0.0000 < 0.002` and `|dtau| = 0.000 < 0.01` (printed precision: three decimals for tau, four for MAE): **the 60-sweep result stands.** The headline numbers, README table and verdict are not changed.
+
+*Post-hoc (not part of the rule):* over all 25 rows of section 1 the largest shift is |dtau| 0.021 and |dMAE| 0.0024, both in `anchor-irt` + `p-irt` 1pl (tau 0.802 to 0.781, MAE 0.0329 to 0.0353; its verdict moves from "no detectable difference" to "loses", and `anchor-irt` + `blend` 1pl from "one statistic only" to "no detectable difference"). Every `anchor-irt` row moves (|dtau| 0.015 to 0.021) because that selection clusters the 2pl `(a, b)` embedding, so a different fit picks different anchors; the other four selections move by at most 0.001 in tau and 0.0002 in MAE. The four-fold section 2 shifts at most 0.045 in tau (`anchor-irt` + `p-irt` 1pl, 0.735 to 0.780) and 0.0029 in MAE; all other changes there are in the third decimal or smaller. The 5 `anchor-irt` rows are the part of this report that depends on the fit's convergence; the full 240-sweep tables are in `runs/irt-subset/sweeps240.md`.
+
+`fit_irt` now takes an optional `tol` (early stop) and `IrtFit.converged` / `IrtFit.sweeps` report whether the last-sweep change is below 1e-4 and how many sweeps ran; `evalkit irt-subset` has `--sweeps` / `--tol` and prints the fraction of converged fits.

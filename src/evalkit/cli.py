@@ -599,6 +599,8 @@ def irt_subset_command(args: argparse.Namespace) -> int:
         n_folds=args.folds,
         draws=args.draws,
         seed=args.seed,
+        sweeps=args.sweeps,
+        tol=args.tol,
     )
     text = render_irt_markdown(study)
     text += f"\nWall time {time.perf_counter() - started:.0f} s.\n"
@@ -1071,6 +1073,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         default=N_REFERENCE_DRAWS,
         help="reference random-subset draws over all models",
+    )
+    ir.add_argument("--sweeps", type=int, default=60, help="IRT fitting sweeps (maximum)")
+    ir.add_argument(
+        "--tol",
+        type=float,
+        default=None,
+        help="stop an IRT fit once the penalised log-lik. changes by less than this per sweep",
     )
     ir.add_argument("--out", default=None, help="write the markdown report here")
 

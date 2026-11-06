@@ -830,6 +830,7 @@ Can ~100 of the 10,200 HELM Lite instances reproduce the 91-model ranking and ma
 
 ```bash
 uv run evalkit irt-subset --results runs/helm-lite/results.jsonl --out docs/results/helm-lite-irt-subset.md
+# optional: --sweeps 240 --tol 1e-4 (more IRT sweeps, stop early below the tolerance)
 ```
 
 **Model-level cross-validation (50 random 70-train / 21-test model splits; 100 anchors):**
@@ -856,6 +857,8 @@ uv run evalkit irt-subset --results runs/helm-lite/results.jsonl --out docs/resu
 1. The pre-registered headline method (`anchor-correct` + `blend` 2PL) **beats** the stratified baseline on both Kendall tau (+0.026 [+0.009, +0.043]) and MAE (+0.0077 [+0.0054, +0.0104]) with 95% bootstrap CIs strictly excluding 0.
 2. 100 anchor items (~1% of 10,200 instances) reproduce the full 91-model benchmark ranking at Kendall tau ~0.85 and MAE ~0.020 score points.
 3. 1PL and 2PL performance is nearly indistinguishable (MAE 0.0189 vs 0.0202 on all 91 models).
+4. **Predictions vs outcome** (the five pre-registered predictions, quoted and scored in the [report](docs/results/helm-lite-irt-subset.md#predictions-vs-outcome)): 2 held, 5 failed (the `stratified` baseline reached tau 0.814 and MAE 0.0304 against a predicted 0.85 / below 0.03; the headline "beats" the baseline where "no detectable difference" was predicted most likely; 1PL and 2PL p-irt MAE are within 0.005 only for 2 of 5 selections).
+5. **Convergence.** The fits use a fixed 60 sweeps and had not converged (last-sweep change in the penalised log-likelihood: median 0.172 for 1PL, 0.033 for 2PL). A pre-registered rerun with up to 240 sweeps (`--sweeps 240 --tol 1e-4`; `fit_irt(..., tol=...)`, `IrtFit.converged`) cut the change to 0.0024 / 0.016 but still reached 1e-4 in only 2 of 100 fits, so the fits remain formally unconverged. The headline did not move at printed precision (tau 0.840, MAE 0.0226, verdict "beats"; rule: |dMAE| < 0.002 and |dtau| < 0.01), so the 60-sweep result above stands. The `anchor-irt` rows (anchors chosen from the 2PL fit) are the ones that do depend on it: up to 0.021 tau and 0.0024 MAE, with the `anchor-irt` + `p-irt` 1PL verdict going from "no detectable difference" to "loses" (post-hoc). Raw output: `runs/irt-subset/sweeps60.md`, `sweeps240.md`.
 
 
 ### Judge panel and self-preference (MT-Bench, API)

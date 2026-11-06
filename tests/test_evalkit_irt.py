@@ -61,6 +61,18 @@ def test_fit_irt_handles_missingness_and_soft_labels() -> None:
     assert np.all(np.isfinite(fit.c))
 
 
+def test_fit_irt_tol_stops_early_and_sets_converged_flag() -> None:
+    rng = np.random.default_rng(3)
+    y = (rng.random((40, 60)) < 0.5).astype(np.float64)
+    short = fit_irt(y, model="2pl", sweeps=3)
+    assert short.sweeps == 3 and not short.converged
+    tight = fit_irt(y, model="2pl", sweeps=400, tol=1e-4)
+    assert tight.converged and tight.sweeps < 400
+    assert abs(tight.last_change) < 1e-4
+    full = fit_irt(y, model="2pl", sweeps=7)
+    assert full.sweeps == 7
+
+
 def test_estimate_theta_monotonic_in_score() -> None:
     rng = np.random.default_rng(0)
     n_items = 25

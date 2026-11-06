@@ -18,6 +18,7 @@ import numpy as np
 A_MIN, A_MAX = 0.05, 5.0
 IRT_MODELS = ("1pl", "2pl")
 _STEP = 2.0
+CONVERGENCE_TOL = 1e-4  # |change in the penalised log-likelihood over the last sweep| below this
 
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
@@ -32,7 +33,11 @@ class IrtFit:
     model: str
     objective: float  # penalised log-likelihood after the last sweep
     last_change: float  # change of the objective over the last sweep (convergence)
-    sweeps: int
+    sweeps: int  # sweeps actually run
+
+    @property
+    def converged(self) -> bool:
+        return abs(self.last_change) < CONVERGENCE_TOL
 
 
 def _objective(
@@ -84,14 +89,17 @@ def fit_irt(
     mask: np.ndarray | None = None,
     model: str = "2pl",
     sweeps: int = 60,
+    tol: float | None = None,
     theta_sd: float = 1.0,
     c_sd: float = 3.0,
     a_sd: float = 0.5,
 ) -> IrtFit:
     """MAP fit of a 1PL or 2PL model to scores ``y[model, item]`` in [0, 1].
 
-    ``mask`` marks the observed entries (default: all finite). Always runs ``sweeps``
-    sweeps; ``IrtFit.last_change`` reports whether that was enough. Returns abilities, item
+    ``mask`` marks the observed entries (default: all finite). Runs ``sweeps`` sweeps, or
+    stops at the first sweep whose absolute change in the objective is below ``tol`` when
+    ``tol`` is given. ``IrtFit.converged`` says whether the last change is below
+    ``CONVERGENCE_TOL``, ``IrtFit.sweeps`` how many sweeps ran. Returns abilities, item
     slopes ``a`` (all 1 for the 1PL) and intercepts ``c``.
     """
     if model not in IRT_MODELS:
@@ -112,6 +120,7 @@ def fit_irt(
     prec_t, prec_c, prec_a = 1.0 / theta_sd**2, 1.0 / c_sd**2, 1.0 / a_sd**2
     previous = _objective(y, m, theta, a, c, theta_sd, c_sd, a_sd)
     change = float("inf")
+    ran = 0
     for _ in range(sweeps):
         p = sigmoid(a[None, :] * theta[:, None] - c[None, :])
         grad = np.sum(m * (y - p) * a[None, :], axis=1) - prec_t * theta
@@ -138,7 +147,10 @@ def fit_irt(
         current = _objective(y, m, theta, a, c, theta_sd, c_sd, a_sd)
         change = current - previous
         previous = current
-    return IrtFit(theta, a, c, model, previous, change, sweeps)
+        ran += 1
+        if tol is not None and abs(change) < tol:
+            break
+    return IrtFit(theta, a, c, model, previous, change, ran)
 
 
 def kendall_tau_b(x: np.ndarray, y: np.ndarray) -> float:
