@@ -100,6 +100,8 @@ Headline: **oracle macro mean = 1.000 > noisy:0.3 = 0.714 > random = 0.179**.
 
 The leaderboard CIs are per model. Whether two models differ is a paired question: both answered the same examples, so `evalkit compare` resamples the per-example differences (10,000 resamples) and adds an exact two-sided sign test on wins/losses (ties dropped). The interval is a bootstrap-t (studentized) interval when n < 400 and at most half the pairs tie, and the percentile interval otherwise (`--ci-method` overrides; `percentile`, `bca` and `studentized` are available). The reasons and the Monte Carlo evidence are in "Do the statistics hold up?" below.
 
+The leaderboard's own "95% CI" column is a percentile bootstrap of the macro mean (`bootstrap_macro_ci`), not the bootstrap-t above. It undercovers when scores are near 0 or 1 and n is small (0.26 coverage at n = 10, accuracy 0.97: the interval is a single point 74% of the time); see "Round 5: coverage of the leaderboard interval" below.
+
 `evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random`:
 
 | Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |
@@ -671,6 +673,24 @@ Randomisation Type-I error, skewed cells, before to after (all 36 H0 cells, the 
 | 0.8 | 240 | 0.064 [0.058, 0.070] | 0.056 [0.050, 0.062] |
 
 **Pre-registered rule:** adopt as the default if all 36 H0 cells have point estimate <= 0.06 and the mean power loss over the 42 power cells is <= 0.03. **Result:** H0 cells above 0.06 fall from 5 to 1 (the target cell, tie rate 0.8 and n = 115, goes from 0.071 to 0.055 [0.050, 0.061]); mean power loss is +0.0009 (approximate 99% interval -0.0013 to +0.0032: no detectable mean effect), single cells move from a gain of 0.047 to a loss of 0.107. The one cell still above 0.06 is skewed, tie rate 0.5, n = 20 (0.083 [0.076, 0.090]), with about 10 nonzero differences, where bootstrap-t is anti-conservative with or without ties. **Decision: not adopted as the default (condition 1 fails); the path is opt-in** via `evalkit compare --all-pairs --tie-fallback boott_nz_cal` and `evalkit stats-check --rand-tie-fallback boott_nz_cal` (default `none`, which is Round 3 behaviour; the gate is `--rand-tie-gate`, default 0.5). The calibrated bootstrap is about 24 ms per call, which made the stats-check run 842 s against 231 s.
+
+## Round 5: coverage of the leaderboard interval (`docs/protocol-leaderboard-ci.md`, committed in `b9fa373` before the harness existed)
+
+`stats-check` covers paired intervals only. The per-model "95% CI" in the leaderboard is `bootstrap_macro_ci`, a percentile bootstrap; for a model run on one task it is that task's percentile bootstrap. `scripts/leaderboard_ci_check.py` simulates Bernoulli(p) task scores for n in {10, 35, 240} and the macro mean of tasks sized (35, 35, 10, 35), p in {0.5, 0.7, 0.9, 0.97}, and scores the shipped percentile interval, the shipped bootstrap-t (`bootstrap_mean_ci`, studentized), the Wilson interval and, for the macro mean, three alternatives (Newcombe square-and-add of per-task Wilson intervals, Wilson on an effective sample size, stratified bootstrap-t); development seeds 1 and 2 chose the stratified bootstrap-t. Final scoring: fresh seeds 4001 to 4003, 6000 replications per cell, flagged = Wilson 99% interval of coverage entirely below 0.95.
+
+```bash
+uv run --offline python scripts/leaderboard_ci_check.py --seeds 4001,4002,4003 --winner strat-bootstrap-t --out runs/stats-check/leaderboard-ci.md
+```
+
+| n | p | percentile (shipped) | bootstrap-t | Wilson |
+|---|---|---|---|---|
+| 10 | 0.9 | 0.650 **U** | 0.650 **U** | 0.931 **U** |
+| 10 | 0.97 | 0.262 **U** | 0.262 **U** | 0.963 |
+| 35 | 0.9 | 0.864 **U** | 0.670 **U** | 0.917 **U** |
+| 35 | 0.97 | 0.654 **U** | 0.278 **U** | 0.980 |
+| 240 | 0.97 | 0.922 **U** | 0.903 **U** | 0.945 |
+
+(The five worst percentile cells; all 12 per-task and 4 macro cells are in `docs/results/leaderboard-ci.md`.) **Pre-registered rule:** switch the single-task interval to Wilson if the percentile interval is flagged in >= 3 of the 12 per-task cells and Wilson in <= 1; switch the macro interval to the development winner if the percentile interval is flagged in >= 2 of 4 macro cells and the winner in <= 1. **Result:** per-task flagged cells: percentile 7, bootstrap-t 7, Wilson 4; macro flagged cells: percentile 2, stratified bootstrap-t 2. **Decision: unchanged.** Wilson fails the "<= 1 flagged" condition because its coverage oscillates (0.917 to 0.939 in four cells), and the macro winner is flagged as often as the percentile interval. Post-hoc (not part of the rule): Wilson's lowest coverage is 0.917 against 0.262 for the percentile interval, at a mean width of 0.246 against 0.222, so the rule's verdict and the size of the failure point in different directions; whether to print Wilson for 0/1 tasks is left to the maintainer.
 
 ## Clustered standard errors, multi-sample runs, pass^k
 
