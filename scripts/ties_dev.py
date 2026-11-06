@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,7 +29,16 @@ from evalkit.aggregate import (
     randomization_test_p,
     tie_share,
 )
-from evalkit.statscheck import ALPHA, SIGMA, CellJob, StatsCheckConfig, plan, simulate_pairs
+from evalkit.statscheck import (
+    ALPHA,
+    SIGMA,
+    CellJob,
+    StatsCheckConfig,
+    default_workers,
+    plan,
+    simulate_pairs,
+    worker_pool,
+)
 
 TAUS = (0.5, 0.7)
 BAND = 0.06
@@ -150,7 +158,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--seeds", default="1,2")
     ap.add_argument("--reps-h0", type=int, default=4000)
     ap.add_argument("--reps-power", type=int, default=2000)
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=default_workers())
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
     seeds = [int(x) for x in args.seeds.split(",")]
@@ -167,7 +175,7 @@ def main(argv: list[str]) -> int:
             diag = j.group == "h0" and j.scenario.kind == "skewed" and j.scenario.tie_rate == 0.8
             work.append((j, diag))
     work.sort(key=lambda w: -(w[0].reps * w[0].scenario.n))
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
+    with worker_pool(args.workers) as pool:
         done = list(pool.map(scan_cell, work, chunksize=1))
     by_cell: dict[int, list[Scan]] = {}
     for sc in done:

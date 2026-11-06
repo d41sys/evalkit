@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import itertools
 import math
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from statistics import NormalDist
 
@@ -49,6 +48,7 @@ from .statscheck import (
     classify_coverage,
     classify_error_rate,
     classify_power,
+    worker_pool,
 )
 
 Z95 = NormalDist().inv_cdf(0.975)
@@ -351,7 +351,7 @@ def run_cluster_check(config: ClusterCheckConfig) -> ClusterCheckReport:
     order = sorted(range(len(jobs)), key=lambda i: -_cost(jobs[i]))  # slowest first
     ordered = [jobs[i] for i in order]
     if config.workers > 1:
-        with ProcessPoolExecutor(max_workers=config.workers) as pool:
+        with worker_pool(config.workers) as pool:
             done = list(pool.map(_dispatch, ordered, chunksize=1))
     else:
         done = [_dispatch(j) for j in ordered]

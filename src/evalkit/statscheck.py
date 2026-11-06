@@ -558,7 +558,7 @@ def run_stats_check(config: StatsCheckConfig) -> StatsCheckReport:
     order = sorted(range(len(jobs)), key=lambda i: -_cost(jobs[i]))
     ordered = [jobs[i] for i in order]
     if config.workers > 1:
-        with ProcessPoolExecutor(max_workers=config.workers) as pool:
+        with worker_pool(config.workers) as pool:
             done = list(pool.map(_dispatch, ordered, chunksize=1))
     else:
         done = [_dispatch(j) for j in ordered]
@@ -580,6 +580,25 @@ def _cost(job: CellJob | FwerJob) -> float:
 def default_workers() -> int:
     # Capped at 4: several overlapping runs at 8 workers each overloaded the owner's machine.
     return max(1, min(4, (os.cpu_count() or 1)))
+
+
+_BLAS_THREAD_VARS = (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+)
+
+
+def worker_pool(workers: int) -> ProcessPoolExecutor:
+    """A process pool whose workers each run numpy on a single BLAS thread.
+
+    Spawned workers copy the environment before they import numpy, so setting the variables
+    here caps the total at ``workers`` threads instead of ``workers`` times the core count.
+    """
+    for name in _BLAS_THREAD_VARS:
+        os.environ.setdefault(name, "1")
+    return ProcessPoolExecutor(max_workers=workers)
 
 
 # ---------------------------------------------------------------------------- report
