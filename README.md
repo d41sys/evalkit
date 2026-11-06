@@ -641,6 +641,37 @@ uv run python scripts/stats_check_compare.py runs/stats-check/report-round2.md r
 *Summary:* Point estimates in [0.035, 0.065] rose from 4 to **7 of 12**; flagged anti-conservative cells dropped from 9 to **6**. At tie rate 0, all 4 cells are in-band (0.052 to 0.062). At small n with heavy ties (t=0.8, n=20), the discrete floor limits power (min achievable p > 0.05). Binary cells are 100% identical to baseline.
 
 
+## Round 4: the high-tie cell (Phase N; protocol `docs/protocol-ties.md`, committed in `664c0e6` before any scoring)
+
+After Round 3 the skewed cell with 80% ties and n = 115 still rejected a true null 7.5% of the time at nominal 5%. **Diagnosis** (development seeds 1 and 2, `runs/stats-check/ties-dev.md`): H0 "mean of all differences is 0" is the same as "mean of the non-tied differences is 0", so the zeros carry no information about it. Resampling them costs bootstrap-t about 0.01 to 0.016 of type-I error at 20 to 49 nonzero differences and n = 115 (0.068 to 0.072 against 0.055 to 0.056 for a tie-free sample of the same size); a bootstrap-t on the non-tied differences only recovers it (0.056 to 0.060). What no tie rule removes is the small-sample skewness error of bootstrap-t itself: about 0.07 at roughly 10 nonzero differences, tie-free too. The exact sign-flip test on the non-tied pairs is the shipped test (zeros never changed it), and the exact conditional sign test on them tests the median, so both fail on mean-zero skewed data (development seeds: sign-flip 0.065 to 0.096, sign test 0.083 to 0.445 at 10 or more nonzero differences). Candidates: `signflip`, `signtest`, `boott_nz`, `johnson_nz`, and `boott_nz_cal` (calibrated double bootstrap-t on the non-tied differences, Beran 1987), each used by `auto` when the asymmetry gate fires and more than a share `tau` (0.5 or 0.7) of the differences are exactly zero. Development selection picked `boott_nz_cal`, tau = 0.5.
+
+**Final run** (fresh seed 101, 10,000 replications per H0 and power cell, Monte Carlo SE 0.0022 at 0.05 and at most 0.005 for power; binary cells identical to the digit):
+
+```bash
+uv run evalkit stats-check --seed 101 --reps-h0 10000 --reps-power 10000 --rand-tie-fallback none --out runs/stats-check/ties-before-seed101.md
+uv run evalkit stats-check --seed 101 --reps-h0 10000 --reps-power 10000 --rand-tie-fallback boott_nz_cal --out runs/stats-check/ties-after-seed101.md
+uv run python scripts/ties_rule.py runs/stats-check/ties-before-seed101.md runs/stats-check/ties-after-seed101.md
+```
+
+Randomisation Type-I error, skewed cells, before to after (all 36 H0 cells, the 42 power cells and the rule are in `runs/stats-check/ties-rule-seed101.md` and `docs/protocol-ties.md`):
+
+| tie rate | n | before (Phase M) | after (`boott_nz_cal`) |
+|---|---|---|---|
+| 0 | 20 | 0.058 [0.052, 0.065] | 0.058 [0.052, 0.065] |
+| 0 | 50 | 0.058 [0.052, 0.064] | 0.058 [0.052, 0.064] |
+| 0 | 115 | 0.056 [0.051, 0.062] | 0.056 [0.051, 0.062] |
+| 0 | 240 | 0.053 [0.047, 0.059] | 0.053 [0.047, 0.059] |
+| 0.5 | 20 | 0.088 [0.081, 0.096] | 0.083 [0.076, 0.090] |
+| 0.5 | 50 | 0.067 [0.061, 0.073] | 0.059 [0.054, 0.066] |
+| 0.5 | 115 | 0.059 [0.053, 0.065] | 0.055 [0.049, 0.061] |
+| 0.5 | 240 | 0.056 [0.051, 0.062] | 0.056 [0.050, 0.062] |
+| 0.8 | 20 | 0.017 [0.014, 0.021] | 0.015 [0.013, 0.019] |
+| 0.8 | 50 | 0.069 [0.062, 0.075] | 0.057 [0.051, 0.063] |
+| 0.8 | 115 | 0.071 [0.065, 0.078] | 0.055 [0.050, 0.061] |
+| 0.8 | 240 | 0.064 [0.058, 0.070] | 0.056 [0.050, 0.062] |
+
+**Pre-registered rule:** adopt as the default if all 36 H0 cells have point estimate <= 0.06 and the mean power loss over the 42 power cells is <= 0.03. **Result:** H0 cells above 0.06 fall from 5 to 1 (the target cell, tie rate 0.8 and n = 115, goes from 0.071 to 0.055 [0.050, 0.061]); mean power loss is +0.0009 (approximate 99% interval -0.0013 to +0.0032: no detectable mean effect), single cells move from a gain of 0.047 to a loss of 0.107. The one cell still above 0.06 is skewed, tie rate 0.5, n = 20 (0.083 [0.076, 0.090]), with about 10 nonzero differences, where bootstrap-t is anti-conservative with or without ties. **Decision: not adopted as the default (condition 1 fails); the path is opt-in** via `evalkit compare --all-pairs --tie-fallback boott_nz_cal` and `evalkit stats-check --rand-tie-fallback boott_nz_cal` (default `none`, which is Round 3 behaviour; the gate is `--rand-tie-gate`, default 0.5). The calibrated bootstrap is about 24 ms per call, which made the stats-check run 842 s against 231 s.
+
 ## Clustered standard errors, multi-sample runs, pass^k
 
 Eval items often share a source (questions about one passage, items from one document), so their scores are correlated and `s / sqrt(n)` is too small. Miller (2024, "Adding Error Bars to Evals", [arXiv 2411.00640](https://arxiv.org/abs/2411.00640), sec. 3.2) gives the clustered standard error of a mean:
