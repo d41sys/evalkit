@@ -812,13 +812,26 @@ Against the published numbers (Zheng et al. 2023, Table 5, GPT-4 pair vs human: 
 What does not look good, stated plainly:
 
 - **No win over GPT-4.** The judge is level with it, not ahead; the S1 gain of +2.5 pp has a lower bound of -0.2 pp.
-- **Ties.** The judge resolves 14.5% of items to tie against a human tie rate of 23.3% (per vote), so S1, the metric that counts ties, is held down by the judge being more decisive than the humans.
-- **Unparsable replies:** 11 of 1,000 items had a reply without a verdict line in one order (counted as tie); the 5% failure threshold of the protocol was not reached.
+- **Ties.** The judge resolves 14.5% of items to tie against a human tie rate of 23.3% (per vote), so S1, the metric that counts ties, is held down by the judge being more decisive than the humans. A tie margin on the pointwise scores does not fix it: see "Tie margin" below (no margin helps; nothing changed).
+- **Unparsable replies:** 11 of 1,000 items had a reply without a verdict line in one order (counted as tie); the 5% failure threshold of the protocol was not reached. Dropping them moves S1 by +0.5 pp [+0.1, +1.1] and leaves S2 and the tie gap (judge 13.5% against humans 23.2%) in place; see "Tie margin" below.
 - **Reasoning, math, coding without a reference:** S1 65.1% against 69.3% on the other categories; S2 88.4% (human-human 93.0% there). The judge minus human-human difference there is -2.4 pp [-8.5, +3.5] at S1, so I cannot say it is worse, and I cannot say the missing reference made no difference.
 - **Self-preference** is not controlled by the judge itself; the panel study below measures it. Descriptive on the full test split: on items that include claude-v1 (the one Claude-family model in the data) S2 is 85.2% against 86.4% elsewhere and the position-flip rate is 9.8% [6.9, 13.1] against 5.9% [4.2, 7.7]; that cannot separate self-preference from quality.
 - One prompt, one judge, one run per item, 72 test questions; subgroup intervals are uncorrected.
 
 **Pointwise (secondary, first 300 test items, 600 calls).** The higher of two 1-10 scores as the verdict (equal scores: tie) agrees with humans at 68.0% [62.4, 73.3] S1 and 88.4% [83.9, 92.4] S2, kappa +0.527 / +0.803; against GPT-4 on those items +2.2 pp [-3.1, +7.8] and +0.8 pp [-3.4, +5.1]. It needs half the calls of the pairwise mode but has no position control ([docs/results/judge-mtbench-pointwise.md](docs/results/judge-mtbench-pointwise.md)).
+
+**Tie margin (pointwise, Phase P; protocol [docs/protocol-judge-ties.md](docs/protocol-judge-ties.md), committed in `75c152c` before any margin was scored).** Call a pair a tie when $|s_A - s_B| \le \delta$ for $\delta \in \{0, 1, 2, 3\}$ (integer 1-10 scores; $\delta = 0$ is the shipped behaviour). The pairwise path has only categorical verdicts, so the margin acts on the 300 pointwise items (71 questions), split by whole question (seed 0) into 36 dev and 35 confirmation questions. $\delta$ is chosen by leave-question-out cross-validation on dev only; S1 and S2 are unchanged from the validation above. Rule, verbatim: "Ship $\hat\delta$ as an opt-in if both hold: 1. the lower bound of the CI of the S1 change is above 0, and 2. the upper bound of the CI of the S2 change is >= 0. Otherwise the result is documented and the code, the CLI and every default are left unchanged."
+
+| Dev (36 questions, 164 items) | S1 | S2 | judge tie rate |
+|---|---|---|---|
+| $\delta$ = 0 | 71.1% | 89.4% | 24.4% |
+| $\delta$ = 1 | 66.8% | 93.5% | 47.6% |
+| $\delta$ = 2 | 59.7% | 95.6% | 62.2% |
+| $\delta$ = 3 | 51.1% | 94.0% | 72.0% |
+
+Human tie rate on the dev items: 27.4%. **$\hat\delta = 0$**: the nested leave-question-out selection also chose 0 in all 36 folds, so the confirmation questions were not scored (protocol) and **no margin is shipped; nothing in the code, the CLI or the defaults changed.** The pointwise tie rate at $\delta = 0$ (23.7%) is already close to the humans' (26.6%); a margin overshoots it. The 14.5% against 23.3% gap belongs to the pairwise rule (both orders must agree), which a score margin cannot reach.
+
+*Sensitivity, pre-registered (the 11 unparsable pairwise items dropped):* S1 67.8% [64.9, 70.7] to 68.3% [65.4, 71.2], +0.5 pp [+0.1, +1.1]; S2 unchanged (ties never enter S2); pointwise (1 pair dropped, $\delta = 0$) +0.1 pp [+0.0, +0.4]. A prediction that the pairwise shift would be under 0.5 pp missed (+0.52 pp). *Post-hoc, pooled 300 items, not held out:* S1 change against $\delta = 0$ is -3.7 pp [-8.4, +1.3] ($\delta$ = 1), -13.9 pp [-20.6, -7.2] (2), -21.4 pp [-29.5, -13.5] (3); S2 rises by 4 to 8 pp because it keeps fewer, clearer pairs. Full tables: [dev](docs/results/judge-mtbench-tie-margin-dev.md), [sensitivity](docs/results/judge-mtbench-tie-margin-sensitivity.md), [post-hoc](docs/results/judge-mtbench-tie-margin-posthoc.md). Reproduce with no key: `uv run --offline python scripts/mtbench_tie_margin.py {dev,confirm,sensitivity,posthoc}` (cache replay only).
 
 **Feeding the machinery.** `evalkit judge` on the test split from the cache, then `evalkit compare --all-pairs` (clustered by question, 15 model pairs, Holm): 14 of 15 pairs resolved; gpt-3.5-turbo vs claude-v1 is **unresolved** (sign test p = 0.037 would call it, the cluster randomisation p = 0.064 does not; ICC 0.46, clustered SE 1.10x the naive one). Elo from the judge, from the human majority and from the released GPT-4 verdicts gives the same model order (gpt-4, claude-v1, gpt-3.5-turbo, vicuna-13b, alpaca-13b, llama-13b; [Elo table](docs/results/judge-mtbench-elo.md), [compare output](docs/results/judge-mtbench-cli-demo.md)); six models is a weak test of rank agreement.
 

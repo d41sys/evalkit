@@ -65,3 +65,15 @@ The cached histogram gives tie rates of 23.7% ($\delta = 0$), 47.0% (1), 65.3% (
 ## Files
 
 `scripts/mtbench_tie_margin.py` (`dev`, `confirm`, `sensitivity`; reads `data/mtbench/test.jsonl` and `data/mtbench/cache-test.jsonl` only), outputs in `docs/results/judge-mtbench-tie-margin.{md,json}`, tests in `tests/test_evalkit_judge_ties.py`. Checks: ruff, ruff format --check, mypy src, pytest -q.
+
+## Outcome (written after scoring; `scripts/mtbench_tie_margin.py`, cache replay, no API call)
+
+Dev portion: 36 questions, 164 items; confirmation portion: 35 questions, 136 items. Dev S1 by margin (CV score, pooled held-out): $\delta$ 0: 71.1%, 1: 66.8%, 2: 59.7%, 3: 51.1%; judge tie rate 24.4%, 47.6%, 62.2%, 72.0% against a human tie rate of 27.4% (S2 rises, 89.4% to 94.0%, because it keeps fewer and clearer pairs). **$\hat\delta = 0$.** The nested leave-question-out selection chose 0 in all 36 folds (out-of-fold S1 71.1%, equal to $\delta = 0$). By the protocol the confirmation portion is **not scored** and no margin is shipped.
+
+**Rule outcome: not met, nothing changed** (no code, CLI or default). Not "no detectable effect" but "no margin helps on dev": the S1 change is negative at every $\delta \ge 1$.
+
+**Sensitivity (pre-registered).** Pairwise, 1,000 items: dropping the 11 items with an unparsable reply moves S1 from 67.8% [64.9, 70.7] to 68.3% [65.4, 71.2] (+0.5 pp [+0.1, +1.1]; unrounded +0.52 pp), S2 unchanged (those items are ties, so they never enter S2), judge tie rate 14.5% to 13.5%. Pointwise, 300 items, $\delta = 0$: dropping the 1 pair with an unparsable score moves S1 by +0.1 pp [+0.0, +0.4]. The tie gap to the humans (23.3%) stays: it is not caused by the unparsable replies.
+
+**Predictions.** 1 held (dev S1 falls with every step of $\delta$, $\hat\delta = 0$). 2 was not tested ($\hat\delta = 0$). 3 missed by a hair: the unparsable replies move pairwise S1 by +0.52 pp, not less than 0.5. The tie rates quoted for $\delta$ = 1, 2, 3 in the predictions paragraph were 0.3 pp high (an addition slip, 47.0%, 65.3%, 77.0%); the correct pooled rates are 46.7%, 65.0%, 76.7% (post-hoc table).
+
+**Post-hoc (not pre-registered), `docs/results/judge-mtbench-tie-margin-posthoc.md`.** All margins on the pooled 300 items against $\delta = 0$: S1 change -3.7 pp [-8.4, +1.3] ($\delta$ = 1), -13.9 pp [-20.6, -7.2] (2), -21.4 pp [-29.5, -13.5] (3); S2 change +4.3, +6.8, +7.7 pp (intervals above 0). Pooled data cannot be held out, so this is descriptive. It agrees with dev: the judge's pointwise tie rate at $\delta = 0$ (23.7%) is already close to the humans' (26.6%), so a margin overshoots. The 14.5% against 23.3% gap is a property of the pairwise resolution (both orders must agree), which has no scalar to put a margin on; a margin on the pointwise scores does not close it, it replaces it with a larger gap in the other direction.
