@@ -84,3 +84,34 @@ Reported with the rule, not part of it: the full before/after table (36 H0 cells
 ## Not candidates
 
 BCa or percentile bootstrap p-values (the studentised one is the better-behaved known method), the Wilcoxon signed-rank test (tests symmetry or the median, not the mean), bounded-score betting or Hoeffding tests (valid at any n, but the skewed generator's scores are unbounded, so the bound would be data-dependent and the validity claim would not hold in this simulation).
+
+## Development outcome (seeds 1 and 2; recorded before the final run)
+
+```bash
+uv run --offline python scripts/ties_dev.py --seeds 1,2 --workers 10 --out runs/stats-check/ties-dev.md
+```
+
+(4000 H0 and 2000 power replications per seed and cell; 7 min 37 s; full output, including the 36 H0 cells and the power cells for all 11 configurations, in `runs/stats-check/ties-dev.md`.) Numbers below are copied from that file.
+
+**Diagnosis.** Type-I of `boott` (Phase M, all differences) against `boott` on a tie-free skewed sample of the same `k`, and `boott_nz`, skewed, tie rate 0.8, pooled over the seeds:
+
+| n | k | boott | tie-free boott | boott_nz | boott_nz_cal |
+|---|---|---|---|---|---|
+| 115 | 10-19 | 0.064 | 0.068 | 0.053 | 0.059 |
+| 115 | 20-29 | 0.068 | 0.055 | 0.056 | 0.051 |
+| 115 | 30-49 | 0.072 | 0.056 | 0.060 | 0.047 |
+| 240 | 30-49 | 0.059 | 0.057 | 0.053 | 0.049 |
+| 240 | >=50 | 0.062 | 0.058 | 0.058 | 0.052 |
+| 50 | 10-19 | 0.078 | 0.071 | 0.073 | 0.074 |
+| 50 | 0-9 | 0.035 | 0.071 | 0.071 | 0.071 |
+| 20 | 0-9 | 0.015 | 0.072 | 0.072 | 0.021 |
+
+* **H-b holds.** Zero resampling costs `boott` about 0.01 to 0.016 at k = 20 to 49 and n = 115 (0.068 and 0.072 against 0.055 and 0.056 for the same `k` without zeros); `boott_nz` removes it (0.056 and 0.060, equal to the tie-free rate within 0.005).
+* **H-a holds only in part.** At n = 240 `boott` is within 0.005 of the tie-free rate; at n = 115 it is 0.013 to 0.016 above, and at k < 10 it is far below (0.015 to 0.035 against 0.071): with few nonzero differences and many resampled zeros the studentised statistic has a heavy right tail and the test turns conservative, by accident rather than design. The remaining inflation at `k` of about 10 (0.07 for every bootstrap-t variant, tie-free too) is the small-sample skewness error of bootstrap-t, which no tie rule removes (n = 50, k < 20: 0.071 to 0.074 for `boott_nz` and `boott_nz_cal`).
+* Sign test: 0.083 to 0.445 at k >= 10, as expected (median, not mean). `signflip` stays at 0.065 to 0.096 for k >= 10. `johnson_nz` is 0.116 to 0.176 at k < 10.
+
+**Configurations** (rule of the selection section; full table in the file): `none` has 6 H0 cells above 0.06 (mean of the two seeds); `signflip` 7 and 6, `signtest` 8 and 6, `johnson_nz` 5 and 5 (not eligible: continuous H0 cells worsen by 0.047 to 0.055, tie rate 0.8, n = 20), `boott_nz` 3 and 4, `boott_nz_cal` 3 and 4 (tau 0.5 and 0.7). Mean power loss (none minus configuration, binary counted 0) is between -0.053 and +0.004; `boott_nz_cal` +0.0010 at tau 0.5. **Winner: `boott_nz_cal`, tau 0.5** (3 H0 cells above 0.06, excess sum 0.1166, against `boott_nz` tau 0.5 with 3 cells and 0.1331). The shipped constants are `TIE_GATE = 0.5` and, if the final rule is not met, `TIE_FALLBACK = "none"`.
+
+The 3 dev cells above 0.06 under the winner are skewed tie 0 n = 20 (0.0653, no tie path can touch it), skewed tie 0.5 n = 20 (0.0866) and skewed tie 0.8 n = 50 (0.0668). Prediction 5 therefore looks right on development data; the final run decides.
+
+**Predictions against development data.** 1: partly (see H-a above). 2: yes (`boott_nz` 0.057 at tie 0.8, n = 115; 0.072 at n = 50). 3: yes (sign test 0.184 and 0.325 at tie 0.8, n = 115 and 240; `signflip` 0.073 and 0.068). 4: lowest type-I of the five on the heavy-tie cells at n = 115 and 240 (0.053, 0.055) and n = 50 (0.067); the power change (none minus `boott_nz_cal`, tau 0.5) ranges per cell from a gain of 0.044 to a loss of 0.106 (fixed skewed, tie 0.6, effect 0.2, n* = 17) and the mean over all 42 cells is a loss of 0.001, so "a few points" holds on average, not per cell.

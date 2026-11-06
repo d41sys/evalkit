@@ -578,11 +578,22 @@ def cluster_randomization_test_p(
     )
 
 
-RAND_METHODS = ("auto", "signflip", "boott", "johnson")
+TIE_METHODS = ("signflip", "signtest", "boott_nz", "johnson_nz", "boott_nz_cal")
+"""Tests of the mean that use only the non-tied pairs; candidates for the tie path of ``auto``
+(``docs/protocol-ties.md``)."""
+RAND_METHODS = ("auto", "signflip", "boott", "johnson", *TIE_METHODS[1:])
 ASYMMETRIC_METHODS = ("boott", "johnson")
 ASYMMETRIC_METHOD = "boott"
 """The test ``auto`` switches to when the asymmetry gate fires (chosen on development seed 1,
 ``docs/protocol-skew-fix.md``)."""
+TIE_FALLBACKS = ("none", *TIE_METHODS)
+TIE_FALLBACK = "none"
+"""The test ``auto`` uses instead of :data:`ASYMMETRIC_METHOD` when the asymmetry gate fires and
+more than :data:`TIE_GATE` of the differences are exactly zero; ``none`` keeps Phase M behaviour."""
+TIE_GATE = 0.5
+"""Share of exactly-zero differences above which the tie path applies."""
+CAL_DRAWS = 399
+"""Outer and inner resamples of :func:`bootstrap_t_calibrated_p` (at most)."""
 
 
 def asymmetry_gate(diffs: Sequence[float] | np.ndarray) -> tuple[float, int, bool]:
@@ -670,30 +681,127 @@ def johnson_test_p(diffs: Sequence[float] | np.ndarray) -> float:
     return float(min(1.0, 2.0 * min(f, 1.0 - f)))
 
 
+def nonzero_differences(diffs: Sequence[float] | np.ndarray) -> np.ndarray:
+    """The non-tied differences (``|d| > 1e-12``)."""
+    d = np.asarray(diffs, dtype=np.float64)
+    return d[np.abs(d) > 1e-12]
+
+
+def tie_share(diffs: Sequence[float] | np.ndarray) -> float:
+    """Share of the differences that are exactly zero (0 for an empty input)."""
+    d = np.asarray(diffs, dtype=np.float64)
+    return float(np.count_nonzero(np.abs(d) <= 1e-12)) / d.size if d.size else 0.0
+
+
+def sign_test_nonzero_p(diffs: Sequence[float] | np.ndarray) -> float:
+    """Exact two-sided sign test on the non-tied differences (:func:`sign_test_p`).
+
+    Tests whether wins and losses are equally likely (the median), not whether the mean is
+    zero, so it rejects mean-zero skewed differences.
+    """
+    nz = nonzero_differences(diffs)
+    return sign_test_p(int(np.count_nonzero(nz > 0)), int(np.count_nonzero(nz < 0)))
+
+
+def bootstrap_t_calibrated_p(
+    diffs: Sequence[float] | np.ndarray, num_draws: int = 2000, seed: int = 0
+) -> float:
+    """Two-sided calibrated (double) bootstrap-t test of mean(diffs) = 0.
+
+    Beran's (1987) prepivoting; Efron & Tibshirani (1993, ch. 18). ``t*`` comes from ``B``
+    resamples of the mean-centred differences and ``p_obs = (1 + #{|t*| >= |t|}) / (B + 1)``
+    is the single-bootstrap p. For each outer resample ``b`` another ``B`` resamples (from
+    that sample, re-centred) give ``p*_b``; the calibrated p is
+    ``(1 + #{p*_b <= p_obs}) / (B + 1)``, which removes the leading error term of ``p_obs``.
+    ``B = min(num_draws, CAL_DRAWS)``. Constant nonzero differences use the sign-flip test.
+    """
+    d = np.asarray(diffs, dtype=np.float64)
+    n = int(d.size)
+    if n == 0 or not np.any(np.abs(d) > 1e-12):
+        return 1.0
+    sd = float(d.std(ddof=1)) if n > 1 else 0.0
+    floor = 1e-12 * sd
+    if sd <= 1e-12 * float(np.abs(d).max()):
+        return randomization_test_p(d, num_draws=num_draws, seed=seed)
+    b = max(99, min(num_draws, CAL_DRAWS))
+    root_n = math.sqrt(n)
+    mean = float(d.mean())
+    t_obs = abs(mean) / (sd / root_n)
+    rng = np.random.default_rng(seed)
+    outer = (d - mean)[rng.integers(0, n, size=(b, n))]
+    sd_o = outer.std(axis=1, ddof=1)
+    ok = sd_o > floor
+    outer, sd_o = outer[ok], sd_o[ok]
+    m = int(outer.shape[0])
+    if m == 0:
+        return randomization_test_p(d, num_draws=num_draws, seed=seed)
+    mean_o = outer.mean(axis=1)
+    t_o = np.abs(mean_o) / (sd_o / root_n)
+    p_obs = (int(np.count_nonzero(t_o >= t_obs - 1e-12)) + 1) / (m + 1)
+    p_star = np.empty(m, dtype=np.float64)
+    block = max(1, 4_000_000 // (b * n))  # bound the (block x b x n) inner array
+    for lo in range(0, m, block):
+        hi = min(m, lo + block)
+        centred = outer[lo:hi] - mean_o[lo:hi, None]
+        inner = centred[np.arange(hi - lo)[:, None, None], rng.integers(0, n, size=(hi - lo, b, n))]
+        sd_i = inner.std(axis=2, ddof=1)
+        t_i = np.where(
+            sd_i > floor, np.abs(inner.mean(axis=2)) / (np.maximum(sd_i, floor) / root_n), 0.0
+        )
+        p_star[lo:hi] = (np.count_nonzero(t_i >= t_o[lo:hi, None] - 1e-12, axis=1) + 1) / (b + 1)
+    return (int(np.count_nonzero(p_star <= p_obs + 1e-12)) + 1) / (m + 1)
+
+
 def mean_test_p(
     diffs: Sequence[float] | np.ndarray,
     method: str = "auto",
     num_draws: int = 10000,
     seed: int = 0,
     fallback: str = ASYMMETRIC_METHOD,
+    tie_fallback: str = TIE_FALLBACK,
+    tie_gate: float = TIE_GATE,
 ) -> tuple[float, str]:
     """(two-sided p of mean(diffs) = 0, the concrete test used).
 
     ``signflip``: :func:`randomization_test_p` (exact for 0/1 and for symmetric
     differences, anti-conservative for skewed ones); ``boott``: :func:`bootstrap_t_test_p`;
-    ``johnson``: :func:`johnson_test_p`. ``auto``: ``signflip`` unless :func:`asymmetry_gate`
-    fires, then ``fallback`` (default :data:`ASYMMETRIC_METHOD`).
+    ``johnson``: :func:`johnson_test_p`. ``signtest``, ``boott_nz``, ``johnson_nz`` and
+    ``boott_nz_cal`` use only the non-tied differences (H0 is equivalent to "the mean of the
+    non-tied differences is 0", and the zeros only add noise to a studentised mean): the exact
+    sign test, :func:`bootstrap_t_test_p`, :func:`johnson_test_p` and
+    :func:`bootstrap_t_calibrated_p` on them. ``auto``: ``signflip`` unless
+    :func:`asymmetry_gate` fires, then ``fallback`` (default :data:`ASYMMETRIC_METHOD`), or
+    ``tie_fallback`` when it is not ``none`` and the share of zero differences exceeds
+    ``tie_gate`` (:data:`TIE_FALLBACK`, :data:`TIE_GATE`).
     """
     if method not in RAND_METHODS:
         raise ValueError(f"unknown randomisation method {method!r}; choose from {RAND_METHODS}")
     if fallback not in ASYMMETRIC_METHODS:
         raise ValueError(f"unknown fallback {fallback!r}; choose from {ASYMMETRIC_METHODS}")
+    if tie_fallback not in TIE_FALLBACKS:
+        raise ValueError(f"unknown tie fallback {tie_fallback!r}; choose from {TIE_FALLBACKS}")
     if method == "auto":
-        method = fallback if asymmetry_gate(diffs)[2] else "signflip"
+        if not asymmetry_gate(diffs)[2]:
+            method = "signflip"
+        elif tie_fallback != "none" and tie_share(diffs) > tie_gate:
+            method = tie_fallback
+        else:
+            method = fallback
     if method == "boott":
         return bootstrap_t_test_p(diffs, num_draws=num_draws, seed=seed), method
     if method == "johnson":
         return johnson_test_p(diffs), method
+    if method in TIE_METHODS[1:]:
+        nz = nonzero_differences(diffs)
+        if nz.size < 2:
+            return randomization_test_p(nz, num_draws=num_draws, seed=seed), method
+        if method == "signtest":
+            return sign_test_nonzero_p(nz), method
+        if method == "boott_nz":
+            return bootstrap_t_test_p(nz, num_draws=num_draws, seed=seed), method
+        if method == "johnson_nz":
+            return johnson_test_p(nz), method
+        return bootstrap_t_calibrated_p(nz, num_draws=num_draws, seed=seed), method
     return randomization_test_p(diffs, num_draws=num_draws, seed=seed), method
 
 
@@ -1115,6 +1223,8 @@ def compare_pairs(
     clusters: Mapping[Any, Hashable] | None = None,
     rand_method: str = "auto",
     rand_fallback: str = ASYMMETRIC_METHOD,
+    rand_tie_fallback: str = TIE_FALLBACK,
+    rand_tie_gate: float = TIE_GATE,
 ) -> list[PairResolution]:
     """Paired resolvability analysis for ``pairs`` (A, B) of models.
 
@@ -1158,7 +1268,13 @@ def compare_pairs(
             used = "cluster-signflip"
         else:
             p, used = mean_test_p(
-                diffs, rand_method, num_draws=num_draws, seed=seed, fallback=rand_fallback
+                diffs,
+                rand_method,
+                num_draws=num_draws,
+                seed=seed,
+                fallback=rand_fallback,
+                tie_fallback=rand_tie_fallback,
+                tie_gate=rand_tie_gate,
             )
         sd = float(diffs.std(ddof=1)) if diffs.size > 1 else 0.0
         skew, warn = skewness_warning(diffs)

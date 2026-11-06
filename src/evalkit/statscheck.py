@@ -37,6 +37,8 @@ import numpy as np
 
 from .aggregate import (
     ASYMMETRIC_METHOD,
+    TIE_FALLBACK,
+    TIE_GATE,
     compare_pairs,
     mean_test_p,
     minimum_detectable_effect,
@@ -256,6 +258,8 @@ class CellJob:
     ci_method: str = "auto"
     rand_method: str = "auto"
     rand_fallback: str = ASYMMETRIC_METHOD
+    rand_tie_fallback: str = TIE_FALLBACK
+    rand_tie_gate: float = TIE_GATE
 
 
 @dataclass(frozen=True)
@@ -287,7 +291,13 @@ def run_cell(job: CellJob) -> CellResult:
             ci_method=job.ci_method,
         )
         p_rand, _ = mean_test_p(
-            a[i] - b[i], job.rand_method, num_draws=job.draws, seed=s, fallback=job.rand_fallback
+            a[i] - b[i],
+            job.rand_method,
+            num_draws=job.draws,
+            seed=s,
+            fallback=job.rand_fallback,
+            tie_fallback=job.rand_tie_fallback,
+            tie_gate=job.rand_tie_gate,
         )
         rand_rej += p_rand < ALPHA
         sign_rej += cmp.sign_p < ALPHA
@@ -321,6 +331,8 @@ class FwerJob:
     draws: int
     rand_method: str = "auto"
     rand_fallback: str = ASYMMETRIC_METHOD
+    rand_tie_fallback: str = TIE_FALLBACK
+    rand_tie_gate: float = TIE_GATE
 
     @property
     def m(self) -> int:
@@ -377,6 +389,8 @@ def run_fwer(job: FwerJob) -> FwerResult:
             with_power=False,
             rand_method=job.rand_method,
             rand_fallback=job.rand_fallback,
+            rand_tie_fallback=job.rand_tie_fallback,
+            rand_tie_gate=job.rand_tie_gate,
         )
         raw += any(r.rand_p < ALPHA for r in res)
         holm += any(r.resolved for r in res)
@@ -402,6 +416,8 @@ class StatsCheckConfig:
     ci_method: str = "auto"
     rand_method: str = "auto"
     rand_fallback: str = ASYMMETRIC_METHOD
+    rand_tie_fallback: str = TIE_FALLBACK
+    rand_tie_gate: float = TIE_GATE
 
 
 @dataclass(frozen=True)
@@ -499,13 +515,34 @@ def plan(
                         )
                     )
     h0 = [
-        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in h0
+        replace(
+            j,
+            rand_method=config.rand_method,
+            rand_fallback=config.rand_fallback,
+            rand_tie_fallback=config.rand_tie_fallback,
+            rand_tie_gate=config.rand_tie_gate,
+        )
+        for j in h0
     ]
     h1 = [
-        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in h1
+        replace(
+            j,
+            rand_method=config.rand_method,
+            rand_fallback=config.rand_fallback,
+            rand_tie_fallback=config.rand_tie_fallback,
+            rand_tie_gate=config.rand_tie_gate,
+        )
+        for j in h1
     ]
     fwer = [
-        replace(j, rand_method=config.rand_method, rand_fallback=config.rand_fallback) for j in fwer
+        replace(
+            j,
+            rand_method=config.rand_method,
+            rand_fallback=config.rand_fallback,
+            rand_tie_fallback=config.rand_tie_fallback,
+            rand_tie_gate=config.rand_tie_gate,
+        )
+        for j in fwer
     ]
     return h0, h1, skipped, fwer
 
@@ -590,7 +627,8 @@ def render_markdown(report: StatsCheckReport) -> str:
         f"`{cfg.ci_method}`. Intervals are Wilson {MC_LEVEL:.0%} over replications.\n"
     )
     lines.append(
-        f"randomisation-test method `{cfg.rand_method}` (fallback `{cfg.rand_fallback}`).\n"
+        f"randomisation-test method `{cfg.rand_method}` (fallback `{cfg.rand_fallback}`; tie "
+        f"path `{cfg.rand_tie_fallback}` above a tie share of {cfg.rand_tie_gate:g}).\n"
     )
     lines.append("### Type-I error at alpha = 0.05 (H0: true difference 0)\n")
     lines.append("| kind | tie rate | n | randomisation | sign test | CI excludes 0 | warn rate |")

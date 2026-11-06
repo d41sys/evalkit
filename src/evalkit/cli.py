@@ -15,6 +15,9 @@ from .aggregate import (
     ASYMMETRIC_METHODS,
     CI_METHODS,
     RAND_METHODS,
+    TIE_FALLBACK,
+    TIE_FALLBACKS,
+    TIE_GATE,
     PairResolution,
     build_pairwise_matches,
     compare_pairs,
@@ -308,6 +311,7 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
         seed=args.seed,
         ci_method=args.ci_method,
         clusters=table.clusters or None,
+        rand_tie_fallback=args.tie_fallback,
     )
     clustered = any(r.clustering is not None for r in rows)
     print(f"\n### All pairs ({len(pairs)} comparisons, pooled over tasks, A - B)\n")
@@ -388,8 +392,8 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             "Asymmetric differences (the nonzero differences satisfy k < 25 * skewness^2, "
             "Cochran's rule): the sign-flip test assumes each difference is symmetric around 0 "
             "and is anti-conservative otherwise (`evalkit stats-check`), so the randomisation "
-            "p column for these pairs is the "
-            f"{ASYMMETRIC_METHOD} test of the mean instead: {switched_pairs}.\n"
+            "p column for these pairs is the test of the mean named in parentheses "
+            f"(default {ASYMMETRIC_METHOD}) instead: {switched_pairs}.\n"
         )
     return _print_pass_k(
         [(m, table.samples[m]) for m in names], table.clusters or None, args.pass_k, args.seed
@@ -498,6 +502,8 @@ def stats_check_command(args: argparse.Namespace) -> int:
         ci_method=args.ci_method,
         rand_method=args.rand_method,
         rand_fallback=args.rand_fallback,
+        rand_tie_fallback=args.rand_tie_fallback,
+        rand_tie_gate=args.rand_tie_gate,
     )
     try:
         check_args(config.ns + config.fwer_ns, config.ties)
@@ -924,6 +930,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "percentile, bca or studentized (ignored where cluster ids exist: cluster bootstrap)",
     )
     cmp_parser.add_argument(
+        "--tie-fallback",
+        choices=TIE_FALLBACKS,
+        default=TIE_FALLBACK,
+        help="With --all-pairs: test for asymmetric differences when more than "
+        f"{TIE_GATE:g} of the pairs tie (none: the {ASYMMETRIC_METHOD} test on all pairs)",
+    )
+    cmp_parser.add_argument(
         "--pass-k",
         type=int,
         default=None,
@@ -950,6 +963,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=ASYMMETRIC_METHODS,
         default=ASYMMETRIC_METHOD,
         help="test that auto switches to for asymmetric differences",
+    )
+    sc_parser.add_argument(
+        "--rand-tie-fallback",
+        choices=TIE_FALLBACKS,
+        default=TIE_FALLBACK,
+        help="test that auto uses instead of the fallback when asymmetric and mostly tied",
+    )
+    sc_parser.add_argument(
+        "--rand-tie-gate",
+        type=float,
+        default=TIE_GATE,
+        help="share of zero differences above which --rand-tie-fallback applies",
     )
     sc_parser.add_argument("--reps-h0", type=int, default=8000, help="replications per H0 cell")
     sc_parser.add_argument(
