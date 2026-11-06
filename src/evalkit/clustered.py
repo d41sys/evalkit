@@ -12,6 +12,13 @@ with ``SE_CLT^2 = Var(s) / n`` (unbiased variance), ``s_ic`` the score of item `
 same cluster. :func:`clustered_se` computes exactly this; for a mean of per-item *differences*
 it is the SE of a paired difference.
 
+With few clusters that SE is slightly low and a normal interval undercovers. The CR1-style
+small-sample correction (Cameron & Miller 2015) multiplies the SE by ``sqrt(C / (C - 1))`` and
+uses ``t(C - 1)`` instead of the normal quantile in :func:`clustered_normal_ci`. It is the
+default (``small_sample=True``; ``small_sample=False`` gives Miller's formula exactly):
+``docs/protocol-cluster-small-sample.md`` pre-registered the test and its adoption rule, met on
+all three fresh seeds.
+
 Clusters are given as one label per item (any hashable). An item without a cluster is the
 caller's to turn into a singleton label; with every item its own cluster the clustered SE
 equals the naive one.
@@ -22,6 +29,8 @@ from __future__ import annotations
 import math
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
+from statistics import NormalDist
 
 import numpy as np
 
@@ -50,17 +59,21 @@ def naive_se(values: Sequence[float] | np.ndarray) -> float:
     return float(x.std(ddof=1)) / math.sqrt(x.size)
 
 
-def clustered_se(values: Sequence[float] | np.ndarray, codes: np.ndarray) -> float:
+def clustered_se(
+    values: Sequence[float] | np.ndarray, codes: np.ndarray, small_sample: bool = True
+) -> float:
     """Clustered SE of the mean of ``values`` (Miller 2024, formula in the module docstring).
 
     Uses ``sum_{i != j in c} e_i e_j = (sum_i e_i)^2 - sum_i e_i^2`` with ``e = s - s_bar``.
     Clipped at 0 (the cross term can be negative when scores within clusters are negatively
-    correlated). Needs at least two clusters.
+    correlated). ``small_sample`` (default) multiplies the SE by ``sqrt(C / (C - 1))`` (CR1);
+    ``False`` is Miller's formula as published. Needs at least two clusters.
     """
     x = np.asarray(values, dtype=np.float64)
     if x.size != codes.size:
         raise ValueError("values and cluster codes must have the same length")
-    if int(codes.max(initial=-1)) + 1 < 2:
+    c = int(codes.max(initial=-1)) + 1
+    if c < 2:
         raise ValueError("clustered SE needs at least two clusters")
     n = x.size
     e = x - x.mean()
@@ -68,7 +81,101 @@ def clustered_se(values: Sequence[float] | np.ndarray, codes: np.ndarray) -> flo
     by_cluster = np.bincount(codes, weights=e)
     cross = float(by_cluster @ by_cluster) - sq
     var = sq / (n * (n - 1)) + cross / (n * n)
+    if small_sample:
+        var *= c / (c - 1.0)
     return math.sqrt(max(var, 0.0))
+
+
+def _betacf(a: float, b: float, x: float) -> float:
+    """Continued fraction of the incomplete beta function (modified Lentz)."""
+    tiny = 1e-300
+    qab, qap, qam = a + b, a + 1.0, a - 1.0
+    c = 1.0
+    d = 1.0 - qab * x / qap
+    d = 1.0 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 300):
+        m2 = 2 * m
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > tiny else tiny)
+        c = 1.0 + aa / c
+        c = c if abs(c) > tiny else tiny
+        h *= d * c
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > tiny else tiny)
+        c = 1.0 + aa / c
+        c = c if abs(c) > tiny else tiny
+        delta = d * c
+        h *= delta
+        if abs(delta - 1.0) < 1e-15:
+            break
+    return h
+
+
+def _betainc(a: float, b: float, x: float) -> float:
+    """Regularised incomplete beta function ``I_x(a, b)`` for ``0 <= x <= 1``."""
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+    front = math.exp(
+        math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log1p(-x)
+    )
+    if x < (a + 1.0) / (a + b + 2.0):
+        return front * _betacf(a, b, x) / a
+    return 1.0 - front * _betacf(b, a, 1.0 - x) / b
+
+
+@lru_cache(maxsize=256)
+def t_critical(df: int, confidence_level: float = 0.95) -> float:
+    """Two-sided critical value of Student's t with ``df`` degrees of freedom.
+
+    ``P(|T| <= t) = confidence_level``, by bisection on the incomplete beta function
+    (``P(|T| > t) = I_x(df / 2, 1 / 2)`` with ``x = df / (df + t^2)``). Accurate to about 1e-12.
+    """
+    if df < 1:
+        raise ValueError("degrees of freedom must be at least 1")
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError("confidence_level must be in (0, 1)")
+    alpha = 1.0 - confidence_level
+    lo, hi = 0.0, max(2.0, NormalDist().inv_cdf(1.0 - alpha / 2.0))
+    while _betainc(df / 2.0, 0.5, df / (df + hi * hi)) > alpha:
+        hi *= 2.0
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        if _betainc(df / 2.0, 0.5, df / (df + mid * mid)) > alpha:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1e-13 * hi:
+            break
+    return 0.5 * (lo + hi)
+
+
+def clustered_normal_ci(
+    values: Sequence[float] | np.ndarray,
+    codes: np.ndarray,
+    confidence_level: float = 0.95,
+    small_sample: bool = True,
+) -> tuple[float, float, float]:
+    """Mean and the interval ``mean +/- crit * SE_clustered``.
+
+    ``small_sample`` (default, CR1-style): the SE times ``sqrt(C / (C - 1))`` and the
+    ``t(C - 1)`` quantile. ``False``: Miller's SE and the normal quantile. Needs at least two
+    clusters.
+    """
+    x = np.asarray(values, dtype=np.float64)
+    se = clustered_se(x, codes, small_sample=small_sample)
+    c = int(codes.max()) + 1
+    crit = (
+        t_critical(c - 1, confidence_level)
+        if small_sample
+        else NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
+    )
+    mean = float(x.mean())
+    return (mean, mean - crit * se, mean + crit * se)
 
 
 def cluster_bootstrap_means(
@@ -178,13 +285,16 @@ class ClusterStats:
         return self.cluster_se / self.naive_se if self.naive_se > 0.0 else math.nan
 
 
-def cluster_stats(values: Sequence[float] | np.ndarray, codes: np.ndarray) -> ClusterStats:
-    """:class:`ClusterStats` of ``values``; needs at least two clusters."""
+def cluster_stats(
+    values: Sequence[float] | np.ndarray, codes: np.ndarray, small_sample: bool = True
+) -> ClusterStats:
+    """:class:`ClusterStats` of ``values`` (``small_sample``: CR1 clustered SE); needs at least
+    two clusters."""
     icc = estimate_icc(values, codes)
     return ClusterStats(
         n_clusters=int(codes.max()) + 1,
         naive_se=naive_se(values),
-        cluster_se=clustered_se(values, codes),
+        cluster_se=clustered_se(values, codes, small_sample),
         icc=icc,
         deff=design_effect(effective_cluster_size(codes), icc),
     )

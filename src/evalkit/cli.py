@@ -376,7 +376,7 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
         spread = f"{min(finite):.2f}x to {max(finite):.2f}x" if finite else "n/a"
         print(
             "Clustered: items sharing a `cluster_id` are one resampling unit. Naive SE = "
-            "s / sqrt(n); clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2); ratio = "
+            "s / sqrt(n); clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2) times sqrt(C / (C - 1)); ratio = "
             f"clustered / naive (here {spread}). ICC: one-way ANOVA estimate on the paired "
             "differences, clipped at 0. DEFF = 1 + (m - 1) ICC with m = sum of squared cluster "
             "sizes / n; MDE and n for power are inflated by it (n is a count of items). Items "
@@ -473,8 +473,8 @@ def compare_command(args: argparse.Namespace) -> int:
         print(
             "95% CI: cluster bootstrap (whole clusters resampled; rows with fewer than two "
             "clusters fall back to the item bootstrap and show n/a). Naive SE = s / sqrt(n) of "
-            "the per-item differences; clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2); "
-            "SE ratio = clustered / naive. The sign test is item-level and ignores clusters. "
+            "the per-item differences; clustered SE = Miller (2024, arXiv 2411.00640, sec. 3.2) times "
+            "sqrt(C / (C - 1)); SE ratio = clustered / naive. The sign test is item-level and ignores clusters. "
             "Items without a cluster id are their own cluster.\n"
         )
     return _print_pass_k(

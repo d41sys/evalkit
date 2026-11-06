@@ -23,12 +23,14 @@ from evalkit.clustered import (
     cluster_bootstrap_ci,
     cluster_stats,
     cluster_sums,
+    clustered_normal_ci,
     clustered_se,
     design_effect,
     effective_cluster_size,
     encode_clusters,
     estimate_icc,
     naive_se,
+    t_critical,
 )
 from evalkit.models import NoisyModel, OracleModel
 from evalkit.results import load_results, merge_clusters
@@ -64,13 +66,16 @@ def test_clustered_se_matches_miller_double_sum() -> None:
                 if i != j:
                     cross += (values[i] - s_bar) * (values[j] - s_bar)
     expected = math.sqrt(values.var(ddof=1) / n + cross / n**2)
-    assert clustered_se(values, codes) == pytest.approx(expected, rel=1e-12)
+    assert clustered_se(values, codes, small_sample=False) == pytest.approx(expected, rel=1e-12)
+    assert clustered_se(values, codes) == pytest.approx(expected * math.sqrt(3 / 2), rel=1e-12)
 
 
 def test_clustered_se_equals_naive_for_singletons() -> None:
     rng = np.random.default_rng(1)
     x = rng.random(40)
-    assert clustered_se(x, np.arange(40)) == pytest.approx(naive_se(x), rel=1e-12)
+    assert clustered_se(x, np.arange(40), small_sample=False) == pytest.approx(
+        naive_se(x), rel=1e-12
+    )
 
 
 def test_clustered_se_grows_with_intra_cluster_correlation() -> None:
@@ -88,6 +93,35 @@ def test_clustered_se_needs_two_clusters_and_matching_lengths() -> None:
         clustered_se([1.0, 0.0], np.array([0, 1, 1]))
 
 
+@pytest.mark.parametrize(
+    ("df", "confidence", "expected"),
+    [
+        (1, 0.95, 12.7062),
+        (4, 0.95, 2.7764),
+        (19, 0.95, 2.0930),
+        (49, 0.95, 2.0096),
+        (10, 0.99, 3.1693),
+    ],
+)
+def test_t_critical_matches_tables(df: int, confidence: float, expected: float) -> None:
+    assert t_critical(df, confidence) == pytest.approx(expected, abs=1e-4)
+    assert t_critical(100_000) == pytest.approx(1.95996, abs=1e-3)  # tends to the normal 1.96
+
+
+def test_small_sample_correction_is_cr1_factor_and_t_quantile() -> None:
+    y, codes = _clustered_data(0.3, 20, 5, seed=4)
+    plain = clustered_se(y, codes, small_sample=False)
+    assert clustered_se(y, codes) == pytest.approx(plain * math.sqrt(20 / 19))  # the default
+    mean, lo, hi = clustered_normal_ci(y, codes, small_sample=False)
+    assert (hi - lo) / 2 == pytest.approx(1.959964 * plain, rel=1e-6)
+    cmean, clo, chi = clustered_normal_ci(y, codes)
+    assert cmean == mean
+    assert (chi - clo) / 2 == pytest.approx(t_critical(19) * plain * math.sqrt(20 / 19), rel=1e-12)
+    assert clo < lo and chi > hi
+    assert cluster_stats(y, codes).cluster_se == pytest.approx(clustered_se(y, codes))
+    assert cluster_stats(y, codes, small_sample=False).cluster_se == pytest.approx(plain)
+
+
 def test_clustered_se_is_unbiased_in_a_simulation() -> None:
     # true SD of the mean of 40 clusters x 5 items at rho = 0.3: 0.25 sqrt(DEFF / n)
     truth = 0.25 * math.sqrt((1 + 4 * 0.3) / 200)
@@ -95,7 +129,7 @@ def test_clustered_se_is_unbiased_in_a_simulation() -> None:
     for seed in range(400):
         y, codes = _clustered_data(0.3, 40, 5, seed)
         means.append(float(y.mean()))
-        ses.append(clustered_se(y, codes))
+        ses.append(clustered_se(y, codes, small_sample=False))
     assert float(np.std(means, ddof=1)) == pytest.approx(truth, rel=0.1)
     assert float(np.mean(ses)) == pytest.approx(truth, rel=0.1)
 

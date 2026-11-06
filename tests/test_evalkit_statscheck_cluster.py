@@ -11,11 +11,13 @@ from evalkit.clustered import estimate_icc
 from evalkit.statscheck import Rate
 from evalkit.statscheck_cluster import (
     ClusterCheckConfig,
+    ClusterCheckReport,
     ClusterJob,
     ClusterPowerJob,
     ClusterScenario,
     draw_clustered,
     evaluate_claims,
+    evaluate_small_sample,
     plan_cluster,
     render_cluster_markdown,
     run_cluster_cell,
@@ -84,6 +86,8 @@ def test_naive_interval_undercovers_and_cluster_interval_does_not() -> None:
     assert r.coverage["naive"].value < 0.88  # theory: P(|Z| < 1.96 / 1.48) = 0.81
     assert r.coverage["item_bootstrap"].value < 0.9
     assert r.coverage["cluster_normal"].value > 0.91
+    # the CR1 interval is wider on every replication, so it covers at least as often
+    assert r.coverage["cluster_normal_cr1"].value >= r.coverage["cluster_normal"].value
     assert r.coverage["cluster_bootstrap"].value > 0.91
     assert r.se_ratio == pytest.approx(sc.theory_ratio, rel=0.1)
     assert r.p_item is None and r.p_cluster is None
@@ -148,6 +152,42 @@ def test_claims_follow_the_decision_rules() -> None:
     claims = [c for c in evaluate_claims(report) if c.startswith("Claim 2")]
     assert any("clustered-SE normal: not supported" in c for c in claims)  # 0.90 < 0.93
     assert any("cluster bootstrap: approximately supported" in c for c in claims)  # 0.935 >= 0.93
+
+
+def _grid_report(plain: dict[int, Rate], cr1: dict[int, Rate]) -> ClusterCheckReport:
+    """The 72-cell grid with coverage set by cluster count (every other estimator at 0.95)."""
+    base = run_cluster_check(
+        ClusterCheckConfig(
+            reps=2, power_reps=2, resamples=20, draws=20, iccs=(0.0, 0.1, 0.3), workers=1
+        )
+    )
+    cells = []
+    for r in base.cells:
+        c = r.job.scenario.clusters
+        cov = {**r.coverage, "cluster_normal": plain[c], "cluster_normal_cr1": cr1[c]}
+        cells.append(type(r)(r.job, cov, r.se_ratio, r.icc_hat, r.p_item, r.p_cluster))
+    return type(base)(base.config, cells, base.power)
+
+
+def test_small_sample_rule_needs_a_big_drop_and_no_overcover() -> None:
+    low, ok, high = Rate(9000, 10000), Rate(9500, 10000), Rate(9800, 10000)
+    # 24 cells at 20 clusters flagged before; fixed after: 24 -> 0 (and 0 < 16)
+    met = _grid_report({20: low, 50: ok, 100: ok}, {20: ok, 50: ok, 100: ok})
+    text = "\n".join(evaluate_small_sample(met))
+    assert "0 of 72 cells against 24" in text and "Rule for this seed" in text
+    assert ": met (F0 = 24, F1 = 0, O1 = 0)" in text
+    # still 24 flagged after: not a drop
+    same = _grid_report({20: low, 50: ok, 100: ok}, {20: low, 50: ok, 100: ok})
+    assert ": not met (F0 = 24, F1 = 24, O1 = 0)" in "\n".join(evaluate_small_sample(same))
+    # fixed but overcovering at 100 clusters: not met although F1 = 0
+    over = _grid_report({20: low, 50: ok, 100: ok}, {20: ok, 50: ok, 100: high})
+    assert ": not met (F0 = 24, F1 = 0, O1 = 24)" in "\n".join(evaluate_small_sample(over))
+
+
+def test_small_sample_rule_is_only_judged_on_the_registered_grid() -> None:
+    report = run_cluster_check(TINY)
+    text = "\n".join(evaluate_small_sample(report))
+    assert "not the pre-registered 72" in text and "Rule for this seed" not in text
 
 
 def test_cli_stats_check_only_clustered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

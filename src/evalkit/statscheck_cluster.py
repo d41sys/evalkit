@@ -7,8 +7,9 @@ first scoring run). Items come in clusters with a known intra-cluster correlatio
 * coverage of the true value by four 95% intervals: the naive normal interval
   (``mean +/- 1.96 s / sqrt(n)``), the item bootstrap that ``compare`` used before clusters
   (``bootstrap_mean_ci`` / ``paired_comparison``), the clustered-SE normal interval
-  (``clustered_se``, Miller 2024) and the cluster bootstrap (``cluster_bootstrap_ci`` /
-  ``paired_comparison(clusters=...)``);
+  (``clustered_normal_ci``, Miller 2024), the same with the CR1 small-cluster correction
+  (``sqrt(C / (C - 1))`` and ``t(C - 1)``; ``docs/protocol-cluster-small-sample.md``) and the
+  cluster bootstrap (``cluster_bootstrap_ci`` / ``paired_comparison(clusters=...)``);
 * in the paired design (true difference 0) the type-I error of the item-level sign-flip test
   and of the cluster sign-flip test;
 * power at the sample size the design-effect formula returns.
@@ -35,6 +36,7 @@ from .aggregate import (
 )
 from .clustered import (
     cluster_bootstrap_ci,
+    clustered_normal_ci,
     clustered_se,
     design_effect,
     estimate_icc,
@@ -65,7 +67,17 @@ DEFAULT_COUNTS = (20, 50, 100)
 DESIGNS = ("mean", "paired")
 KINDS = ("binary", "continuous")
 SIZES = ("equal", "unequal")
-ESTIMATORS = ("naive", "item_bootstrap", "cluster_normal", "cluster_bootstrap")
+ESTIMATORS = (
+    "naive",
+    "item_bootstrap",
+    "cluster_normal",
+    "cluster_normal_cr1",
+    "cluster_bootstrap",
+)
+CR1_GRID_CELLS = 72
+"""Cells of the pre-registered grid (``docs/protocol-cluster-small-sample.md``)."""
+CR1_MAX_FLAGGED = 16
+"""Half of the 32 flagged cells of the seed-0 clustered report: the adoption threshold."""
 
 
 # ------------------------------------------------------------------ data generation
@@ -175,12 +187,15 @@ def run_cluster_cell(job: ClusterJob) -> ClusterCellResult:
         a, b, codes = draw_clustered(sc, rng)
         d = a - b
         mean = float(d.mean())
-        nse, cse = naive_se(d), clustered_se(d, codes)
+        nse, cse = naive_se(d), clustered_se(d, codes, small_sample=False)
+        _, n_lo, n_hi = clustered_normal_ci(d, codes, small_sample=False)
+        _, c_lo, c_hi = clustered_normal_ci(d, codes, small_sample=True)
         ratio += cse / nse if nse > 0.0 else 1.0
         icc += estimate_icc(d, codes)
         ivs: dict[str, tuple[float, float]] = {
             "naive": (mean - Z95 * nse, mean + Z95 * nse),
-            "cluster_normal": (mean - Z95 * cse, mean + Z95 * cse),
+            "cluster_normal": (n_lo, n_hi),
+            "cluster_normal_cr1": (c_lo, c_hi),
         }
         if sc.design == "mean":
             _, lo, hi = bootstrap_mean_ci(d.tolist(), num_resamples=job.resamples, seed=s)
@@ -451,6 +466,54 @@ def evaluate_claims(report: ClusterCheckReport) -> list[str]:
     return lines
 
 
+def evaluate_small_sample(report: ClusterCheckReport) -> list[str]:
+    """The decision-rule quantities of ``docs/protocol-cluster-small-sample.md`` for one run."""
+    cells = report.cells
+    if not cells:
+        return []
+    f0 = sum(_flagged(r, "cluster_normal") for r in cells)
+    f1 = sum(_flagged(r, "cluster_normal_cr1") for r in cells)
+    o1 = sum(classify_coverage(r.coverage["cluster_normal_cr1"]) == "overcovers" for r in cells)
+    lines = [
+        f"CR1 small-cluster correction: flagged `undercovers` in {f1} of {len(cells)} cells "
+        f"against {f0} for the uncorrected clustered normal interval on the same replications; "
+        f"flagged `overcovers` in {o1}."
+    ]
+    for label, subset in (
+        (f"fewer than {BINDING_MIN_CLUSTERS} clusters", [r for r in cells if _few(r)]),
+        (f"at least {BINDING_MIN_CLUSTERS} clusters", [r for r in cells if not _few(r)]),
+        ("ICC 0", [r for r in cells if r.job.scenario.icc == 0.0]),
+    ):
+        if not subset:
+            continue
+        cr1 = [r.coverage["cluster_normal_cr1"].value for r in subset]
+        plain = [r.coverage["cluster_normal"].value for r in subset]
+        lines.append(
+            f"  {label} ({len(subset)} cells): flagged "
+            f"{sum(_flagged(r, 'cluster_normal_cr1') for r in subset)} corrected vs "
+            f"{sum(_flagged(r, 'cluster_normal') for r in subset)} uncorrected; point coverage "
+            f"{min(cr1):.3f} to {max(cr1):.3f} corrected, {min(plain):.3f} to {max(plain):.3f} "
+            "uncorrected."
+        )
+    if len(cells) == CR1_GRID_CELLS:
+        ok = f1 <= CR1_MAX_FLAGGED and 2 * f1 <= f0 and o1 == 0
+        lines.append(
+            f"Rule for this seed (F1 <= {CR1_MAX_FLAGGED}, F1 <= F0 / 2, no `overcovers`): "
+            f"{'met' if ok else 'not met'} (F0 = {f0}, F1 = {f1}, O1 = {o1}). Adoption needs "
+            "'met' on all three final seeds."
+        )
+    else:
+        lines.append(
+            f"The grid has {len(cells)} cells, not the pre-registered {CR1_GRID_CELLS}: counts "
+            "only, no verdict against the rule."
+        )
+    return lines
+
+
+def _few(r: ClusterCellResult) -> bool:
+    return r.job.scenario.clusters < BINDING_MIN_CLUSTERS
+
+
 def collect_cluster_findings(report: ClusterCheckReport) -> list[str]:
     """Every non-ok coverage / error-rate / power verdict, failures first."""
     fails: list[str] = []
@@ -495,7 +558,9 @@ def render_cluster_markdown(report: ClusterCheckReport) -> str:
         "enumeration up to 20 nonzero differences or clusters). Intervals are Wilson 99% over "
         "replications. Estimators: naive = mean +/- 1.96 s/sqrt(n); item bootstrap = the CI "
         "`compare` printed before clusters; clustered normal = mean +/- 1.96 SE_clustered "
-        "(Miller 2024); cluster bootstrap = percentile interval from resampling clusters. "
+        "(Miller 2024); clustered normal CR1 = mean +/- t(C - 1) sqrt(C / (C - 1)) SE_clustered "
+        "(`docs/protocol-cluster-small-sample.md`); cluster bootstrap = percentile interval "
+        "from resampling clusters. "
         "ICC^ is the mean ANOVA estimate; SE ratio is mean clustered/naive SE next to "
         "sqrt(DEFF) of the design.\n",
     ]
@@ -511,9 +576,9 @@ def render_cluster_markdown(report: ClusterCheckReport) -> str:
         lines.append(f"### Coverage of the true value, design `{design}` ({what}), nominal 0.95\n")
         lines.append(
             "| kind | ICC | ICC^ | clusters | sizes | naive | item bootstrap | clustered normal "
-            "| cluster bootstrap | SE ratio | sqrt(DEFF) |"
+            "| clustered normal CR1 | cluster bootstrap | SE ratio | sqrt(DEFF) |"
         )
-        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for r in rows:
             sc = r.job.scenario
             cov = "".join(
@@ -562,6 +627,8 @@ def render_cluster_markdown(report: ClusterCheckReport) -> str:
         lines.append("")
     lines.append("### Claims under the pre-registered rules\n")
     lines.extend(f"- {c}" for c in evaluate_claims(report))
+    lines.append("\n### Small-cluster correction (`docs/protocol-cluster-small-sample.md`)\n")
+    lines.extend(f"- {c}" for c in evaluate_small_sample(report))
     findings = collect_cluster_findings(report)
     lines.append("\n### Every flagged cell\n")
     if findings:
