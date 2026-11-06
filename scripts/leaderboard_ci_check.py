@@ -315,6 +315,26 @@ def report(
             f"2. Macro (winner `{winner}`): G_pct = {g['percentile']}, G_alt = {g[winner]}. "
             f"Switch if G_pct >= 2 and G_alt <= 1: **{'switch' if sw2 else 'unchanged'}**.",
         ]
+    lines += ["", "## Post-hoc (descriptive, not part of any rule)", ""]
+    for title, group, methods in (
+        ("per-task cells (12)", task, TASK_METHODS),
+        ("macro cells (4)", macro, MACRO_METHODS),
+    ):
+        lines.append(
+            f"Coverage across the {title}: lowest point coverage, cells below 0.90, mean width."
+        )
+        lines.append("")
+        lines += ["| method | lowest | cells < 0.90 | mean width |", "|---|---|---|---|"]
+        for m in methods:
+            cov = [rate(r, m).value for r in group]
+            wid = [r.width[m] / r.reps for r in group]
+            low = sum(c < 0.90 for c in cov)
+            lines.append(f"| {m} | {min(cov):.3f} | {low} | {sum(wid) / len(wid):.3f} |")
+        lines.append("")
+    wins = sum(rate(r, "wilson").value > rate(r, "percentile").value for r in task)
+    lines.append(
+        f"Wilson's point coverage exceeds the percentile interval's in {wins} of 12 per-task cells."
+    )
     return "\n".join(lines) + "\n"
 
 
