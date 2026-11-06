@@ -57,3 +57,23 @@ A method **beats** the baseline if the 95% percentile bootstrap CI over splits o
 1. **Anchor pool = all 10,200 instances**, not only those every model has. Excluding every instance missing for any model would drop all of gsm8k (one model lacks it) and parts of legalbench and wmt14, leaving a scenario without anchors for every method. Missing scores are masked in the IRT fit; for a test model an anchor it lacks is dropped and the remaining anchor weights are renormalised (within the scenario for `stratified`, globally otherwise); `p-irt` uses the available anchors only. For the k-means features a missing training score is imputed with the item's mean over the training models that have it.
 2. **`anchor-correct` features are the raw training-model score vectors** (no per-item standardisation): z-scoring would scale near-constant items (BLEU near 0 for every model) up to unit variance and cluster on noise, and tinyBenchmarks clusters raw correctness vectors. `anchor-irt` standardises its 2-D `(a_i, b_i)` embedding as written.
 3. The reference in evaluation item 3 is `random` and `stratified`, each over 1000 random draws, against the true scores of all 91 models.
+
+## Addendum 2026-11-06 (pre-registered before any rerun): IRT fit convergence check
+
+The committed report (`docs/results/helm-lite-irt-subset.md`) fits every IRT model with a fixed 60 sweeps. Its fit diagnostics show the last-sweep change in the penalised log-likelihood was not near zero (median 0.172 for the 1PL and 0.0332 for the 2PL; max 0.373 and 0.131), so the fits had not converged. This addendum fixes the check before it runs.
+
+**Code change (no effect on defaults).** `fit_irt` gains an optional `tol` (stop at the first sweep whose absolute objective change is below `tol`; default none, so 60 fixed sweeps stay the default) and `IrtFit` gains a `converged` flag (`abs(last_change) < 1e-4`, `IrtFit.sweeps` records the sweeps actually run). `evalkit irt-subset` gains `--sweeps` (default 60) and `--tol` (default none), and its fit diagnostics report the fraction of fits with `converged`.
+
+**Runs** (same data, seed 0, 50 splits, 4 folds, 1000 reference draws; everything else unchanged):
+
+1. Control: `uv run --offline evalkit irt-subset --sweeps 60 --out runs/irt-subset/sweeps60.md`. This must reproduce the committed tables (the comparison below uses this control, not hand-copied numbers, if it differs in any digit; any difference is reported).
+2. Test: `uv run --offline evalkit irt-subset --sweeps 240 --tol 1e-4 --out runs/irt-subset/sweeps240.md`: up to 240 sweeps per fit, stopping early where the change is below 1e-4. If a fit reaches 240 sweeps with the change still at or above 1e-4, it is reported as not converged and is not rerun with more sweeps.
+
+**Decision rule (headline only).** Headline = `anchor-correct` + `blend` (2pl) in section 1 (50 splits, 70/21), the pre-named headline of the protocol. Let `dMAE = MAE(240 sweeps) - MAE(60 sweeps)` and `dtau = tau(240 sweeps) - tau(60 sweeps)` (means over the 50 splits, as in the report):
+
+* If `|dMAE| < 0.002` and `|dtau| < 0.01`: the 60-sweep result stands; the committed numbers remain the reported result and the 240-sweep run is recorded as a robustness check.
+* Otherwise: the 240-sweep numbers are the corrected result. The README and results doc are updated to them, the 60-sweep numbers are kept only as a labelled earlier run, and the doc states which conclusions moved (verdict vs the `stratified` baseline, and the predictions below that are scored on the 60-sweep tables).
+
+In both cases the report states the fraction of fits that converged under the 240-sweep rule, the verdict of the headline against the baseline in both runs, and (labelled post-hoc) the largest |dMAE| and |dtau| over all rows of section 1. No other row is a decision criterion.
+
+The committed report is also scored against its own five predictions in a "Predictions vs outcome" section (held / failed, quoted verbatim); that scoring uses the committed 60-sweep numbers and involves no new run.
