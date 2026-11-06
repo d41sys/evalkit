@@ -998,7 +998,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--fixed-effects", default="0.05,0.10,0.20", help="fixed-effect power cells (empty: none)"
     )
     sc_parser.add_argument(
-        "--workers", type=int, default=0, help="worker processes (0: min(8, cpu count))"
+        "--workers", type=int, default=0, help="worker processes (0: min(4, cpu count))"
     )
     sc_parser.add_argument("--out", default=None, help="also write the markdown report here")
     sc_parser.add_argument(

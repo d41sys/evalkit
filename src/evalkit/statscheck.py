@@ -578,7 +578,8 @@ def _cost(job: CellJob | FwerJob) -> float:
 
 
 def default_workers() -> int:
-    return max(1, min(8, (os.cpu_count() or 1)))
+    # Capped at 4: several overlapping runs at 8 workers each overloaded the owner's machine.
+    return max(1, min(4, (os.cpu_count() or 1)))
 
 
 # ---------------------------------------------------------------------------- report
