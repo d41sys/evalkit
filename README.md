@@ -957,6 +957,20 @@ Mean log-prob beats Min-K% K=20 by 0.089 [0.051, 0.125], but paraphrases are lon
 
 API calls (list prices ASSUMED, not read from the API: Haiku $1/$5, Sonnet 4.5 $3/$15, Opus $5/$25 per million input/output tokens): panel 728 calls, about $7.03; contamination 876 calls, about $1.88; Min-K% paraphrases 150 calls, about $0.16; 1,754 calls and about $9.07 in total (Sonnet panel verdicts reused the earlier MT-Bench cache). The Qwen2.5-0.5B snapshot is 954 MB in the Hugging Face cache; the HELM raw fetch is transient and about 40 MB is kept.
 
+## Annotation sheet and failure-mode counts (`evalkit review`, `evalkit failure-modes`)
+
+A pass rate says how often the model fails, not why. [Husain and Shankar's evals FAQ](https://hamel.dev/blog/posts/evals-faq/) recommend reading failures first (open coding: a free-text note per failure) and then grouping the notes into a small set of failure modes (axial coding), and counting those. Two commands cover the mechanical parts:
+
+```bash
+evalkit review results.jsonl --out sheet.csv [--model M] [--all]
+# open the CSV in a spreadsheet; write a `note` per row, then fill `failure_mode`
+evalkit failure-modes sheet.csv
+```
+
+`review` writes one row per results row with `score < 1` (`--all` adds passes), sorted by model, task, example_id. Columns: `model, task, example_id, score`, then `sample`, `prompt`, `output`, `transcript` when any row carries them, then empty `note` and `failure_mode`. After open coding, rename your notes into shared labels and put them in `failure_mode`; one cell may hold several, separated by `;`. `failure-modes` counts them per model with the share of reviewed rows (rows with a non-blank `failure_mode`) and a Wilson 95% interval, sorted by count, and reports how many rows are still unannotated. Shares can sum past 100% when cells hold several modes. The sheet is a sample of failures, so read the shares as "among reviewed failures", not as a rate over all items.
+
+For ezcross-ems, `ezc eval` writes each case's session log next to `results.json` as `<out>/<model-slug>/<case-id>.jsonl` (the slug replaces every run of characters outside `A-Za-z0-9._-` with `-`). When you build the bridge `results.jsonl`, put that path in each row's `transcript` field and it appears in the sheet.
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
