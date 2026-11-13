@@ -76,7 +76,11 @@ def dirichlet_diff_interval(
     """Credible interval of ``P(win) - P(loss)`` from the posterior's quantiles.
 
     ``draws`` posterior samples (Gamma variates normalised to Dirichlet draws); the endpoints
-    carry Monte Carlo noise of about ``1 / sqrt(draws)`` of the interval width."""
+    carry Monte Carlo noise of about ``1 / sqrt(draws)`` of the interval width. The prior pulls
+    the posterior inside the observed difference (20 wins of 20: credible upper end 0.99), so the
+    returned interval is the hull of the credible interval and the observed difference
+    ``(wins - losses) / n``: the reported estimate is never outside its own interval (widening
+    only, so coverage can only rise)."""
     if min(wins, losses, ties) < 0:
         raise ValueError("counts must be non-negative")
     g = np.random.default_rng(seed).gamma(
@@ -85,4 +89,6 @@ def dirichlet_diff_interval(
     diff = (g[:, 0] - g[:, 1]) / g.sum(axis=1)
     tail = 100.0 * (1.0 - level) / 2.0
     lo, hi = np.percentile(diff, [tail, 100.0 - tail])
-    return (float(lo), float(hi))
+    n = wins + losses + ties
+    observed = (wins - losses) / n if n else 0.0
+    return (min(float(lo), observed), max(float(hi), observed))

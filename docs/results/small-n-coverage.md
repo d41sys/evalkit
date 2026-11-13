@@ -83,3 +83,9 @@ Selection rule applied to this run's data: winner `dirichlet-jeffreys`.
 3. Paired tests: all type-I cells pass: no change.
 
 Wall time 100 s on 4 worker(s).
+
+## Amendment: reported interval contains the observed difference (branch `issue-11-ci-contains-estimate`)
+
+Found on `data/ezc/floor-results.jsonl`: for 20 wins of 20 pairs the Dirichlet-Jeffreys interval was [+0.723, +0.994] around an observed +1.000, because the prior pulls the posterior inside the data. The reported interval is now the hull of the credible interval and the observed difference `(wins - losses) / n` (widening only, so coverage can only rise; `small_n_ci.dirichlet_diff_interval`, used by the shipped `auto` and by the `dirichlet-*` columns of this grid).
+
+The grid was re-run with the same command, seed 5001 and 10 000 replications: the whole report is **identical to every printed digit** (coverage, Wilson intervals, widths, type-I rates, decision lines) except the wall-time line, so the table above stands. Paired coverage of `dirichlet-jeffreys`, all 18 cells: lowest 0.940 (n = 20, psi = 0.6, d = 0.3), none below 0.93; above 0.97 in two cells only, as before (0.988 at n = 20, psi = 0.1, d = 0 and 0.971 at n = 20, psi = 0.1, d = 0.05; reported as `over`, never a failure under the protocol). `dirichlet-uniform` is also unchanged (0.999, 0.995, 0.975, 0.968, 0.966 in the cells it over- or borderline-covers). The hull only acts when every pair is a win or every pair a loss, which the grid reaches too rarely to move a rate at this precision.
