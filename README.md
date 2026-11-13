@@ -1064,6 +1064,34 @@ evalkit trajectory results.jsonl --by category
 
 Run on a hand-built 4-case `results.json` in that shape (not a model run), the `happy_pipeline` group (calls `[get_runs, get_runs, forecast_pipeline]` and `[forecast_pipeline]` against `[get_runs]`) gave pass 0.500, `exact` 0.000, `in_order` and `any_order` 0.500, `precision` 0.333, `recall` 0.500, with n=2 and Wilson intervals as wide as [0.095, 0.905].
 
+## Judge-corrected pass rate (`evalkit judge-correct`)
+
+A judge with TPR below 1 or TNR below 1 gives a biased pass rate. Given the judge's 0/1 verdicts on all items and human labels on a subset, `evalkit judge-correct` estimates the true pass rate (Rogan-Gladen; Lee et al. 2025, [arXiv 2511.21140](https://arxiv.org/abs/2511.21140)).
+
+```bash
+uv run evalkit judge-correct --judge runs/judge/results.jsonl --labels labels.jsonl [--model M]
+```
+
+`--judge` is a normal `results.jsonl` (score = verdict, 0 or 1, one row per item). `--labels` has one row `{"example_id": ..., "label": 0|1}` per labelled item (`task` optional, needed only when an `example_id` occurs in several tasks). It prints:
+
+- **Positive = pass = 1.** TPR = P(judge 1 | human 1), TNR = P(judge 0 | human 0), both on the labelled set with Wilson 95% intervals, the labelled counts, and the raw judge pass rate.
+- **Corrected rate** $\hat\theta = (p + \mathrm{TNR} - 1) / (\mathrm{TPR} + \mathrm{TNR} - 1)$, clipped to [0, 1].
+- **Interval:** delta method, theta plus or minus 1.96 SE, with $SE^2 = [p(1-p)/N + \hat\theta^2\,\mathrm{TPR}(1-\mathrm{TPR})/n_1 + (1-\hat\theta)^2\,\mathrm{TNR}(1-\mathrm{TNR})/n_0] / (\mathrm{TPR}+\mathrm{TNR}-1)^2$, so the calibration set's sampling error widens the interval. Chosen over a bootstrap because it is closed form and is the method of the paper; the check below validates it.
+- **Errors:** TPR + TNR <= 1 (the judge is no better than chance on the labelled set, so the correction is undefined), a missing class among the labels, a label with no judge verdict, non-binary scores.
+- **Assumes** the labelled items are a random sample of the judged items; a hand-picked subset (only the hard cases, say) biases TPR and TNR. The interval treats the labelled set as independent of the judged set.
+
+**Does the interval cover?** `evalkit judge-correct-check --reps 10000 --seed 0` simulates the setup of Lee et al.: judge TPR 0.7, TNR 0.9, 1,000 judged items, 200 labelled items (the human-pass share follows the true theta), 10,000 replications per row. Coverage of the true pass rate by 95% intervals (Wilson 99% interval over replications):
+
+| true theta | corrected CI | naive Wilson CI of the raw judge rate |
+|---|---|---|
+| 0.10 | 97.3% [96.9, 97.7] | 0.0% [0.0, 0.1] |
+| 0.30 | 96.0% [95.4, 96.4] | 72.5% [71.4, 73.7] |
+| 0.50 | 95.5% [95.0, 96.0] | 0.0% [0.0, 0.1] |
+| 0.70 | 95.8% [95.3, 96.3] | 0.0% [0.0, 0.1] |
+| 0.90 | 96.0% [95.4, 96.4] | 0.0% [0.0, 0.1] |
+
+The corrected interval covers 95.5-97.3%; at theta = 0.1 (only about 20 human-pass items in the labelled set) it is conservative, slightly above 97%. The naive interval misses almost always, because the judge's rate (0.16 to 0.64) is far from theta. At theta = 0.3 the judge's rate is 0.28, so the naive interval hits by luck (72.5%), not because it is valid. The test suite runs a 400-replication version with a fixed seed.
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
