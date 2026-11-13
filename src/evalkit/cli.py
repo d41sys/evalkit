@@ -650,6 +650,8 @@ def failure_modes_command(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Error: {e}\n")
         return 1
     print(render_failure_modes(counts))
+    return 0
+
 
 def judge_correct_command(args: argparse.Namespace) -> int:
     """Judge-corrected pass rate: TPR/TNR on a human-labelled subset, Rogan-Gladen estimate."""
