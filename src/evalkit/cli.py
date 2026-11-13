@@ -77,6 +77,7 @@ from .statscheck_cluster import (
     render_cluster_markdown,
     run_cluster_check,
 )
+from .trajectory import load_trajectory_rows, render_trajectory, trajectory_table
 
 
 def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
@@ -694,6 +695,21 @@ def audit_command(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Error: {exc}\n")
         return 1
     print(render_audit(report, args.disagreement))
+
+def trajectory_command(args: argparse.Namespace) -> int:
+    """Trajectory diagnostics (Vertex metrics) per model, next to the pass rate."""
+    try:
+        loaded = load_trajectory_rows(args.results, args.model)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    if not loaded.rows:
+        sys.stderr.write(
+            f"Error: no rows with `tool_calls` and `expected_tools` ({loaded.skipped} skipped)\n"
+        )
+        return 1
+    table = trajectory_table(loaded.rows, args.by, args.tool)
+    print(render_trajectory(table, loaded.skipped))
     return 0
 
 
@@ -1190,6 +1206,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     au.add_argument("--oracle", default=None, help="reference model that must pass saturated items")
     au.add_argument(
         "--disagreement", type=float, default=0.3, help="flag min(p, 1-p) above this over samples"
+
+    # trajectory command
+    tj = subparsers.add_parser(
+        "trajectory",
+        help="Tool-call trajectory diagnostics (Vertex metrics); never part of the score",
+    )
+    tj.add_argument("results", help="results.jsonl with tool_calls and expected_tools per row")
+    tj.add_argument("--model", default=None, help="only this model")
+    tj.add_argument("--tool", default=None, help="also report whether this tool was used")
+    tj.add_argument(
+        "--by",
+        choices=["task", "category"],
+        default=None,
+        help="one table per model and task, or per model and the row's category field",
     )
 
     args = parser.parse_args(argv)
@@ -1218,6 +1248,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return failure_modes_command(args)
     elif args.subcommand == "audit":
         return audit_command(args)
+    elif args.subcommand == "trajectory":
+        return trajectory_command(args)
     elif args.subcommand == "judge":
         return judge_command(args)
     else:

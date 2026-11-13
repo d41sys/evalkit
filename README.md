@@ -1043,6 +1043,27 @@ A real agent that does not beat `donothing` or `refuseall` by a resolved margin 
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
 
+## Trajectory diagnostics (`evalkit trajectory`)
+
+Rows of `results.jsonl` may carry `tool_calls` (tool names in call order) and `expected_tools`. `evalkit trajectory results.jsonl [--model M] [--tool NAME] [--by task|category]` prints, per model (and per group), the mean of the six [Vertex AI agent-evaluation](https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-agents) trajectory metrics (`exact`, `in_order`, `any_order`, `precision`, `recall`, and with `--tool` the single-tool-use check) next to the pass rate (mean `score`) of the same rows. 0/1 columns get a Wilson 95% interval, fractional ones a percentile bootstrap. Rows without both fields are skipped and counted. Rows are the unit; repeated samples are not clustered.
+
+These are diagnostics, not scores: nothing here feeds `score`. An agent that reaches the right outcome by another route is not wrong ([Anthropic, "Demystifying evals for AI agents"](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents): grade the outcome, do not fail valid alternative paths). Use the columns to see where a model's path drifts, not to rank models.
+
+The Vertex page does not define duplicates or empty lists, so the choices are fixed in `src/evalkit/trajectory.py` and pinned by `tests/test_evalkit_trajectory.py`: `in_order` is a subsequence test and `any_order` is multiset containment, so repeated tools must be repeated; `precision` and `recall` count membership, so `recall` can be 1 where `any_order` is 0 (expected `[a, a]`, actual `[a]`); an empty `expected` is satisfied by anything; an empty `actual` scores 0 against a non-empty `expected`; two empty lists score 1.
+
+Bridge from an `ezc eval` `results.json` (one model; `tools` in each case is the tool names in call order). The case file's `expect.tools_any` is an any-of set, not a path, so with it `recall` and `any_order` are the meaningful columns; `exact`, `in_order` and `precision` read low for a correct agent that calls more than one tool. Cases without `tools_any` are dropped by the `select`; `category` becomes the `--by category` group.
+
+```bash
+jq -c --slurpfile c harness/packages/ezc-cli/evals/forecast-v1.jsonl '. as $run
+  | ($c | map({(.id): .expect.tools_any}) | add) as $exp
+  | .cases[] | select($exp[.id])
+  | {task: "forecast-v1", model: $run.ref, example_id: .id, score: (if .pass then 1 else 0 end),
+     category, tool_calls: .tools, expected_tools: $exp[.id]}' results.json > results.jsonl
+evalkit trajectory results.jsonl --by category
+```
+
+Run on a hand-built 4-case `results.json` in that shape (not a model run), the `happy_pipeline` group (calls `[get_runs, get_runs, forecast_pipeline]` and `[forecast_pipeline]` against `[get_runs]`) gave pass 0.500, `exact` 0.000, `in_order` and `any_order` 0.500, `precision` 0.333, `recall` 0.500, with n=2 and Wilson intervals as wide as [0.095, 0.905].
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
