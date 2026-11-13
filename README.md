@@ -1092,6 +1092,24 @@ uv run evalkit judge-correct --judge runs/judge/results.jsonl --labels labels.js
 
 The corrected interval covers 95.5-97.3%; at theta = 0.1 (only about 20 human-pass items in the labelled set) it is conservative, slightly above 97%. The naive interval misses almost always, because the judge's rate (0.16 to 0.64) is far from theta. At theta = 0.3 the judge's rate is 0.28, so the naive interval hits by luck (72.5%), not because it is valid. The test suite runs a 400-replication version with a fixed seed.
 
+## Trial and prompt-variant variance (`evalkit variance`)
+
+Rows of `results.jsonl` may carry `prompt_variant`; repeats of one (item, variant) are the trials (`sample`).
+`evalkit variance results.jsonl [--model M]` splits the variance of a model's item scores into item, prompt variant (within item) and trial parts. It also lists the mean score per variant with its range.
+
+The model is `y = mu + item + variant-within-item + trial`. The components come from a method-of-moments random-effects ANOVA for nested, unbalanced designs (Searle 1971; derivation in the `evalkit.variance` docstring). Negative estimates are cut to 0. A component the data cannot separate prints as not separable: no repeated samples leaves variant and trial together, one variant leaves no variant part.
+
+Power follows Miller (arXiv 2411.00640, sec. 5), extended to variants: Var(mean) = (item + variant / V + trial / (V K)) / n. The table shows the MDE for two models with independent item scores (80% power, alpha 0.05) now, with 2n items, 2K trials and 2V variants, and with unlimited trials and variants (the item-variance floor). Doubling n halves every term, so per model call it always buys the most. The output says how much of that gain doubling K or V gets. Where items are fixed (a 20-case suite), that share and the floor decide whether more trials are worth running. A paired comparison does better than this MDE because pairing removes part of the item variance.
+
+`evalkit compare` adds a per-variant table (min, max, range of each model's mean over the shared items) and the A - B difference per variant when variants exist, so a verdict that depends on the wording is visible.
+
+Recovery on synthetic data (`tests/test_evalkit_variance.py`, 2000 items x 5 variants x 4 trials, true item 0.04, variant 0.02, trial 0.03):
+
+| Run | item | variant | trial |
+|---|---|---|---|
+| balanced | 0.0412 (+3.1%) | 0.0199 (-0.7%) | 0.0301 (+0.5%) |
+| 30% of observations dropped | 0.0399 (-0.3%) | 0.0209 (+4.3%) | 0.0295 (-1.6%) |
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
