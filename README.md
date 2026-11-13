@@ -74,6 +74,12 @@ uv run evalkit run --tasks tasks_hard --models oracle,random --out runs/gsm8k-mo
 uv run --extra hf evalkit run --tasks tasks_hard --models hf:Qwen/Qwen2.5-1.5B-Instruct --workers 1 --hf-batch-size 16
 ```
 
+CI (`.github/workflows/ci.yml`) runs ruff, format check, mypy and pytest on every push to `main` and every pull request. Releases (`release.yml`): bump `version` in `pyproject.toml`, push a tag `v<version>`; the workflow re-runs the tests, checks the tag matches the version, builds the wheel and sdist and attaches them to a GitHub Release. Install from a release without cloning:
+
+```bash
+uv tool install https://github.com/d41sys/evalkit/releases/download/v0.1.0/evalkit-0.1.0-py3-none-any.whl
+```
+
 ## Results
 
 Benchmark results on bundled evaluation tasks (35 arithmetic, 35 trivia MCQ, 10 HumanEval-style, 35 sentiment; 345 example×model pairs):
