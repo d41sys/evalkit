@@ -106,7 +106,7 @@ Headline: **oracle macro mean = 1.000 > noisy:0.3 = 0.714 > random = 0.179**.
 
 The leaderboard CIs are per model. Whether two models differ is a paired question: both answered the same examples, so `evalkit compare` resamples the per-example differences (10,000 resamples) and adds an exact two-sided sign test on wins/losses (ties dropped). The interval is a bootstrap-t (studentized) interval when n < 400 and at most half the pairs tie, and the percentile interval otherwise (`--ci-method` overrides; `percentile`, `bca` and `studentized` are available). The reasons and the Monte Carlo evidence are in "Do the statistics hold up?" below.
 
-The leaderboard's own "95% CI" column is a percentile bootstrap of the macro mean (`bootstrap_macro_ci`), not the bootstrap-t above. It undercovers when scores are near 0 or 1 and n is small (0.26 coverage at n = 10, accuracy 0.97: the interval is a single point 74% of the time); see "Round 5: coverage of the leaderboard interval" below.
+Except for a single task of at most 50 items scored 0/1 (Wilson interval since "Small samples" below), the leaderboard's own "95% CI" column is a percentile bootstrap of the macro mean (`bootstrap_macro_ci`), not the bootstrap-t above. It undercovers when scores are near 0 or 1 and n is small (0.26 coverage at n = 10, accuracy 0.97: the interval is a single point 74% of the time); see "Round 5: coverage of the leaderboard interval" below.
 
 `evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random`:
 
@@ -1109,6 +1109,64 @@ Recovery on synthetic data (`tests/test_evalkit_variance.py`, 2000 items x 5 var
 |---|---|---|---|
 | balanced | 0.0412 (+3.1%) | 0.0199 (-0.7%) | 0.0301 (+0.5%) |
 | 30% of observations dropped | 0.0399 (-0.3%) | 0.0209 (+4.3%) | 0.0295 (-1.6%) |
+
+## Small samples: coverage at n = 20 / 50 / 100 (`docs/protocol-small-n.md`, committed before the harness existed)
+
+The ezcross-ems sets have 20 to 200 cases. Bowyer, Aitchison and Ivanova (arXiv 2503.01747) report that CLT and percentile-bootstrap intervals under-cover at small n and that Wilson and Beta-Bernoulli or Dirichlet credible intervals do not. `evalkit stats-check --only-small-n` checks that for 0/1 outcomes on 12 single-model cells (n in {20, 50, 100}, accuracy 0.5, 0.7, 0.9, 0.95) and 18 paired cells (disagreement rate 0.1, 0.3, 0.6, true difference 0 or half the disagreement rate), plus the type-I error of the paired tests (9 cells). Band fixed in advance: coverage at least 0.93 (above 0.97 is reported, not a failure), type-I error at most 0.06. Candidates, selection and switch rules are in the protocol; development seed 1 chose the winners, seed 5001 (10 000 replications per cell, Monte Carlo SE 0.002 near 0.95) scored them.
+
+```bash
+uv run evalkit stats-check --only-small-n --seed 5001 --small-n-reps 10000 --out runs/stats-check/small-n.md   # 101 s on 4 workers
+```
+
+Single model, coverage of the true accuracy (nominal 0.95; **U** = below 0.93; the old default is the leaderboard's percentile bootstrap):
+
+| n | p | percentile (old default) | Wilson (new, n <= 50) | Jeffreys | uniform |
+|---|---|---|---|---|---|
+| 20 | 0.5 | 0.961 | 0.961 | 0.961 | 0.961 |
+| 20 | 0.7 | 0.949 | 0.974 | 0.946 | 0.974 |
+| 20 | 0.9 | 0.882 **U** | 0.950 | 0.950 | 0.950 |
+| 20 | 0.95 | 0.647 **U** | 0.923 **U** | 0.985 | 0.923 **U** |
+| 50 | 0.5 | 0.961 | 0.936 | 0.936 | 0.936 |
+| 50 | 0.7 | 0.959 | 0.958 | 0.958 | 0.958 |
+| 50 | 0.9 | 0.958 | 0.972 | 0.941 | 0.972 |
+| 50 | 0.95 | 0.910 **U** | 0.960 | 0.882 **U** | 0.960 |
+| 100 | 0.5 | 0.958 | 0.946 | 0.946 | 0.946 |
+| 100 | 0.7 | 0.956 | 0.935 | 0.950 | 0.950 |
+| 100 | 0.9 | 0.955 | 0.934 | 0.955 | 0.934 |
+| 100 | 0.95 | 0.957 | 0.966 | 0.935 | 0.966 |
+
+Paired difference, coverage of the true difference `d` (psi = disagreement rate; "bootstrap" is the previous `auto`: bootstrap-t below 400 pairs unless more than half tie, else percentile; "Dirichlet-Jeffreys" is the new default for n <= 50):
+
+| n | psi | d | bootstrap | Dirichlet-Jeffreys |
+|---|---|---|---|---|
+| 20 | 0.1 | 0 | 0.988 | 0.988 |
+| 20 | 0.1 | 0.05 | 0.779 **U** | 0.971 |
+| 20 | 0.3 | 0 | 0.948 | 0.943 |
+| 20 | 0.3 | 0.15 | 0.953 | 0.948 |
+| 20 | 0.6 | 0 | 0.962 | 0.945 |
+| 20 | 0.6 | 0.3 | 0.954 | 0.940 |
+| 50 | 0.1 | 0 | 0.953 | 0.948 |
+| 50 | 0.1 | 0.05 | 0.919 **U** | 0.952 |
+| 50 | 0.3 | 0 | 0.951 | 0.942 |
+| 50 | 0.3 | 0.15 | 0.942 | 0.951 |
+| 50 | 0.6 | 0 | 0.960 | 0.950 |
+| 50 | 0.6 | 0.3 | 0.959 | 0.949 |
+| 100 | 0.1 | 0 | 0.956 | 0.946 |
+| 100 | 0.1 | 0.05 | 0.956 | 0.947 |
+| 100 | 0.3 | 0 | 0.956 | 0.949 |
+| 100 | 0.3 | 0.15 | 0.955 | 0.949 |
+| 100 | 0.6 | 0 | 0.952 | 0.947 |
+| 100 | 0.6 | 0.3 | 0.954 | 0.948 |
+
+Paired tests, type-I error at alpha 0.05 (true difference 0): all 9 cells pass. The randomisation test is between 0.000 (psi = 0.1, n = 20) and 0.037 (psi = 0.6, n = 100), the sign test between 0.000 and 0.038. Both are conservative at small n, as expected of a conditional exact test on few discordant pairs. No change to the tests.
+
+**Decision (pre-registered rule, `docs/protocol-small-n.md`).** The old defaults fail the band at n = 20 and n = 50 only: the percentile leaderboard interval in 3 of 12 cells (0.647 at n = 20, accuracy 0.95, where it is a single point 36% of the time), the paired bootstrap in 2 of 18 (0.779 and 0.919, disagreement rate 0.1, d = 0.05: two or five discordant pairs). So the defaults switch **for 0/1 scores with at most 50 examples**:
+
+* the leaderboard "95% CI" for a model run on a single task (no cluster labels) is the Wilson interval (the development winner; 1 failing cell against 3), noted under the table; several tasks, more than 50 items, non-0/1 scores (multi-sample means) and clustered tasks keep the stratified bootstrap;
+* `paired_comparison` / `compare` with `--ci-method auto` use the 95% equal-tailed credible interval of the Dirichlet-multinomial posterior (Jeffreys prior, Dirichlet(1/2) on the 2 x 2 table; 4000 draws, seeded) for two 0/1 score lists of at most 50 examples without cluster labels, whatever the tie share (0 failing cells against 2); the table header says so and `ci_method` is `dirichlet`. `--ci-method percentile|studentized|bca` still give the bootstrap, and the rest of `stats-check`'s binary cells at n = 20 and 50 now exercise this interval, so tables from earlier rounds were produced by the bootstrap;
+* this reverses Round 5's "unchanged" for single tasks of at most 50 items; Round 5 flagged a cell when its interval lay entirely below 0.95 and required at most one flagged Wilson cell, while this band is a 0.93 point-estimate floor, and Round 5's grid sizes (10, 35, 240) are not this one's.
+
+Left as they are: the randomisation and sign tests (every type-I cell passes), and everything above 50 items. Limits: no closed-form interval passes every cell (Wilson fails n = 20, accuracy 0.95 at 0.923; Jeffreys passes it at 0.985 but fails n = 50, accuracy 0.95 at 0.882, because binomial coverage oscillates with n and p); sizes 51 to 99 are not on the grid and keep the bootstrap; the Dirichlet interval is the conjugate analogue of the paper's paired model (a latent-Gaussian model fitted by importance sampling), not that model, and over-covers when almost every pair ties (0.971 to 0.988 at disagreement rate 0.1, n = 20). Full tables, widths and the development run: `docs/results/small-n-coverage.md`.
 
 ## Comparison with SOTA
 
