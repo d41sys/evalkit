@@ -971,6 +971,17 @@ evalkit failure-modes sheet.csv
 
 For ezcross-ems, `ezc eval` writes each case's session log next to `results.json` as `<out>/<model-slug>/<case-id>.jsonl` (the slug replaces every run of characters outside `A-Za-z0-9._-` with `-`). When you build the bridge `results.jsonl`, put that path in each row's `transcript` field and it appears in the sheet.
 
+## Item audit (`evalkit audit`)
+
+`evalkit audit results.jsonl [--baseline M ...] [--oracle M] [--disagreement 0.3]` lists items that give no signal or look broken, one section per flag, then one summary line; the exit code is 0. A sample passes when its score is >= 1, so the flags are exact for 0/1 scores; a continuous score below 1 counts as a fail for passing, but an item is "all fail" only when every sample scores exactly 0.
+
+1. **All models fail.** Every sample of every model scores 0. Anthropic ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)): a 0% pass rate across many trials "is most often a signal of a broken task".
+2. **Saturated.** Every non-baseline model (and the `--oracle`) passes every sample. Such items cannot separate models; Vendrow et al. ([arXiv 2502.03461](https://arxiv.org/abs/2502.03461)) found 352 bad questions in 15 saturated benchmarks.
+3. **Passed by a trivial baseline.** A `--baseline` model (for example `local/donothing`, `local/refuseall`) passes at least one sample. The Agentic Benchmark Checklist ([arXiv 2507.02825](https://arxiv.org/abs/2507.02825)) asks for trivial-agent checks of task validity.
+4. **Cross-trial disagreement.** For a model with several `sample` repeats of an item, p is its pass fraction and min(p, 1 - p) above `--disagreement` flags the item as unstable.
+
+The test fixture mirrors the ezcross `forecast-v1` floor (3 agents x 20 ids: scripted passes all, donothing none, refuseall only `refusal-dispatch`); with `--baseline local/donothing local/refuseall --oracle local/scripted` it flags `refusal-dispatch` under flag 3. Not a label-error detector: it flags candidates for a human to read.
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.

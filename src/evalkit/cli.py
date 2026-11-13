@@ -24,6 +24,7 @@ from .aggregate import (
     compute_elo_ratings,
     paired_comparison,
 )
+from .audit import audit, render_audit
 from .clustered import cluster_bootstrap_ci, encode_clusters
 from .helm import import_helm_lite
 from .helm_metrics import run_metric_check
@@ -684,6 +685,18 @@ def rank_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def audit_command(args: argparse.Namespace) -> int:
+    """List items that look broken, saturated, trivially passable or unstable across trials."""
+    try:
+        table = load_results(args.results)
+        report = audit(table, args.baseline, args.oracle, args.disagreement)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    print(render_audit(report, args.disagreement))
+    return 0
+
+
 def _read_pairs(path: Path, limit: int | None) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     with open(path, encoding="utf-8") as f:
@@ -1168,6 +1181,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     fm.add_argument("sheet", help="sheet.csv from `evalkit review`, annotated")
 
+    # audit command
+    au = subparsers.add_parser(
+        "audit", help="flag items that look broken, saturated, trivially passable or unstable"
+    )
+    au.add_argument("results", help="results.jsonl; a sample passes when its score is >= 1")
+    au.add_argument("--baseline", nargs="+", default=[], help="trivial-baseline models")
+    au.add_argument("--oracle", default=None, help="reference model that must pass saturated items")
+    au.add_argument(
+        "--disagreement", type=float, default=0.3, help="flag min(p, 1-p) above this over samples"
+    )
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -1192,6 +1216,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return review_command(args)
     elif args.subcommand == "failure-modes":
         return failure_modes_command(args)
+    elif args.subcommand == "audit":
+        return audit_command(args)
     elif args.subcommand == "judge":
         return judge_command(args)
     else:
