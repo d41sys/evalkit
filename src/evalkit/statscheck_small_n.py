@@ -7,8 +7,9 @@ scoring run). Runs the *shipped* functions and the candidate Bayesian intervals 
 * single-model 95% interval coverage (12 cells: n x accuracy p), for the leaderboard interval
   (``bootstrap_macro_ci`` on one task), bootstrap-t, Wilson, Jeffreys and uniform Beta intervals;
 * paired-difference 95% interval coverage (18 cells: n x disagreement rate psi x true
-  difference 0 or psi / 2) for ``paired_comparison`` ``auto``, the percentile bootstrap and
-  two Dirichlet-multinomial intervals;
+  difference 0 or psi / 2) for the bootstrap ``auto`` method (``paired_comparison``'s default
+  before it switched for small 0/1 samples), the percentile bootstrap and two
+  Dirichlet-multinomial intervals;
 * type-I error of the randomisation and sign tests in the paired cells with a true difference 0.
 
 A cell passes the band at coverage >= 0.93 (point estimate; above 0.97 is reported as ``over``,
@@ -22,14 +23,25 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .aggregate import bootstrap_macro_ci, bootstrap_mean_ci, mean_test_p, paired_comparison
-from .small_n_ci import JEFFREYS, UNIFORM, beta_interval, dirichlet_diff_interval
+from .aggregate import (
+    bootstrap_macro_ci,
+    bootstrap_mean_ci,
+    mean_test_p,
+    resolve_ci_method,
+    sign_test_p,
+)
+from .small_n_ci import (
+    JEFFREYS,
+    UNIFORM,
+    beta_interval,
+    dirichlet_diff_interval,
+    wilson_interval,
+)
 from .statscheck import (
     ALPHA,
     Rate,
     Scenario,
     simulate_pairs,
-    wilson_interval,
     worker_pool,
 )
 
@@ -45,7 +57,7 @@ _EPS = 1e-9
 
 SINGLE_METHODS = ("percentile", "bootstrap-t", "wilson", "jeffreys", "uniform")
 SINGLE_CANDIDATES = ("jeffreys", "wilson", "uniform")
-PAIRED_METHODS = ("auto", "percentile", "dirichlet-jeffreys", "dirichlet-uniform")
+PAIRED_METHODS = ("bootstrap-auto", "percentile", "dirichlet-jeffreys", "dirichlet-uniform")
 PAIRED_CANDIDATES = ("dirichlet-jeffreys", "dirichlet-uniform")
 _PRIORS = {
     "jeffreys": JEFFREYS,
@@ -136,11 +148,11 @@ def _run_paired(
     for i in range(reps):
         s = int(seeds[i])
         diffs = a[i] - b[i]
-        cmp = paired_comparison(a[i].tolist(), b[i].tolist(), num_resamples=resamples, seed=s)
         wins, losses = int((diffs > 0).sum()), int((diffs < 0).sum())
         ties = cell.n - wins - losses
+        auto = resolve_ci_method("auto", cell.n, ties / cell.n)  # the bootstrap default
         ivs = {
-            "auto": (cmp.diff_ci_lo, cmp.diff_ci_hi),
+            "bootstrap-auto": bootstrap_mean_ci(diffs.tolist(), resamples, seed=s, method=auto)[1:],
             "percentile": bootstrap_mean_ci(diffs.tolist(), resamples, seed=s, method="percentile")[
                 1:
             ],
@@ -152,7 +164,7 @@ def _run_paired(
             width[name] += hi - lo
         if cell.effect == 0.0:
             rand_rej += mean_test_p(diffs, "auto", num_draws=draws, seed=s)[0] < ALPHA
-            sign_rej += cmp.sign_p < ALPHA
+            sign_rej += sign_test_p(wins, losses) < ALPHA
     return CellResult(
         cell, reps, covered, {m: w / reps for m, w in width.items()}, int(rand_rej), int(sign_rej)
     )
@@ -314,7 +326,7 @@ def render_markdown(config: SmallNConfig, results: list[CellResult]) -> str:
         "",
         *_decision(single, "percentile", SINGLE_CANDIDATES, "1. Single model"),
         "",
-        *_decision(paired, "auto", PAIRED_CANDIDATES, "2. Paired interval"),
+        *_decision(paired, "bootstrap-auto", PAIRED_CANDIDATES, "2. Paired interval"),
         "",
         "3. Paired tests: "
         + (

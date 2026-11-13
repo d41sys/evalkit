@@ -1,5 +1,6 @@
 """Bayesian intervals for 0/1 outcomes (Bowyer, Aitchison & Ivanova 2025, arXiv 2503.01747).
 
+* :func:`wilson_interval`: Wilson score interval of a binomial proportion.
 * :func:`beta_interval`: equal-tailed credible interval of a single accuracy under a
   ``Beta(prior + k, prior + n - k)`` posterior (``prior`` 1/2 is Jeffreys, 1 is uniform).
 * :func:`dirichlet_diff_interval`: equal-tailed credible interval of the paired difference
@@ -13,7 +14,9 @@ incomplete beta function of :mod:`evalkit.clustered`.
 
 from __future__ import annotations
 
+import math
 from functools import lru_cache
+from statistics import NormalDist
 
 import numpy as np
 
@@ -22,6 +25,18 @@ from .clustered import _betainc
 JEFFREYS = 0.5
 UNIFORM = 1.0
 DIRICHLET_DRAWS = 4000
+
+
+def wilson_interval(successes: int, trials: int, level: float = 0.95) -> tuple[float, float]:
+    """Wilson score interval for a binomial proportion."""
+    if trials <= 0:
+        return (0.0, 1.0)
+    z = NormalDist().inv_cdf(0.5 + level / 2.0)
+    p = successes / trials
+    denom = 1.0 + z * z / trials
+    centre = (p + z * z / (2.0 * trials)) / denom
+    half = z * math.sqrt(p * (1.0 - p) / trials + z * z / (4.0 * trials * trials)) / denom
+    return (max(0.0, centre - half), min(1.0, centre + half))
 
 
 def _beta_quantile(a: float, b: float, q: float) -> float:

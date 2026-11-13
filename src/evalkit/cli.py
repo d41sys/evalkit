@@ -334,7 +334,7 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
     )
     clustered = any(r.clustering is not None for r in rows)
     print(f"\n### All pairs ({len(pairs)} comparisons, pooled over tasks, A - B)\n")
-    ci_head = "cluster bootstrap" if clustered else "paired bootstrap"
+    ci_head = "cluster bootstrap" if clustered else _ci_label([r.ci_method for r in rows])
     rand_head = "cluster randomisation p" if clustered else "randomisation p"
     cluster_head = " clusters | naive SE | clustered SE (ratio) | ICC | DEFF |" if clustered else ""
     print(
@@ -490,7 +490,8 @@ def compare_command(args: argparse.Namespace) -> int:
         )
         print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     else:
-        print("| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |")
+        ci_head = _ci_label([c.ci_method for _, c in results])
+        print(f"| Task | n | A | B | A - B | 95% CI ({ci_head}) | W / L / T | sign p |")
         print("|---|---|---|---|---|---|---|---|")
     for task, c in results:
         cl = c.clustering
@@ -604,6 +605,14 @@ def variance_command(args: argparse.Namespace) -> int:
                 f"Unlimited trials and variants would still leave MDE {table['floor'][2]:.4f}."
             )
     return status
+
+
+def _ci_label(methods: list[str]) -> str:
+    """Table header for the paired interval: bootstrap, Dirichlet posterior, or both."""
+    bayes = [m == "dirichlet" for m in methods]
+    if all(bayes):
+        return "Dirichlet-Jeffreys credible"
+    return "paired bootstrap or Dirichlet-Jeffreys credible" if any(bayes) else "paired bootstrap"
 
 
 def stats_check_command(args: argparse.Namespace) -> int:
@@ -1123,8 +1132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--ci-method",
         choices=CI_METHODS,
         default="auto",
-        help="paired bootstrap CI: auto (studentized below 400 examples, else percentile), "
-        "percentile, bca or studentized (ignored where cluster ids exist: cluster bootstrap)",
+        help="paired CI: auto (Dirichlet-Jeffreys posterior for 0/1 scores up to 50 examples, "
+        "else studentized below 400 examples, else percentile), percentile, bca or studentized "
+        "(ignored where cluster ids exist: cluster bootstrap)",
     )
     cmp_parser.add_argument(
         "--tie-fallback",

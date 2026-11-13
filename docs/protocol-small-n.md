@@ -100,3 +100,30 @@ Numbers are copied from `runs/stats-check/small-n-dev.md` (coverage below 0.93 i
 `N_fail` = 50 for both defaults. **Selection by the rule above:** single model, `wilson` (one failing cell, shortfall 0.011, against `uniform` with the same count and a shortfall that is not smaller, and `jeffreys` with 0.051; `wilson` precedes `uniform` in the tie order); paired, `dirichlet-jeffreys` (zero failing cells, ahead of `dirichlet-uniform` by the order). On the development data both would switch for `n <= 50` (single: 1 failing cell against 3; paired: 0 against 2). The final run decides.
 
 Predictions against development data: 1 partly wrong (`percentile` fails 3 cells, not "every n with p >= 0.9": at n = 50 and 100 with p = 0.9 it covers 0.961; `bootstrap-t` fails 5 cells and is worse). 2 holds for p in {0.5, 0.7} (all four closed-form intervals at or above 0.931; `borderline` at n = 50, p = 0.5); Wilson does not dip below 0.93 at p = 0.9 here (0.955, 0.973, 0.938). 3 holds (psi = 0.1, d = 0.05 at n = 20 and 50; `auto` is the percentile interval there). 4 holds. 5 holds for coverage (no Dirichlet cell below 0.93; over-coverage at psi = 0.1, n = 20: 0.972 and 0.996, and 0.996 for `dirichlet-uniform` at d = 0).
+
+## Final result (fresh seed 5001, 10 000 replications per cell; written after scoring)
+
+```bash
+uv run --offline evalkit stats-check --only-small-n --seed 5001 --small-n-reps 10000 --workers 4 --out runs/stats-check/small-n.md   # 101 s
+```
+
+Full tables: `docs/results/small-n-coverage.md`. In that file the paired column `bootstrap-auto` is the `auto` of this protocol (the bootstrap default: bootstrap-t below 400 examples unless more than half the pairs tie, else percentile); the harness computes it explicitly so it stays the pre-switch default after the switch below. The run was repeated after the harness was changed to compute it explicitly: every number is identical.
+
+| method | failing cells (coverage < 0.93) |
+|---|---|
+| single model `percentile` (default) | 3 of 12: n = 20, p = 0.9 (0.882); n = 20, p = 0.95 (0.647); n = 50, p = 0.95 (0.910) |
+| single model `bootstrap-t` | 5 of 12 |
+| single model `wilson` | 1 of 12: n = 20, p = 0.95 (0.923) |
+| single model `jeffreys` | 1 of 12: n = 50, p = 0.95 (0.882) |
+| single model `uniform` | 1 of 12: n = 20, p = 0.95 (0.923) |
+| paired `bootstrap-auto` (default) | 2 of 18: psi = 0.1, d = 0.05 at n = 20 (0.779) and n = 50 (0.919) |
+| paired `percentile` | 2 of 18 (the same two) |
+| paired `dirichlet-jeffreys` | 0 of 18 (lowest 0.940, over-coverage 0.971 and 0.988 at psi = 0.1, n = 20) |
+| paired `dirichlet-uniform` | 0 of 18 (0.999 at psi = 0.1, n = 20, d = 0) |
+| paired tests, type-I cells above 0.06 | 0 of 9 (randomisation 0.000 to 0.037, sign test 0.000 to 0.038) |
+
+**Rule outcome.** `N_fail` = 50 for both defaults. Rule 1: the development winner `wilson` has 1 failing cell among those with n <= 50 against 3 for `percentile`: **switch** (single-task 0/1 scores, no cluster labels, n <= 50). Rule 2: the development winner `dirichlet-jeffreys` has 0 against 2: **switch** (paired 0/1 scores, no cluster labels, n <= 50). Rule 3: all type-I cells pass, no change to the tests. Rule 1 leaves one failing cell (Wilson, n = 20, p = 0.95, 0.923); the rule does not require zero, and no candidate passes every cell (`jeffreys` passes that cell at 0.985 and fails n = 50, p = 0.95 at 0.882).
+
+Predictions against the final run: 1 partly wrong (as in development: `percentile` fails 3 cells). 2 holds (all closed-form intervals at p in {0.5, 0.7} are at or above 0.935). 3 holds. 4 holds. 5 holds.
+
+**Post-hoc (not part of any rule).** (a) Closed-form intervals for a binomial proportion oscillate in coverage with `n` and `p` (Brown, Cai and DasGupta 2001), which is why the failing cell moves between Wilson and Jeffreys. (b) Sizes between 50 and 100 and above 100 keep the bootstrap by the rule's wording: the grid has no cell there. Round 5's n = 240, p = 0.97 cell (percentile 0.922, Wilson 0.945) is outside this protocol.

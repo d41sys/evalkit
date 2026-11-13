@@ -13,10 +13,10 @@ from typing import Any, Literal
 from .aggregate import (
     LeaderboardReport,
     ModelSummary,
-    bootstrap_macro_ci,
     build_pairwise_matches,
     compare_pairs,
     compute_elo_ratings,
+    leaderboard_ci,
     pareto_frontier,
 )
 from .metrics.calibration import (
@@ -287,7 +287,7 @@ def generate_leaderboard(
                 item_cluster.get((task, example_id), ("\0singleton", example_id))
             )
         clustered_scores = {t: task_labels[t] for t in task_scores if t in clustered_tasks}
-        macro_mean, ci_lo, ci_hi = bootstrap_macro_ci(
+        macro_mean, ci_lo, ci_hi, ci_method = leaderboard_ci(
             task_scores, num_resamples=1000, seed=0, task_clusters=clustered_scores or None
         )
 
@@ -321,6 +321,7 @@ def generate_leaderboard(
                 clustered_tasks=sum(len(set(lab)) >= 2 for lab in clustered_scores.values()),
                 mean_cost=_mean_or_none([r.cost_usd for r in recs]),
                 mean_latency=_mean_or_none([r.latency_s for r in recs]),
+                ci_method=ci_method,
             )
         )
 

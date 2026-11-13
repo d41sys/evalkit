@@ -17,6 +17,7 @@ from .clustered import (
     cluster_sums,
     encode_clusters,
 )
+from .small_n_ci import JEFFREYS, dirichlet_diff_interval, wilson_interval
 
 CI_METHODS = ("auto", "percentile", "bca", "studentized")
 SMALL_N_CI = 400
@@ -30,6 +31,15 @@ MAX_TIE_FRACTION_CI = 0.5
 
 Chosen from development seed 1 (bootstrap-t coverage equals or beats percentile at tie rates
 0 and 0.5 but is clearly worse at 0.8), not from the final seed-0 test data."""
+
+
+SMALL_N_BINARY = 50
+"""0/1 scores with at most this many examples get a closed-form interval instead of a bootstrap:
+Wilson for one model (:func:`leaderboard_ci`), the Dirichlet-Jeffreys posterior for a paired
+difference (:func:`paired_comparison`, ``auto``). 50 is the largest grid size at which the
+bootstrap defaults fell below 93% coverage (``docs/protocol-small-n.md``).
+shortcut: sizes between 50 and the next grid size (100) and above keep the bootstrap, as the
+protocol's rule is stated on the grid; upgrade by extending the grid."""
 
 
 def jackknife_acceleration(arr: np.ndarray) -> float:
@@ -94,17 +104,21 @@ def _studentized_interval(
     return (theta - float(q_hi) * se, theta - float(q_lo) * se)
 
 
-def resolve_ci_method(method: str, n: int, tie_fraction: float = 0.0) -> str:
+def resolve_ci_method(method: str, n: int, tie_fraction: float = 0.0, binary: bool = False) -> str:
     """The concrete interval method ``method`` means (``auto`` resolved).
 
-    ``auto``: :data:`SMALL_N_METHOD` when ``n < SMALL_N_CI`` and at most
-    :data:`MAX_TIE_FRACTION_CI` of the paired differences are exactly zero, else
-    percentile. ``stats-check`` found the second-order methods worse than percentile when
-    most pairs tie (few nonzero differences carry the resampled variance estimate).
+    ``auto``: ``dirichlet`` (the Dirichlet-Jeffreys posterior of the difference) for paired 0/1
+    scores with ``n`` at most :data:`SMALL_N_BINARY`; otherwise :data:`SMALL_N_METHOD` when
+    ``n < SMALL_N_CI`` and at most :data:`MAX_TIE_FRACTION_CI` of the paired differences are
+    exactly zero, else percentile. ``stats-check`` found the second-order methods worse than
+    percentile when most pairs tie (few nonzero differences carry the resampled variance
+    estimate).
     """
     if method not in CI_METHODS:
         raise ValueError(f"unknown CI method {method!r}; choose from {CI_METHODS}")
     if method == "auto":
+        if binary and n <= SMALL_N_BINARY:
+            return "dirichlet"
         small = n < SMALL_N_CI and tie_fraction <= MAX_TIE_FRACTION_CI
         return SMALL_N_METHOD if small else "percentile"
     return method
@@ -227,6 +241,33 @@ def bootstrap_macro_ci(
     return (point, lo, hi)
 
 
+def leaderboard_ci(
+    task_scores: Mapping[str, Sequence[float]],
+    num_resamples: int = 1000,
+    confidence_level: float = 0.95,
+    seed: int = 0,
+    task_clusters: Mapping[str, Sequence[Hashable]] | None = None,
+) -> tuple[float, float, float, str]:
+    """The leaderboard interval: ``(mean, lo, hi, method)``.
+
+    One task of 0/1 scores with at most :data:`SMALL_N_BINARY` items and no cluster labels
+    (fewer than two distinct ones): the Wilson interval, ``method`` ``"wilson"``. Everything
+    else: :func:`bootstrap_macro_ci`, ``"bootstrap"``."""
+    tasks = [t for t, v in task_scores.items() if len(v) > 0]
+    if len(tasks) == 1:
+        scores = np.asarray(task_scores[tasks[0]], dtype=np.float64)
+        labels = None if task_clusters is None else task_clusters.get(tasks[0])
+        clustered = labels is not None and len(set(labels)) >= 2
+        if is_binary(scores) and scores.size <= SMALL_N_BINARY and not clustered:
+            k, n = int(scores.sum()), int(scores.size)
+            lo, hi = wilson_interval(k, n, confidence_level)
+            return (k / n, lo, hi, "wilson")
+    mean, lo, hi = bootstrap_macro_ci(
+        task_scores, num_resamples, confidence_level, seed, task_clusters
+    )
+    return (mean, lo, hi, "bootstrap")
+
+
 def compute_elo_ratings(
     matches: Sequence[tuple[str, str, float]],
     base_rating: float = 1000.0,
@@ -317,6 +358,7 @@ class ModelSummary:
     tie_group: int | None = None
     # number of tasks whose CI resampled whole clusters (rows carried a cluster_id)
     clustered_tasks: int = 0
+    ci_method: str = "bootstrap"  # "wilson" for one small 0/1 task, see leaderboard_ci
     bt_rating: float | None = None
     bt_ci_lower: float | None = None
     bt_ci_upper: float | None = None
@@ -405,6 +447,12 @@ class LeaderboardReport:
                 "carry a cluster_id whole clusters are resampled (the same cluster bootstrap "
                 "`evalkit compare` uses), elsewhere single items."
             )
+        if any(m.ci_method == "wilson" for m in ranked):
+            notes.append(
+                f"95% CI: Wilson score interval for a single task of at most {SMALL_N_BINARY} "
+                "items scored 0/1 (the bootstrap interval is too narrow at that size, "
+                "`docs/protocol-small-n.md`); the bootstrap elsewhere."
+            )
         if with_bt:
             notes.append(
                 "Bradley-Terry: maximum-likelihood strengths from the per-item pairwise outcomes "
@@ -490,13 +538,14 @@ def paired_comparison(
     ci_method: str = "auto",
     clusters: Sequence[Hashable] | None = None,
 ) -> PairedComparison:
-    """Paired bootstrap CI on mean(A - B) plus an exact sign test.
+    """Paired CI on mean(A - B) plus an exact sign test.
 
     Resampling the per-example differences keeps the pairing, so example difficulty
     cancels out instead of widening the interval. ``ci_method`` is resolved by
-    :func:`resolve_ci_method` (default ``auto``: bootstrap-t below 400 examples unless
-    more than half the pairs tie, else percentile) and passed to
-    :func:`bootstrap_mean_ci`.
+    :func:`resolve_ci_method` (default ``auto``: for 0/1 scores with at most
+    :data:`SMALL_N_BINARY` examples the Dirichlet-Jeffreys credible interval of the
+    difference, ``ci_method`` ``"dirichlet"``; else bootstrap-t below 400 examples unless
+    more than half the pairs tie, else percentile) and passed to :func:`bootstrap_mean_ci`.
 
     ``clusters`` (one label per example) replaces the item bootstrap by the cluster bootstrap
     (:func:`evalkit.clustered.cluster_bootstrap_ci`; ``ci_method`` is ignored) and fills
@@ -520,10 +569,21 @@ def paired_comparison(
         clustering = cluster_stats(diffs, codes)
     else:
         tie_fraction = float(np.mean(diffs == 0.0)) if diffs.size else 0.0
-        method = resolve_ci_method(ci_method, int(a.size), tie_fraction)
-        diff, lo, hi = bootstrap_mean_ci(
-            diffs.tolist(), num_resamples=num_resamples, seed=seed, method=method
-        )
+        binary = is_binary(a) and is_binary(b)
+        method = resolve_ci_method(ci_method, int(a.size), tie_fraction, binary)
+        if method == "dirichlet":
+            diff = float(diffs.mean())
+            lo, hi = dirichlet_diff_interval(
+                int((diffs > 0).sum()),
+                int((diffs < 0).sum()),
+                int((diffs == 0).sum()),
+                JEFFREYS,
+                seed=seed,
+            )
+        else:
+            diff, lo, hi = bootstrap_mean_ci(
+                diffs.tolist(), num_resamples=num_resamples, seed=seed, method=method
+            )
     wins = int((diffs > 0).sum())
     losses = int((diffs < 0).sum())
     return PairedComparison(

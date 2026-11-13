@@ -134,3 +134,58 @@ def test_cli_only_small_n(tmp_path: Path, capsys: object) -> None:
     assert code == 0
     assert "Single model: coverage" in text and "Paired tests: type-I" in text
     assert "Type-I error at alpha = 0.05 (H0" not in text  # the main grid did not run
+
+
+# ------------------------------------------------------------- shipped defaults (switched)
+
+
+def test_paired_auto_switches_to_dirichlet_only_for_small_binary() -> None:
+    from evalkit.aggregate import SMALL_N_BINARY, paired_comparison, resolve_ci_method
+
+    assert SMALL_N_BINARY == 50
+    a = [1.0, 1.0, 0.0, 1.0] * 12 + [1.0, 0.0]  # 50 pairs
+    b = [0.0, 1.0, 0.0, 0.0] * 12 + [1.0, 0.0]
+    c = paired_comparison(a, b, num_resamples=50)
+    assert c.ci_method == "dirichlet" and (c.wins, c.losses, c.ties) == (24, 0, 26)
+    assert c.diff == 24 / 50 and c.diff_ci_lo < c.diff < c.diff_ci_hi < 1.0
+    # one more pair: back to the bootstrap; non-binary scores: bootstrap
+    assert paired_comparison([*a, 1.0], [*b, 0.0], num_resamples=50).ci_method != "dirichlet"
+    assert paired_comparison([x * 0.9 for x in a], b, num_resamples=50).ci_method != "dirichlet"
+    # a degenerate sample (all pairs tie) is a proper interval around 0, not [0, 0]
+    tie = paired_comparison([1.0, 0.0] * 5, [1.0, 0.0] * 5)
+    assert tie.diff_ci_lo < 0.0 < tie.diff_ci_hi
+    assert resolve_ci_method("auto", 30, 0.9, binary=True) == "dirichlet"
+    assert resolve_ci_method("auto", 30, 0.9) == "percentile"
+
+
+def test_leaderboard_ci_wilson_only_for_one_small_binary_task() -> None:
+    from evalkit.aggregate import bootstrap_macro_ci, leaderboard_ci
+
+    ones = [1.0] * 19 + [0.0]
+    mean, lo, hi, how = leaderboard_ci({"t": ones})
+    wlo, whi = wilson_interval(19, 20, 0.95)
+    assert how == "wilson" and mean == 0.95 and (lo, hi) == (wlo, whi) and lo > 0.75
+    # the old default would print an interval that is too narrow here
+    _, blo, bhi = bootstrap_macro_ci({"t": ones})
+    assert bhi - blo < hi - lo
+    # all correct: Wilson keeps an interval below 1, the bootstrap would collapse to [1, 1]
+    _, lo, hi, how = leaderboard_ci({"t": [1.0] * 20})
+    assert how == "wilson" and lo < 0.9 and hi == 1.0
+    assert leaderboard_ci({"t": ones + [1.0] * 31})[3] == "bootstrap"  # 51 items
+    assert leaderboard_ci({"t": ones, "u": ones})[3] == "bootstrap"  # macro mean of two tasks
+    assert leaderboard_ci({"t": [0.5] * 19 + [1.0]})[3] == "bootstrap"  # not 0/1
+    labels = {"t": [i // 2 for i in range(20)]}
+    assert leaderboard_ci({"t": ones}, task_clusters=labels)[3] == "bootstrap"
+    assert leaderboard_ci({"t": ones}, task_clusters={"t": ["a"] * 20})[3] == "wilson"
+    # an empty task next to the one real task does not turn it into a macro mean
+    assert leaderboard_ci({"t": ones, "empty": []})[3] == "wilson"
+
+
+def test_leaderboard_markdown_notes_the_wilson_interval() -> None:
+    from evalkit.aggregate import LeaderboardReport, ModelSummary
+
+    def model(how: str) -> ModelSummary:
+        return ModelSummary("m", 0.95, 0.77, 0.99, 0.5, 1000.0, ci_method=how)
+
+    assert "Wilson score interval" in LeaderboardReport([model("wilson")]).to_markdown()
+    assert "Wilson score interval" not in LeaderboardReport([model("bootstrap")]).to_markdown()

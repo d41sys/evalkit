@@ -31,7 +31,6 @@ import os
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
-from statistics import NormalDist
 
 import numpy as np
 
@@ -48,6 +47,7 @@ from .aggregate import (
     required_sample_size_binary,
     skewness_warning,
 )
+from .small_n_ci import wilson_interval as _wilson
 
 ALPHA = 0.05
 MC_LEVEL = 0.99
@@ -75,15 +75,8 @@ FWER_ALL_PAIRS_K = (3, 4, 5)
 
 
 def wilson_interval(successes: int, trials: int, level: float = MC_LEVEL) -> tuple[float, float]:
-    """Wilson score interval for a binomial proportion."""
-    if trials <= 0:
-        return (0.0, 1.0)
-    z = NormalDist().inv_cdf(0.5 + level / 2.0)
-    p = successes / trials
-    denom = 1.0 + z * z / trials
-    centre = (p + z * z / (2.0 * trials)) / denom
-    half = z * math.sqrt(p * (1.0 - p) / trials + z * z / (4.0 * trials * trials)) / denom
-    return (max(0.0, centre - half), min(1.0, centre + half))
+    """Wilson score interval for a binomial proportion (default: the Monte Carlo level)."""
+    return _wilson(successes, trials, level)
 
 
 @dataclass(frozen=True)
