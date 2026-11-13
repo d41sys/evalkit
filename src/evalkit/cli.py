@@ -54,6 +54,13 @@ from .judge import (
     position_flip_rate,
     verdict_score,
 )
+from .judge_correct import (
+    LEE_THETAS,
+    correction_from_files,
+    coverage_check,
+    render,
+    render_coverage,
+)
 from .llmcache import CachedCompleter, CacheMiss, CallBudgetExceeded
 from .metrics.helm_compat import helm_metric_name
 from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
@@ -643,6 +650,23 @@ def failure_modes_command(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Error: {e}\n")
         return 1
     print(render_failure_modes(counts))
+
+def judge_correct_command(args: argparse.Namespace) -> int:
+    """Judge-corrected pass rate: TPR/TNR on a human-labelled subset, Rogan-Gladen estimate."""
+    try:
+        with open(args.labels, encoding="utf-8") as f:
+            labels = [json.loads(line) for line in f if line.strip()]
+        print(render(correction_from_files(args.judge, labels, args.model)))
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    return 0
+
+
+def judge_correct_check_command(args: argparse.Namespace) -> int:
+    """Monte Carlo coverage of the corrected and the naive interval (Lee et al. setup)."""
+    thetas = parse_floats(args.thetas)
+    print(render_coverage(coverage_check(args.reps, args.seed, thetas), args.reps, args.seed))
     return 0
 
 
@@ -1170,6 +1194,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     mc.add_argument("--stride", type=int, default=8, help="use every Nth model of the ranking")
     mc.add_argument("--out", default=None, help="also write the markdown report here")
 
+    # judge-correct commands
+    jc = subparsers.add_parser(
+        "judge-correct",
+        help="pass rate corrected for judge error from a human-labelled subset (Rogan-Gladen)",
+    )
+    jc.add_argument("--judge", required=True, help="results.jsonl, score = judge verdict 0/1")
+    jc.add_argument("--labels", required=True, help="JSONL rows {example_id, label 0/1[, task]}")
+    jc.add_argument("--model", default=None, help="model in the judge file (default: the only one)")
+    jcc = subparsers.add_parser(
+        "judge-correct-check",
+        help="Monte Carlo coverage of the judge-corrected interval against the naive one",
+    )
+    jcc.add_argument("--reps", type=int, default=2000, help="replications per true pass rate")
+    jcc.add_argument("--seed", type=int, default=0)
+    jcc.add_argument(
+        "--thetas", default=",".join(str(t) for t in LEE_THETAS), help="true pass rates"
+    )
+
     # rank command
     rk = subparsers.add_parser(
         "rank", help="Bradley-Terry ranking with bootstrap intervals, next to online Elo"
@@ -1255,6 +1297,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return trajectory_command(args)
     elif args.subcommand == "judge":
         return judge_command(args)
+    elif args.subcommand == "judge-correct":
+        return judge_correct_command(args)
+    elif args.subcommand == "judge-correct-check":
+        return judge_correct_check_command(args)
     else:
         parser.print_help()
         return 1
