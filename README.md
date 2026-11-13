@@ -1,6 +1,6 @@
 # evalkit
 
-Evaluation runner and benchmark harness built from first principles (lessons 70–75).
+Evaluation runner and benchmark harness built from first principles. It supplies the paired statistics for the ezcross-ems agent evals (#1).
 
 ## Problem
 
