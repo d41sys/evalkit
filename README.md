@@ -110,15 +110,15 @@ Except for a single task of at most 50 items scored 0/1 (Wilson interval since "
 
 `evalkit compare runs/demo/results.jsonl --a noisy:0.3 --b random`:
 
-| Task | n | A | B | A - B | 95% CI (paired bootstrap) | W / L / T | sign p |
+| Task | n | A | B | A - B | 95% CI (paired bootstrap or Dirichlet-Jeffreys credible) | W / L / T | sign p |
 |---|---|---|---|---|---|---|---|
-| arithmetic_qa | 35 | 0.714 | 0.000 | +0.714 | [+0.530, +0.845] | 25 / 0 / 10 | 5.96e-08 |
-| code_humaneval | 10 | 0.800 | 0.000 | +0.800 | [+0.667, +1.000] | 8 / 0 / 2 | 0.00781 |
-| sentiment | 35 | 0.657 | 0.514 | +0.143 | [-0.113, +0.382] | 12 / 7 / 16 | 0.359 |
-| trivia_mcq | 35 | 0.686 | 0.200 | +0.486 | [+0.223, +0.683] | 20 / 3 / 12 | 0.000488 |
+| arithmetic_qa | 35 | 0.714 | 0.000 | +0.714 | [+0.507, +0.819] | 25 / 0 / 10 | 5.96e-08 |
+| code_humaneval | 10 | 0.800 | 0.000 | +0.800 | [+0.333, +0.905] | 8 / 0 / 2 | 0.00781 |
+| sentiment | 35 | 0.657 | 0.514 | +0.143 | [-0.100, +0.359] | 12 / 7 / 16 | 0.359 |
+| trivia_mcq | 35 | 0.686 | 0.200 | +0.486 | [+0.233, +0.655] | 20 / 3 / 12 | 0.000488 |
 | ALL | 115 | 0.696 | 0.217 | +0.478 | [+0.352, +0.591] | 65 / 10 / 40 | 5.15e-11 |
 
-On sentiment the 0.14 gap between noisy:0.3 and random is not distinguishable from zero at n = 35 (CI crosses 0, p = 0.36), although the leaderboard shows 0.657 vs 0.514. p-values are not corrected for the four tasks.
+Rows with at most 50 items show the Dirichlet-Jeffreys interval ("Small samples" below); the ALL row (n = 115) keeps the bootstrap. On sentiment the 0.14 gap between noisy:0.3 and random is not distinguishable from zero at n = 35 (CI crosses 0, p = 0.36), although the leaderboard shows 0.657 vs 0.514. p-values are not corrected for the four tasks.
 
 ### Resolvability: all pairs, Holm correction, power
 
@@ -198,6 +198,8 @@ Per task: score and, for the real models, the Wilson 95% interval of the pass ra
 | sentiment | 35 | 1.000 | 1.000 | +0.000 | [+0.000, +0.000] | 0 / 0 / 35 | 1 |
 | trivia_mcq | 35 | 0.971 | 1.000 | -0.029 | [-0.086, +0.000] | 0 / 1 / 34 | 1 |
 | ALL | 115 | 0.983 | 0.983 | +0.000 | [-0.026, +0.026] | 1 / 1 / 113 | 1 |
+
+This table predates the small-n defaults: rerun today, the four per-task rows (n <= 50, 0/1 scores) print the Dirichlet-Jeffreys interval instead; the ALL row is unchanged. Not rerun (needs the local Qwen models).
 
 **Result: 1.5B vs 3B is unresolved.** 113 of 115 examples tie; the 1.5B model wins one (code_008, see below) and loses one (mcq_006), so the pooled difference is exactly 0 (randomisation p = 1, Holm p = 1) and the macro-mean ranking in the leaderboard (0.986 vs 0.968) comes only from the 10-example code task, where one failure moves the task mean by 0.1. Do not read "1.5B beats 3B" out of the leaderboard. Because the observed difference is 0, "n needed" has no value at the observed effect; for a stated effect, `--models <1.5B>,<3B> --effect 0.05` gives **n ≈ 157** and `--effect 0.02` gives **n ≈ 394** examples for 80% power (alpha 0.05; the first version of this paragraph said 56 and 345 from a normal approximation with the SD of the differences), against n = 115 here. These come from the exact McNemar power at the observed discordant rate; with 2 discordant pairs of 115 (1.7%) that rate is below both target effects, so it is raised to the effect (every discordant pair favouring one model) and the numbers are lower bounds. The MDE at n = 115 is `unattainable` for the same reason. Honest reading: the suite is too easy to produce disagreement between the two, so it cannot tell whether a 2-point gap exists.
 
@@ -1001,7 +1003,7 @@ Fields of `results.json` the bridge reads: `ref` (the agent, becomes `model`), `
 
 ### Cost and latency (`leaderboard`)
 
-Rows may carry `cost_usd` and `latency_s`. When any row does, `evalkit leaderboard --recompute` adds the columns "Mean cost (USD)" and "Mean latency (s)" (means over the rows that carry the field) and a "Pareto" column: `yes` when no other model has a macro mean at least as high and a mean cost at most as low with one of the two strictly better. Exactly tied models stay on the frontier together; models without a cost are not marked. This is the joint accuracy-and-cost reporting Kapoor et al. ([arXiv 2407.01502](https://arxiv.org/abs/2407.01502)) recommend, because accuracy alone favours needlessly expensive agents.
+Rows may carry `cost_usd` and `latency_s`. When any row does, `evalkit leaderboard --recompute` adds the columns "Mean cost (USD)" and "Mean latency (s)" (per model, only when every row of that model carries the field; a mean over a subset of rows is not comparable) and a "Pareto" column: `yes` when no other model has a macro mean at least as high and a mean cost at most as low with one of the two strictly better. Exactly tied models stay on the frontier together; models without a cost are not marked. This is the joint accuracy-and-cost reporting Kapoor et al. ([arXiv 2407.01502](https://arxiv.org/abs/2407.01502)) recommend, because accuracy alone favours needlessly expensive agents.
 
 The same bridge with cost and latency; prices are USD per million tokens, passed by you (they are not read from the API):
 
@@ -1017,7 +1019,7 @@ Use one price set per agent: run the `jq` once per provider and `cat` the files 
 
 ### The floor: a fresh clone reproduces it without an API key
 
-Three scripted agents bound what a real agent can score. From ezcross `harness/`:
+Three scripted agents bound what a real agent can score. The script ships in [d41sys/ezcross-ems#240](https://github.com/d41sys/ezcross-ems/pull/240); until that PR is merged, run it from that branch. Without ezcross, `data/ezc/floor-results.jsonl` holds the same 60 scores. From ezcross `harness/`:
 
 ```bash
 bun run packages/ezc-cli/scripts/eval-floor.ts --out runs/floor

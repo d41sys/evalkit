@@ -213,9 +213,10 @@ def _score_prediction(
 
 
 def _mean_or_none(vals: Sequence[float | None]) -> float | None:
-    """Mean over the rows that carry the field; None when none do."""
-    present = [v for v in vals if v is not None]
-    return float(sum(present) / len(present)) if present else None
+    """Mean when every row carries the field; None otherwise (a partial mean is not comparable)."""
+    if not vals or any(v is None for v in vals):
+        return None
+    return float(sum(vals) / len(vals))  # type: ignore[arg-type]
 
 
 def generate_leaderboard(

@@ -362,7 +362,7 @@ class ModelSummary:
     bt_rating: float | None = None
     bt_ci_lower: float | None = None
     bt_ci_upper: float | None = None
-    # mean over the rows that carry cost_usd / latency_s; None when no row does
+    # mean when every row of the model carries cost_usd / latency_s; None otherwise
     mean_cost: float | None = None
     mean_latency: float | None = None
     pareto: bool = False
@@ -476,7 +476,8 @@ class LeaderboardReport:
             notes.append(
                 "Pareto: yes = no other model has a macro mean at least as high and a mean cost "
                 "at most as low with one strictly better (Kapoor et al., arXiv 2407.01502). "
-                "Cost and latency are means over the rows that carry `cost_usd` / `latency_s`."
+                "Cost and latency are per-model means, shown only when every row of the model "
+                "carries `cost_usd` / `latency_s`."
             )
         for note in notes:
             lines.extend(["", note])

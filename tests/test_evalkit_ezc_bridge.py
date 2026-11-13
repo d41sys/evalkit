@@ -66,3 +66,12 @@ def test_cost_roundtrip() -> None:
     back = EvalRecord.from_dict(r.to_dict())
     assert (back.cost_usd, back.latency_s) == (0.25, 3.5)
     assert "cost_usd" not in _rec("A", "e0", 1.0, None, None).to_dict()
+
+
+def test_partially_priced_model_is_unpriced() -> None:
+    # F has cost on one of two rows: its mean would come from a different subset, so no cost
+    recs = [_rec("F", "e0", 1.0, 0.01, None), _rec("F", "e1", 1.0, None, None)]
+    recs += [_rec("G", f"e{i}", 0.5, 1.0, None) for i in range(2)]
+    by = {m.model_name: m for m in generate_leaderboard(recs).models}
+    assert by["F"].mean_cost is None and not by["F"].pareto
+    assert by["G"].pareto

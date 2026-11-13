@@ -360,6 +360,8 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
             f"{r.sign_p:.3g} | {r.rand_p:.3g} | {r.holm_p:.3g} | {mde} | {needed} | "
             f"{_verdict(r)} |"
         )
+    if not clustered and any(r.ci_method == "dirichlet" for r in rows):
+        print("\n" + DIRICHLET_NOTE)
     target = "the observed |A - B|" if args.effect is None else f"|A - B| = {args.effect}"
     methods = sorted({r.ci_method for r in rows})
     kinds = {r.binary for r in rows}
@@ -516,6 +518,8 @@ def compare_command(args: argparse.Namespace) -> int:
         "\nALL pools examples across tasks (micro average). "
         "p-values are not corrected for the number of tasks.\n"
     )
+    if not clustered and any(c.ci_method == "dirichlet" for _, c in results):
+        print(DIRICHLET_NOTE)
     if clustered:
         print(
             "95% CI: cluster bootstrap (whole clusters resampled; rows with fewer than two "
@@ -613,6 +617,14 @@ def _ci_label(methods: list[str]) -> str:
     if all(bayes):
         return "Dirichlet-Jeffreys credible"
     return "paired bootstrap or Dirichlet-Jeffreys credible" if any(bayes) else "paired bootstrap"
+
+
+DIRICHLET_NOTE = (
+    "Dirichlet-Jeffreys rows (0/1 scores, n <= 50): a Bayesian credible interval for A - B "
+    '(calibrated coverage, see README "Small samples"), widened to include the observed '
+    "difference. p-values and the verdict come from the exact tests, which are more "
+    "conservative at small n, so an interval can exclude 0 while p > 0.05; trust the verdict.\n"
+)
 
 
 def stats_check_command(args: argparse.Namespace) -> int:

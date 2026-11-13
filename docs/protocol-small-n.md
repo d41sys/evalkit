@@ -127,3 +127,9 @@ Full tables: `docs/results/small-n-coverage.md`. In that file the paired column 
 Predictions against the final run: 1 partly wrong (as in development: `percentile` fails 3 cells). 2 holds (all closed-form intervals at p in {0.5, 0.7} are at or above 0.935). 3 holds. 4 holds. 5 holds.
 
 **Post-hoc (not part of any rule).** (a) Closed-form intervals for a binomial proportion oscillate in coverage with `n` and `p` (Brown, Cai and DasGupta 2001), which is why the failing cell moves between Wilson and Jeffreys. (b) Sizes between 50 and 100 and above 100 keep the bootstrap by the rule's wording: the grid has no cell there. Round 5's n = 240, p = 0.97 cell (percentile 0.922, Wilson 0.945) is outside this protocol.
+
+## Amendment 1 (2026-11-13, after the scored run; not pre-registered)
+
+Change: the shipped Dirichlet-Jeffreys paired interval is the hull of the 95% credible interval and the observed difference `(wins - losses) / n` (PR #21). Reason: at a boundary split such as 20 / 0 / 0 the credible interval excludes the observed `+1.000` (`[+0.723, +0.994]`), which reads as a bug. The hull only widens, so coverage can only rise. It changes the interval only when every non-tied pair goes one way.
+
+Order: the seed-5001 grid was rerun with the hull before this amendment was written. Every printed number came out identical, so no decision changed. The original pre-registration order is preserved in PR #20's commits (author times): this protocol `1c26ed7` 00:39, harness `23581cc` 00:41, development outcome `b452680` 00:42, scored results `dc95a8e` 00:49 UTC. The squash merge to `main` (`b5e62cb`) collapses them.
