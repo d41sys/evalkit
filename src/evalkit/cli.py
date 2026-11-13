@@ -58,6 +58,7 @@ from .metrics.helm_compat import helm_metric_name
 from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
 from .ranking import bradley_terry_bootstrap, render_bradley_terry
 from .results import ClusterLabel, ItemKey, load_results, merge_clusters
+from .review import failure_mode_counts, render_failure_modes, write_review_sheet
 from .runner import EceBinning, EvalRecord, generate_leaderboard, run
 from .samples import pass_hat_k
 from .spec import SpecError, TaskSpec
@@ -627,6 +628,22 @@ def metric_check_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def review_command(args: argparse.Namespace) -> int:
+    n = write_review_sheet(args.results, args.out, model=args.model, include_passes=args.all)
+    print(f"wrote {n} rows to {args.out}")
+    return 0
+
+
+def failure_modes_command(args: argparse.Namespace) -> int:
+    try:
+        counts = failure_mode_counts(args.sheet)
+    except (OSError, ValueError) as e:
+        sys.stderr.write(f"Error: {e}\n")
+        return 1
+    print(render_failure_modes(counts))
+    return 0
+
+
 def rank_command(args: argparse.Namespace) -> int:
     """Bradley-Terry ratings with bootstrap intervals and online Elo from a results file."""
     try:
@@ -1140,6 +1157,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     rk.add_argument("--out", default=None, help="also write the markdown report here")
 
+    rv = subparsers.add_parser("review", help="Write a CSV annotation sheet of failing items")
+    rv.add_argument("results", help="results.jsonl")
+    rv.add_argument("--out", required=True, help="sheet.csv to write")
+    rv.add_argument("--model", default=None, help="only this model")
+    rv.add_argument("--all", action="store_true", help="include passing items")
+
+    fm = subparsers.add_parser(
+        "failure-modes", help="Count the failure_mode labels filled into a review sheet"
+    )
+    fm.add_argument("sheet", help="sheet.csv from `evalkit review`, annotated")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -1160,6 +1188,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return metric_check_command(args)
     elif args.subcommand == "rank":
         return rank_command(args)
+    elif args.subcommand == "review":
+        return review_command(args)
+    elif args.subcommand == "failure-modes":
+        return failure_modes_command(args)
     elif args.subcommand == "judge":
         return judge_command(args)
     else:
