@@ -116,7 +116,7 @@ def test_paired_comparison_counts_and_degenerate_ci() -> None:
     assert c.diff == pytest.approx(0.5)
     assert c.diff_ci_lo <= 0.5 <= c.diff_ci_hi
 
-    same = paired_comparison([1.0] * 5, [0.0] * 5)
+    same = paired_comparison([1.0] * 5, [0.0] * 5, ci_method="percentile")
     assert (same.diff_ci_lo, same.diff_ci_hi) == (1.0, 1.0)
 
 
@@ -450,7 +450,12 @@ def test_bootstrap_methods_degenerate_and_dispatch() -> None:
     assert resolve_ci_method("studentized", 10) == "studentized"
     with pytest.raises(ValueError):
         bootstrap_mean_ci([1.0, 2.0], 10, method="nope")
-    assert paired_comparison([1, 0, 1, 1], [0, 0, 1, 0]).ci_method == SMALL_N_METHOD
+    # 0/1 scores up to SMALL_N_BINARY examples use the Dirichlet posterior; other scores do not
+    assert paired_comparison([1, 0, 1, 1], [0, 0, 1, 0]).ci_method == "dirichlet"
+    assert paired_comparison([0.5, 0, 1, 1], [0, 0, 1, 0]).ci_method == SMALL_N_METHOD
+    assert paired_comparison([1, 0, 1, 1], [0, 0, 1, 0], ci_method="studentized").ci_method == (
+        SMALL_N_METHOD
+    )
     assert paired_comparison([1, 0, 1, 1], [0, 0, 1, 0], ci_method="percentile").ci_method == (
         "percentile"
     )

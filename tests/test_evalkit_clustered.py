@@ -400,7 +400,7 @@ def test_cli_compare_without_clusters_keeps_the_old_table(
     _write_results(p, [{k: v for k, v in r.items() if k != "cluster_id"} for r in _cluster_rows()])
     assert main(["compare", str(p), "--a", "A", "--b", "B"]) == 0
     out = capsys.readouterr().out
-    assert "95% CI (paired bootstrap)" in out and "clustered" not in out
+    assert "95% CI (Dirichlet-Jeffreys credible)" in out and "clustered" not in out
 
 
 def test_cli_all_pairs_clustered_columns_and_cluster_conflict(
