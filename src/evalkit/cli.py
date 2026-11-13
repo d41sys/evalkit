@@ -85,6 +85,13 @@ from .statscheck_cluster import (
     run_cluster_check,
 )
 from .trajectory import load_trajectory_rows, render_trajectory, trajectory_table
+from .variance import (
+    Observation,
+    load_observations,
+    precision_table,
+    variance_components,
+    variant_means,
+)
 
 
 def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
@@ -411,6 +418,32 @@ def compare_all_pairs_command(args: argparse.Namespace) -> int:
     )
 
 
+def _print_variant_range(
+    a: tuple[str, list[Observation]], b: tuple[str, list[Observation]], shared: list[ItemKey]
+) -> None:
+    """Per-prompt-variant mean range of both models (only when some model has variants)."""
+    keys = set(shared)
+    means = [(name, variant_means(obs, keys)) for name, obs in (a, b)]
+    if all(len(m) < 2 for _, m in means):
+        return
+    print("Prompt variants (mean score per variant, shared items):\n")
+    print("| Model | variants | min | max | range |")
+    print("|---|---|---|---|---|")
+    for name, m in means:
+        if not m:
+            continue
+        lo, hi = min(m, key=lambda v: m[v]), max(m, key=lambda v: m[v])
+        print(
+            f"| {name} | {len(m)} | {m[lo]:.3f} ({lo}) | {m[hi]:.3f} ({hi}) | {m[hi] - m[lo]:.3f} |"
+        )
+    common = means[0][1].keys() & means[1][1].keys()
+    if len(common) > 1:
+        diffs = {v: means[0][1][v] - means[1][1][v] for v in common}
+        lo, hi = min(diffs, key=lambda v: diffs[v]), max(diffs, key=lambda v: diffs[v])
+        flip = " The sign of A - B depends on the variant." if diffs[lo] < 0 < diffs[hi] else ""
+        print(f"\nA - B per variant: {diffs[lo]:+.3f} ({lo}) to {diffs[hi]:+.3f} ({hi}).{flip}\n")
+
+
 def compare_command(args: argparse.Namespace) -> int:
     """Paired comparison of two models on the examples both were scored on."""
     if args.all_pairs:
@@ -489,12 +522,86 @@ def compare_command(args: argparse.Namespace) -> int:
             "and ignores clusters. "
             "Items without a cluster id are their own cluster.\n"
         )
+    _print_variant_range(
+        (args.a, load_observations(file_a).get(args.a, [])),
+        (args.b, load_observations(file_b).get(args.b, [])),
+        shared,
+    )
     return _print_pass_k(
         [(args.a, table_a.samples.get(args.a, {})), (args.b, table_b.samples.get(args.b, {}))],
         clusters,
         args.pass_k,
         args.seed,
     )
+
+
+def variance_command(args: argparse.Namespace) -> int:
+    """Item, prompt-variant and trial variance per model, and what more n, K or V buys."""
+    try:
+        by_model = load_observations(args.results)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 1
+    if args.model:
+        if args.model not in by_model:
+            sys.stderr.write(f"Error: model {args.model!r} not in {args.results}\n")
+            return 1
+        by_model = {args.model: by_model[args.model]}
+    status = 1
+    for model, obs in by_model.items():
+        print(f"\n### {model}\n")
+        try:
+            vc = variance_components(obs)
+        except ValueError as exc:
+            print(f"No variance split: {exc}.")
+            continue
+        status = 0
+        total = vc.item + vc.within
+        print(
+            f"{vc.n_items} items, {vc.n_variants} prompt variant(s), {vc.n_obs} observations "
+            f"({vc.variants_per_item:.3g} variants per item, {vc.trials_per_cell:.3g} trials "
+            "per variant)\n"
+        )
+        print("| Component | variance | share |")
+        print("|---|---|---|")
+        rows = [("item", vc.item)]
+        if math.isnan(vc.trial):
+            rows.append(("within item (prompt variant + trial, not separable)", vc.within))
+        else:
+            if not math.isnan(vc.variant):
+                rows.append(("prompt variant (within item)", vc.variant))
+            rows.append(("trial", vc.trial))
+        for name, var in rows:
+            print(
+                f"| {name} | {var:.5f} | {var / total:.1%} |" if total else f"| {name} | 0 | n/a |"
+            )
+        means = variant_means(obs)
+        if len(means) > 1:
+            print("\n| Prompt variant | mean score |")
+            print("|---|---|")
+            for variant, mean in sorted(means.items(), key=lambda kv: kv[1]):
+                print(f"| {variant} | {mean:.3f} |")
+            print(
+                f"\nRange across variants: {min(means.values()):.3f} to {max(means.values()):.3f}."
+            )
+        print("\n| Design | SE of mean | MDE (two models, 80% power) |")
+        print("|---|---|---|")
+        table = precision_table(vc)
+        for label, se, mde in table.values():
+            print(f"| {label} | {se:.4f} | {mde:.4f} |")
+        gain = table["now"][2] - table["2n"][2]
+        shares = ", ".join(
+            f"{key} {(table['now'][2] - table[key][2]) / gain:.0%}"
+            for key in ("2K", "2V")
+            if key in table and gain > 0
+        )
+        if shares:
+            print(
+                "\nDoubling n halves every variance term, so it always buys the most per call. "
+                f"Share of its MDE reduction that doubling the other factor gets: {shares}. "
+                f"Unlimited trials and variants would still leave MDE {table['floor'][2]:.4f}."
+            )
+    return status
 
 
 def stats_check_command(args: argparse.Namespace) -> int:
@@ -1269,6 +1376,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="one table per model and task, or per model and the row's category field",
     )
 
+    vr = subparsers.add_parser(
+        "variance",
+        help="Item, prompt-variant and trial variance of the scores, and the MDE for more n, K, V",
+    )
+    vr.add_argument("results", help="results.jsonl (optional prompt_variant per row)")
+    vr.add_argument("--model", default=None, help="only this model (default: all)")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
@@ -1303,6 +1417,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return judge_correct_command(args)
     elif args.subcommand == "judge-correct-check":
         return judge_correct_check_command(args)
+    elif args.subcommand == "variance":
+        return variance_command(args)
     else:
         parser.print_help()
         return 1
