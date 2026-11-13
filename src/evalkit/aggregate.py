@@ -320,6 +320,30 @@ class ModelSummary:
     bt_rating: float | None = None
     bt_ci_lower: float | None = None
     bt_ci_upper: float | None = None
+    # mean over the rows that carry cost_usd / latency_s; None when no row does
+    mean_cost: float | None = None
+    mean_latency: float | None = None
+    pareto: bool = False
+
+
+def pareto_frontier(models: Sequence[ModelSummary]) -> list[ModelSummary]:
+    """Models no other model beats on both counts (macro mean up, mean cost down).
+
+    Kapoor et al. (arXiv 2407.01502): accuracy alone favours needlessly expensive agents.
+    A model dominates another when it is at least as good on both and better on one, so exact
+    ties stay on the frontier together. Models without a cost are left out.
+    """
+    priced = [m for m in models if m.mean_cost is not None]
+    return [
+        m
+        for m in priced
+        if not any(
+            o.macro_mean >= m.macro_mean
+            and o.mean_cost <= m.mean_cost  # type: ignore[operator]
+            and (o.macro_mean > m.macro_mean or o.mean_cost < m.mean_cost)  # type: ignore[operator]
+            for o in priced
+        )
+    ]
 
 
 @dataclass
@@ -336,6 +360,12 @@ class LeaderboardReport:
         if with_bt:
             head.append("Bradley-Terry [95% CI]")
         head += ["ECE (" + self.ece_label + ")", "Brier", "Tasks Evaluated"]
+        with_cost = any(m.mean_cost is not None for m in ranked)
+        with_latency = any(m.mean_latency is not None for m in ranked)
+        if with_cost:
+            head += ["Mean cost (USD)", "Pareto"]
+        if with_latency:
+            head.append("Mean latency (s)")
         if grouped:
             head.append("Tie group")
         lines: list[str] = [
@@ -359,6 +389,11 @@ class LeaderboardReport:
                 else:
                     cells.append(f"{m.bt_rating:.1f} [{m.bt_ci_lower:.1f}, {m.bt_ci_upper:.1f}]")
             cells += [f"{m.ece:.3f}", f"{m.brier:.3f}", str(len(m.per_task_means))]
+            if with_cost:
+                cells += ["-" if m.mean_cost is None else f"{m.mean_cost:.4f}"]
+                cells.append("yes" if m.pareto else "-")
+            if with_latency:
+                cells.append("-" if m.mean_latency is None else f"{m.mean_latency:.2f}")
             if grouped:
                 cells.append(str(m.tie_group) if m.tie_group is not None else "-")
             lines.append("| " + " | ".join(cells) + " |")
@@ -388,6 +423,12 @@ class LeaderboardReport:
                     else ""
                 )
                 + "). Models sharing a group are not separated by this data."
+            )
+        if with_cost:
+            notes.append(
+                "Pareto: yes = no other model has a macro mean at least as high and a mean cost "
+                "at most as low with one strictly better (Kapoor et al., arXiv 2407.01502). "
+                "Cost and latency are means over the rows that carry `cost_usd` / `latency_s`."
             )
         for note in notes:
             lines.extend(["", note])

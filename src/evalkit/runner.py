@@ -17,6 +17,7 @@ from .aggregate import (
     build_pairwise_matches,
     compare_pairs,
     compute_elo_ratings,
+    pareto_frontier,
 )
 from .metrics.calibration import (
     brier_score,
@@ -48,6 +49,8 @@ class EvalRecord:
     token_count: int = 1
     cluster_id: str | None = None
     sample: int = 0
+    cost_usd: float | None = None
+    latency_s: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +67,8 @@ class EvalRecord:
             "token_count": self.token_count,
             **({"cluster_id": self.cluster_id} if self.cluster_id is not None else {}),
             **({"sample": self.sample} if self.sample else {}),
+            **({"cost_usd": self.cost_usd} if self.cost_usd is not None else {}),
+            **({"latency_s": self.latency_s} if self.latency_s is not None else {}),
         }
 
     @classmethod
@@ -82,6 +87,8 @@ class EvalRecord:
             token_count=int(d.get("token_count", 1)),
             cluster_id=None if d.get("cluster_id") is None else str(d["cluster_id"]),
             sample=int(d.get("sample", 0)),
+            cost_usd=None if d.get("cost_usd") is None else float(d["cost_usd"]),
+            latency_s=None if d.get("latency_s") is None else float(d["latency_s"]),
         )
 
 
@@ -205,6 +212,12 @@ def _score_prediction(
     )
 
 
+def _mean_or_none(vals: Sequence[float | None]) -> float | None:
+    """Mean over the rows that carry the field; None when none do."""
+    present = [v for v in vals if v is not None]
+    return float(sum(present) / len(present)) if present else None
+
+
 def generate_leaderboard(
     records: Sequence[EvalRecord],
     ece_binning: EceBinning = "equal_width",
@@ -306,12 +319,16 @@ def generate_leaderboard(
                 total_examples=len(recs),
                 per_task_means=per_task_means,
                 clustered_tasks=sum(len(set(lab)) >= 2 for lab in clustered_scores.values()),
+                mean_cost=_mean_or_none([r.cost_usd for r in recs]),
+                mean_latency=_mean_or_none([r.latency_s for r in recs]),
             )
         )
 
     # Sort descending by macro_mean then elo_rating
     model_summaries.sort(key=lambda m: (-m.macro_mean, -m.elo_rating, m.model_name))
     assign_tie_groups(model_summaries, by_example, clusters=cluster_of or None)
+    for name in pareto_frontier(model_summaries):
+        name.pareto = True
     if bradley_terry:
         _attach_bradley_terry(model_summaries, by_example, cluster_of or None, bt_resamples)
     return LeaderboardReport(

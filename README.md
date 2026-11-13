@@ -982,6 +982,67 @@ For ezcross-ems, `ezc eval` writes each case's session log next to `results.json
 
 The test fixture mirrors the ezcross `forecast-v1` floor (3 agents x 20 ids: scripted passes all, donothing none, refuseall only `refusal-dispatch`); with `--baseline local/donothing local/refuseall --oracle local/scripted` it flags `refusal-dispatch` under flag 3. Not a label-error detector: it flags candidates for a human to read.
 
+## ezcross-ems agent evals
+
+evalkit never imports ezcross code and shares no environment with it; the link is a file. `ezc eval` writes one `results.json` per agent, a `jq` line turns those into `results.jsonl` (one row per case and agent), and `evalkit compare` / `leaderboard` read it.
+
+Run from the ezcross `harness/` directory (`<provider/id>` is a model reference such as the ones `ezc eval` lists; `--temperature` defaults to 0 and is recorded in the report header):
+
+```bash
+bun run ezc eval <provider/id> <provider/id> --out runs/<name> [--temperature 0.7]
+jq -c '.ref as $m | .cases[] | {task:"forecast-v1", model:$m, example_id:.id,
+  score:(if .pass then 1 else 0 end)}' runs/<name>/*/results.json > results.jsonl
+uv run evalkit compare results.jsonl --all-pairs      # in the evalkit checkout
+```
+
+Fields of `results.json` the bridge reads: `ref` (the agent, becomes `model`), `cases[].id` (becomes `example_id`), `cases[].pass` (becomes `score` 0 or 1), and for cost and latency `cases[].wallMs` and `cases[].tokens` (`input`, `output`, `cacheRead`, `cacheWrite`). Nothing else is read.
+
+**No `cluster_id` yet.** The 20 forecast-v1 cases run in 12 worlds: one world (`m1_ok`) has 8 cases, one (`two_datasets`) has 2, the other ten have 1 each. Cases in one world share the same data and tools, so they are not independent, and a `cluster_id` would give the cluster bootstrap and the clustered SE. The world is not in `results.json`, so the rows carry no `cluster_id` and `compare` treats the 20 cases as independent; the `m1_ok` group makes the intervals at n=20 somewhat too narrow.
+
+### Cost and latency (`leaderboard`)
+
+Rows may carry `cost_usd` and `latency_s`. When any row does, `evalkit leaderboard --recompute` adds the columns "Mean cost (USD)" and "Mean latency (s)" (means over the rows that carry the field) and a "Pareto" column: `yes` when no other model has a macro mean at least as high and a mean cost at most as low with one of the two strictly better. Exactly tied models stay on the frontier together; models without a cost are not marked. This is the joint accuracy-and-cost reporting Kapoor et al. ([arXiv 2407.01502](https://arxiv.org/abs/2407.01502)) recommend, because accuracy alone favours needlessly expensive agents.
+
+The same bridge with cost and latency; prices are USD per million tokens, passed by you (they are not read from the API):
+
+```bash
+jq -c --argjson p '{"in":3,"out":15,"cr":0.3,"cw":3.75}' '.ref as $m | .cases[] | {task:"forecast-v1",
+  model:$m, example_id:.id, score:(if .pass then 1 else 0 end), latency_s:(.wallMs/1000),
+  cost_usd:((.tokens.input*$p.in + .tokens.output*$p.out + .tokens.cacheRead*$p.cr
+    + .tokens.cacheWrite*$p.cw)/1e6)}' runs/<name>/*/results.json > results.jsonl
+mkdir -p board && cp results.jsonl board/ && uv run evalkit leaderboard board --recompute
+```
+
+Use one price set per agent: run the `jq` once per provider and `cat` the files if prices differ.
+
+### The floor: a fresh clone reproduces it without an API key
+
+Three scripted agents bound what a real agent can score. From ezcross `harness/`:
+
+```bash
+bun run packages/ezc-cli/scripts/eval-floor.ts --out runs/floor
+```
+
+| agent | passes | what it does |
+|---|---|---|
+| `local-scripted` | 20/20 | the reference tool sequence for each case |
+| `local-donothing` | 0/20 | answers without calling a tool |
+| `local-refuseall` | 1/20 | refuses every request; passes only `refusal-dispatch` |
+
+`data/ezc/floor-results.jsonl` is that table as `results.jsonl` (60 rows), so the check needs no ezcross checkout: `uv run evalkit compare data/ezc/floor-results.jsonl --all-pairs` (tested in `tests/test_evalkit_ezc_bridge.py`). Measured, Holm over 3 pairs:
+
+| pair | A − B | Holm p | verdict |
+|---|---|---|---|
+| scripted vs donothing | +1.000 | 5.7e-06 | resolved |
+| scripted vs refuseall | +0.950 | 7.6e-06 | resolved |
+| donothing vs refuseall | −0.050 | 1 | unresolved (needs n≈157) |
+
+A real agent that does not beat `donothing` or `refuseall` by a resolved margin has not shown it does anything. The two trivial agents differ on one case, so 20 cases cannot separate them.
+
+### Repeats (k trials, pass^k)
+
+For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
+
 ## Comparison with SOTA
 
 Full review (6 harnesses, Miller 2024, 16 papers, every cell linked): [docs/sota-review.md](docs/sota-review.md). Protocol, committed before the final scoring run: [docs/protocol-helm-lite.md](docs/protocol-helm-lite.md). No model was run; the "same benchmark" is HELM Lite v1.13.0 (91 models, 10 scenarios, 10,200 instances per model), whose per-item results are public ([published table](https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json), release date 2025-01-10). v1.13.0 is the latest Lite release (14 releases, v1.0.0 to v1.13.0, the last dated 2025-01-10); no newer Lite release exists, so the ranks are unchanged. The per-item files went through `evalkit import-helm` and the evalkit statistics; HELM's published numbers are the reference.
