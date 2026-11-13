@@ -84,6 +84,8 @@ from .statscheck_cluster import (
     render_cluster_markdown,
     run_cluster_check,
 )
+from .statscheck_small_n import SmallNConfig, run_small_n
+from .statscheck_small_n import render_markdown as render_small_n_markdown
 from .trajectory import load_trajectory_rows, render_trajectory, trajectory_table
 from .variance import (
     Observation,
@@ -625,13 +627,13 @@ def stats_check_command(args: argparse.Namespace) -> int:
         rand_tie_gate=args.rand_tie_gate,
     )
     try:
-        check_args(config.ns + config.fwer_ns, config.ties)
+        check_args(config.ns + config.fwer_ns + parse_ints(args.small_n_ns), config.ties)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     started = time.perf_counter()
     text = ""
-    if not args.only_clustered:
+    if not (args.only_clustered or args.only_small_n):
         text += render_markdown(run_stats_check(config))
     if args.clustered or args.only_clustered:
         text += render_cluster_markdown(
@@ -648,6 +650,16 @@ def stats_check_command(args: argparse.Namespace) -> int:
                 )
             )
         )
+    if args.small_n or args.only_small_n:
+        small_n = SmallNConfig(
+            seed=args.seed,
+            reps=args.small_n_reps,
+            resamples=args.resamples,
+            draws=args.draws,
+            ns=parse_ints(args.small_n_ns),
+            workers=config.workers,
+        )
+        text += render_small_n_markdown(small_n, run_small_n(small_n))
     text += f"\nWall time {time.perf_counter() - started:.0f} s on {config.workers} worker(s).\n"
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -1189,6 +1201,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     sc_parser.add_argument(
         "--only-clustered", action="store_true", help="run only the clustered-data grid"
+    )
+    sc_parser.add_argument(
+        "--small-n",
+        action="store_true",
+        help="also run the n = 20/50/100 coverage grid for 0/1 outcomes (docs/protocol-small-n.md)",
+    )
+    sc_parser.add_argument(
+        "--only-small-n", action="store_true", help="run only the small-n coverage grid"
+    )
+    sc_parser.add_argument("--small-n-ns", default="20,50,100", help="sample sizes (small-n grid)")
+    sc_parser.add_argument(
+        "--small-n-reps", type=int, default=10000, help="replications per small-n cell"
     )
     sc_parser.add_argument("--cluster-iccs", default="0,0.1,0.3", help="ICC values (clustered)")
     sc_parser.add_argument(
