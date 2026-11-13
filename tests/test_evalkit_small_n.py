@@ -189,3 +189,14 @@ def test_leaderboard_markdown_notes_the_wilson_interval() -> None:
 
     assert "Wilson score interval" in LeaderboardReport([model("wilson")]).to_markdown()
     assert "Wilson score interval" not in LeaderboardReport([model("bootstrap")]).to_markdown()
+
+
+def test_dirichlet_interval_contains_the_observed_difference() -> None:
+    from evalkit.aggregate import paired_comparison
+
+    lo, hi = dirichlet_diff_interval(20, 0, 0)
+    assert lo < 1.0 <= hi  # the credible upper end alone is about 0.99
+    c = paired_comparison([1.0] * 20, [0.0] * 20)
+    assert c.ci_method == "dirichlet" and c.diff == 1.0 and c.diff_ci_lo <= 1.0 <= c.diff_ci_hi
+    lo, hi = dirichlet_diff_interval(0, 20, 0)
+    assert lo <= -1.0 <= hi
