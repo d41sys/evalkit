@@ -695,6 +695,8 @@ def audit_command(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Error: {exc}\n")
         return 1
     print(render_audit(report, args.disagreement))
+    return 0
+
 
 def trajectory_command(args: argparse.Namespace) -> int:
     """Trajectory diagnostics (Vertex metrics) per model, next to the pass rate."""
@@ -1206,6 +1208,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     au.add_argument("--oracle", default=None, help="reference model that must pass saturated items")
     au.add_argument(
         "--disagreement", type=float, default=0.3, help="flag min(p, 1-p) above this over samples"
+    )
 
     # trajectory command
     tj = subparsers.add_parser(
