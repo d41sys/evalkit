@@ -75,3 +75,28 @@ Every other option at its default (`--resamples 2000`, `--draws 2000`, `--small-
 3. `auto` for the paired difference fails in the small-disagreement cells (psi = 0.1, `n` = 20 and 50), where tie share is 0.9, `auto` uses the percentile interval and few discordant pairs make it narrow or degenerate (`[0, 0]` when every pair ties, which covers only if `d = 0`).
 4. All 9 type-I cells of the randomisation and sign tests are at or below 0.06 (earlier binary cells were 0.005 to 0.044).
 5. The Dirichlet intervals have no cell below 0.93 and over-cover (above 0.97) in several `d = 0` cells with psi = 0.1.
+
+## Development outcome (seed 1, 4000 replications per cell; recorded before the final run)
+
+```bash
+uv run --offline evalkit stats-check --only-small-n --seed 1 --small-n-reps 4000 --workers 4 --out runs/stats-check/small-n-dev.md   # 45 s
+```
+
+Numbers are copied from `runs/stats-check/small-n-dev.md` (coverage below 0.93 is a failing cell).
+
+| method | failing cells |
+|---|---|
+| single model `percentile` (default) | 3 of 12 (n = 20, p = 0.9: 0.876; n = 20, p = 0.95: 0.627; n = 50, p = 0.95: 0.908) |
+| single model `bootstrap-t` | 5 of 12 |
+| single model `wilson` | 1 of 12 (n = 20, p = 0.95: 0.919) |
+| single model `jeffreys` | 1 of 12 (n = 50, p = 0.95: 0.879) |
+| single model `uniform` | 1 of 12 (n = 20, p = 0.95: 0.919) |
+| paired `auto` (default) | 2 of 18 (n = 20, psi = 0.1, d = 0.05: 0.780; n = 50, psi = 0.1, d = 0.05: 0.922) |
+| paired `percentile` | 2 of 18 (the same two) |
+| paired `dirichlet-jeffreys` | 0 of 18 |
+| paired `dirichlet-uniform` | 0 of 18 |
+| paired tests, type-I cells above 0.06 | 0 of 9 (largest 0.033) |
+
+`N_fail` = 50 for both defaults. **Selection by the rule above:** single model, `wilson` (one failing cell, shortfall 0.011, against `uniform` with the same count and a shortfall that is not smaller, and `jeffreys` with 0.051; `wilson` precedes `uniform` in the tie order); paired, `dirichlet-jeffreys` (zero failing cells, ahead of `dirichlet-uniform` by the order). On the development data both would switch for `n <= 50` (single: 1 failing cell against 3; paired: 0 against 2). The final run decides.
+
+Predictions against development data: 1 partly wrong (`percentile` fails 3 cells, not "every n with p >= 0.9": at n = 50 and 100 with p = 0.9 it covers 0.961; `bootstrap-t` fails 5 cells and is worse). 2 holds for p in {0.5, 0.7} (all four closed-form intervals at or above 0.931; `borderline` at n = 50, p = 0.5); Wilson does not dip below 0.93 at p = 0.9 here (0.955, 0.973, 0.938). 3 holds (psi = 0.1, d = 0.05 at n = 20 and 50; `auto` is the percentile interval there). 4 holds. 5 holds for coverage (no Dirichlet cell below 0.93; over-coverage at psi = 0.1, n = 20: 0.972 and 0.996, and 0.996 for `dirichlet-uniform` at d = 0).
