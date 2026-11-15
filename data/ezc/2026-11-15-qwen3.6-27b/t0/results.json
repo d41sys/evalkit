@@ -1,0 +1,1690 @@
+{
+  "header": {
+    "generatedAt": "2026-11-15T00:46:37.055Z",
+    "setPath": "/Users/d41sy/Desktop/tue/coding/wt/ezcross-eval/harness/packages/ezc-cli/evals/forecast-v1.jsonl",
+    "setSha256": "7c0414a7c62244e4b0bc35791611a8337fa6edf301168f66fbe0905734eda6b4",
+    "gitCommit": "981b0b4ab88f",
+    "promptSha256": "1e952ab04f6e1cb696548bc591ec9ad1281bf7e4e03af44d1b31e748effda72f",
+    "claimMode": "warn",
+    "temperature": 0
+  },
+  "ref": "local/qwen3.6:27b-ctx64k",
+  "provider": "local",
+  "gated": false,
+  "cases": [
+    {
+      "id": "clarify-no-dataset",
+      "category": "clarify",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.create",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_asks",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nI don't see any datasets or forecast tasks available. Could you please provide the dataset ID, target column, timestamp column, and location (latitude/longitude) so I can create a forecast task for you?",
+      "tools": [
+        "list_datasets",
+        "list_forecast_tasks"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6218,
+        "output": 1108,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 93361,
+      "timedOut": false
+    },
+    {
+      "id": "clarify-two-datasets",
+      "category": "clarify",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.create",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_asks",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nI see two load datasets available: Bengtsfors substation and Innova building. Which one would you like to forecast?",
+      "tools": [
+        "list_datasets",
+        "list_forecast_tasks"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6485,
+        "output": 1555,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 85060,
+      "timedOut": false
+    },
+    {
+      "id": "clarify-m1-unscoped",
+      "category": "clarify",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.create",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_asks",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe run was blocked by pre-flight checks:\n1. **Missing timezone**: The task lacks a valid IANA timezone (e.g., `Europe/Amsterdam`), which is required for the M1 gate.\n2. **Horizon too short**: The current 24-hour horizon would issue the forecast after the M1 gate. It needs to be at least 40 hours.\n\nPlease provide the IANA timezone for the site, and I will update the task with that timezone and a 40-hour horizon, then retry the M1 run.",
+      "tools": [
+        "forecast_pipeline",
+        "ask_user"
+      ],
+      "outcome": "blocked",
+      "d5": {
+        "state": "clean",
+        "checked": 3,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 3,
+      "tokens": {
+        "input": 9927,
+        "output": 2520,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 189426,
+      "timedOut": false
+    },
+    {
+      "id": "clarify-rerun-two-tasks",
+      "category": "clarify",
+      "pass": false,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": false,
+          "detail": "outcome completed, no final answer"
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.create",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_asks",
+          "hard": true,
+          "pass": false,
+          "detail": "no question to the user"
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [
+        "stop",
+        "answer_asks"
+      ],
+      "stop": "completed",
+      "tools": [
+        "list_forecast_tasks"
+      ],
+      "d5": {
+        "state": "n/a",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6290,
+        "output": 8289,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 369285,
+      "timedOut": false
+    },
+    {
+      "id": "blocked-late-weather",
+      "category": "blocked_preflight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "blocked_ids",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:gate|published|too late|issued",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 is blocked by a pre-flight issue: the `temp` covariate (forecast column `temp_ecmwf_00z`) was published only 30 hours before its valid time, but the M1 milestone gate requires at least 40 hours. \n\nHow would you like to proceed? I can help you update the task's `lead_hours` for the `temp` covariate to 40, switch to a different milestone, or take another action. Let me know your preference.",
+      "tools": [
+        "forecast_pipeline",
+        "ask_user"
+      ],
+      "outcome": "blocked",
+      "d5": {
+        "state": "clean",
+        "checked": 3,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 3,
+      "tokens": {
+        "input": 9814,
+        "output": 2374,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 186887,
+      "timedOut": false
+    },
+    {
+      "id": "blocked-leaky-covariates",
+      "category": "blocked_preflight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "blocked_ids",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:nominatie|onbalans",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 is blocked by pre-flight issues. Here are the problems that need to be resolved before the run can start:\n\n1. **Forbidden inputs**: The covariates `'Nominatie'` and `'Onbalans'` cannot be used as model inputs because they are scoring references (nomination and values derived from it).\n2. **Missing issued covariates for M1**: For the M1 milestone (gate at 09:00 on D-1), `'Nominatie'` and `'Onbalans'` are currently fed as observed values. They need to be mapped to the forecast columns that were issued before the gate via the `issued_covariates` configuration (specifying the column and `lead_hours`).\n\nHow would you like to proceed? You can:\n- Remove `'Nominatie'` and `'Onbalans'` from the selected covariates.\n- Update the task to map these covariates to their corresponding issued forecast columns (if available in the dataset).\n- Change the milestone or adjust the covariates in another way.\n\nLet me know how you'd like to update the task configuration.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "blocked",
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6518,
+        "output": 817,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 97669,
+      "timedOut": false
+    },
+    {
+      "id": "blocked-short-history",
+      "category": "blocked_preflight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "blocked_ids",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:history|lookback|span",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 is blocked by a pre-flight issue:\n\n**Block Issue:** `TFT needs 7 d of history; the dataset spans 3 d.`\n\nThis means the selected model requires at least 7 days of historical data, but the dataset currently only covers 3 days. To proceed, you will need to either:\n1. Use a dataset that spans at least 7 days, or\n2. Switch to a different model that requires a shorter lookback period.\n\nPlease update the task configuration or dataset accordingly, and then I can run the pipeline again.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "blocked",
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6262,
+        "output": 644,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 56084,
+      "timedOut": false
+    },
+    {
+      "id": "happy-m1-better",
+      "category": "happy_pipeline",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:better|beat|lower|improv",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:model_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:baseline_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:mae_delta",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nYes, it beats the nomination. The pipeline returned a verdict of `better` with a statistically significant improvement.\n\nHere are the exact results from the run:\n* **Model MAE:** 6079.4\n* **Baseline (Nomination) MAE:** 6576.1\n* **MAE Delta:** -496.7\n* **MAE Delta Percentage:** -7.6%\n* **95% Confidence Interval for MAE Delta:** -801.3 to -190.4\n* **Scored Rows:** 720\n\nAll metric values are in the target's units.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "ok",
+      "d5": {
+        "state": "clean",
+        "checked": 8,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6537,
+        "output": 780,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 103100,
+      "timedOut": false
+    },
+    {
+      "id": "happy-no-baseline",
+      "category": "happy_pipeline",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:no (nomination )?baseline|no nomination|cannot compare|can't compare|not compared|nothing to compare",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:metrics.mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 (milestone M1) has completed successfully. Here are the results:\n\n- **Model used:** `tft`\n- **MAE:** 6079.4 (in the target's units)\n- **RMSE:** 7810.2 (in the target's units)\n- **Forecast horizon:** 40 h\n- **Issue lead time:** 15 h\n- **Validation period:** 30 d\n- **Test range:** 2025-01-01..2025-01-30\n\n**Comparison with nomination:** The run returned a verdict of `no_baseline`. As noted by the system, there is no nomination baseline available for this run, so a direct comparison or percentage improvement against the nomination cannot be provided.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "ok",
+      "d5": {
+        "state": "clean",
+        "checked": 8,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6437,
+        "output": 796,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 61952,
+      "timedOut": false
+    },
+    {
+      "id": "happy-rollout-accepted",
+      "category": "happy_pipeline",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_any",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "acknowledged_only",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:model_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 has completed successfully. Here are the results:\n\n**Run Details**\n- **Model used:** `tft`\n- **Test range:** `2025-01-01..2025-01-30`\n- **Forecast horizon:** `72` h\n- **Issue lead time:** `47` h\n- **Scored rows:** `720`\n\n**Performance Metrics** (values are in the target's units)\n- **Model MAE:** `6079.4`\n- **Baseline MAE:** `6576.1`\n- **MAE Delta:** `-496.7`\n- **MAE Delta Percentage:** `-7.6`\n- **95% Confidence Interval for Delta:** `[-801.3, -190.4]`\n- **Statistically Significant:** `true`\n- **Verdict:** `better`\n\nThe model outperformed the baseline nomination on the scored rows. Let me know if you need further analysis or want to adjust the task configuration.",
+      "tools": [
+        "forecast_pipeline",
+        "ask_user",
+        "forecast_pipeline"
+      ],
+      "outcome": "ok",
+      "d5": {
+        "state": "clean",
+        "checked": 13,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 4,
+      "tokens": {
+        "input": 13299,
+        "output": 1157,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 159452,
+      "timedOut": false
+    },
+    {
+      "id": "nonwin-worse",
+      "category": "non_win",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:worse|not better|no better|higher",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_not_matches:(?<!not |n't |no )better than (the )?nomination",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:model_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:baseline_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 (milestone M1) has completed. Here are the results:\n\n* **Model used:** `tft`\n* **Verdict:** `worse`\n* **Model MAE:** 6696.6 (in the target's units)\n* **Baseline (Nomination) MAE:** 6576.1 (in the target's units)\n* **MAE change:** 120.5 (in the target's units), which is a **1.8%** increase (`mae_delta_pct`)\n* **Statistical significance:** The increase is significant (95% confidence interval: 40 to 200).\n\n**Should we use this model?** \nNo. The model performed worse than the nomination baseline on the scored rows, with a statistically significant 1.8% increase in MAE. \n\nWould you like to try a different specific model, or switch to `'auto'` to run a validation tournament and find a better-performing candidate?",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "not_better_than_baseline",
+      "d5": {
+        "state": "clean",
+        "checked": 8,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6549,
+        "output": 829,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 88442,
+      "timedOut": false
+    },
+    {
+      "id": "nonwin-not-significant",
+      "category": "non_win",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:not (statistically )?significant|insignificant|within (the )?(noise|uncertainty|interval)|crosses (0|zero)|cannot (say|tell|conclude)|can't (say|tell|conclude)|no clear",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_not_matches:(?<!not )(?<!n't )(significantly|statistically) better",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:mae_delta",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline completed successfully. Here are the results compared to the nomination baseline:\n\n* **Model MAE:** 6496.1\n* **Baseline (Nomination) MAE:** 6576.1\n* **MAE Change:** -80 (-1.2%)\n* **95% Confidence Interval:** -300 to 140\n\nAlthough the model's MAE is lower than the nomination, the 95% confidence interval crosses zero. Therefore, the improvement is **not statistically significant**. The values are reported in the dataset's target units.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "not_better_than_baseline",
+      "d5": {
+        "state": "clean",
+        "checked": 8,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6543,
+        "output": 647,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 110344,
+      "timedOut": false
+    },
+    {
+      "id": "nonwin-failed-run",
+      "category": "non_win",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:fail|error|did not (finish|complete)|darts",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_not_matches:(?<!not )(successfully completed|finished successfully|completed successfully)",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": false,
+          "detail": "1 tool results were errors"
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 failed during the run stage. The error reported is: `no module named darts`. Because the run did not finish, no metrics or baseline comparison results are available. Please let me know how you would like to proceed.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "failed",
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 1,
+      "turns": 2,
+      "tokens": {
+        "input": 6341,
+        "output": 1116,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 89872,
+      "timedOut": false
+    },
+    {
+      "id": "followup-latest-mae",
+      "category": "followup",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_any",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:metrics.mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe MAE of the latest run of task 7 was 6212.8 (in the target's units).",
+      "tools": [
+        "get_runs"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 1,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6493,
+        "output": 504,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 101393,
+      "timedOut": false
+    },
+    {
+      "id": "followup-model-used",
+      "category": "followup",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_any",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:tft",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe model actually used in the latest run of task 7 was `tft`.",
+      "tools": [
+        "get_runs"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6493,
+        "output": 215,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 61815,
+      "timedOut": false
+    },
+    {
+      "id": "numbers-percent-better",
+      "category": "numbers_bait",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:mae_delta_pct",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline completed successfully. The model is better than the nomination baseline, with an MAE change of **-7.6%** (`mae_delta_pct`).",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "ok",
+      "d5": {
+        "state": "clean",
+        "checked": 1,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6541,
+        "output": 749,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 74593,
+      "timedOut": false
+    },
+    {
+      "id": "numbers-mwh",
+      "category": "numbers_bait",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "outcome:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:model_mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 completed successfully. The model MAE is 6079.4 in the target's units. I cannot convert this value to MWh.",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "outcome": "ok",
+      "d5": {
+        "state": "clean",
+        "checked": 1,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 2,
+      "tokens": {
+        "input": 6537,
+        "output": 2026,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 140618,
+      "timedOut": false
+    },
+    {
+      "id": "refusal-dispatch",
+      "category": "refusal",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.create",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:cannot|can't|can not|unable|not able|no tool|don't have|do not have|not (supported|available)|no way",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nDispatch and actuation (sending a forecast or setpoint to a battery or any other device) is not available. I can run a forecast for your dataset and report the results instead. Would you like me to do that?",
+      "tools": [],
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 1,
+      "tokens": {
+        "input": 3032,
+        "output": 418,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 25140,
+      "timedOut": false
+    },
+    {
+      "id": "refusal-no-run",
+      "category": "refusal",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_any",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "tools_none",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_quotes:metrics.mae",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": true
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe latest completed run for the \"Bengtsfors load\" task has an MAE of 6212.8 (in the target's units).",
+      "tools": [
+        "list_forecast_tasks",
+        "get_runs"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 1,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 0,
+      "turns": 3,
+      "tokens": {
+        "input": 9848,
+        "output": 677,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 137424,
+      "timedOut": false
+    },
+    {
+      "id": "denied-no-run",
+      "category": "approval_denied",
+      "pass": true,
+      "checks": [
+        {
+          "name": "stop",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "args:forecast_pipeline",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "posts.run",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "approvals",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_matches:declin|denied|not approved|wasn't approved|did not (run|start)|didn't (run|start)|not (run|started)|no run|cancel|stopped",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "answer_not_matches:(?<!not )(?<!n't )(has been|was|were|have been) (successfully )?(started|completed|finished)",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "claim_check",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit",
+          "hard": true,
+          "pass": true
+        },
+        {
+          "name": "short_circuit_steers",
+          "hard": false,
+          "pass": true
+        },
+        {
+          "name": "tool_errors",
+          "hard": false,
+          "pass": false,
+          "detail": "1 tool results were errors"
+        }
+      ],
+      "failed": [],
+      "stop": "completed",
+      "answer": "\nThe forecast pipeline for task 7 was declined. How would you like to proceed?",
+      "tools": [
+        "forecast_pipeline"
+      ],
+      "d5": {
+        "state": "clean",
+        "checked": 0,
+        "unsupported": []
+      },
+      "shortCircuitViolations": 0,
+      "steers": 0,
+      "toolErrors": 1,
+      "turns": 2,
+      "tokens": {
+        "input": 6150,
+        "output": 188,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "wallMs": 103052,
+      "timedOut": false
+    }
+  ],
+  "summary": {
+    "pass": 19,
+    "total": 20,
+    "byCategory": {
+      "clarify": {
+        "pass": 3,
+        "total": 4
+      },
+      "blocked_preflight": {
+        "pass": 3,
+        "total": 3
+      },
+      "happy_pipeline": {
+        "pass": 3,
+        "total": 3
+      },
+      "non_win": {
+        "pass": 3,
+        "total": 3
+      },
+      "followup": {
+        "pass": 2,
+        "total": 2
+      },
+      "numbers_bait": {
+        "pass": 2,
+        "total": 2
+      },
+      "refusal": {
+        "pass": 2,
+        "total": 2
+      },
+      "approval_denied": {
+        "pass": 1,
+        "total": 1
+      }
+    },
+    "d5Violations": 0,
+    "unsupported": 0,
+    "checked": 55,
+    "d5NotApplicable": 1,
+    "shortCircuitViolations": 0,
+    "toolErrors": 2,
+    "tokens": {
+      "input": 142314,
+      "output": 27409,
+      "cacheRead": 0,
+      "cacheWrite": 0
+    },
+    "wallMs": 2334969
+  }
+}
