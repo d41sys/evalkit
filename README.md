@@ -1041,6 +1041,17 @@ bun run packages/ezc-cli/scripts/eval-floor.ts --out runs/floor
 
 A real agent that does not beat `donothing` or `refuseall` by a resolved margin has not shown it does anything. The two trivial agents differ on one case, so 20 cases cannot separate them.
 
+### The production model: pass@1 and pass^5 (issue #2)
+
+`anthropic/claude-sonnet-4-5` (what ezc-server runs), forecast-v1, 2026-11-16; data and transcripts in [`data/ezc/2026-11-16-sonnet-4.5/`](data/ezc/2026-11-16-sonnet-4.5/), 120 runs for $0.89. `--temperature default` sends no temperature, as production does.
+
+| run | trials | pass@1 | pass^5 [95% CI] |
+|---|---|---|---|
+| `--temperature 0` | 1 | 18/20 = 0.900 | |
+| `--temperature default` | 5 | 99/100 = 0.990 | 0.950 [0.850, 1.000] |
+
+T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All variance at the default temperature is between trials (one failure in 100 runs), none between items. All 3 failures are the D5 claim check flagging a number the answer uses as an example or a constant ("e.g., 24 hours", "dividing by 1000", "a 48h lead time forecast"), not a reported result: grader false positives, so the agent's own failure rate here is 0/120. forecast-v1 is saturated for this model; the held-out set of issue #4 needs harder cases.
+
 ### Repeats (k trials, pass^k)
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
