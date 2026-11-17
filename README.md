@@ -1056,6 +1056,16 @@ T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
 
+### Weekly pass rate of graded sessions (`evalkit monitor`, issue #7)
+
+Graded production sessions go in as `results.jsonl` rows with the period as `task` (`2026-W47`; periods sort as strings) and one session per `example_id`; a session passes when its score is >= 1.
+
+```bash
+uv run evalkit monitor sessions.jsonl --threshold 0.9 [--model M]
+```
+
+prints the pass rate per period with a Wilson 95% interval and exits 3 (`ALERT: ...`) when the latest period's lower bound is below `--threshold`, so a cron job can act on the exit code. The lower bound depends on n as much as on the rate: 49/50 has a lower bound of 0.89, 10/10 only 0.72. Pick the threshold for the number of sessions a week actually has.
+
 ## Trajectory diagnostics (`evalkit trajectory`)
 
 Rows of `results.jsonl` may carry `tool_calls` (tool names in call order) and `expected_tools`. `evalkit trajectory results.jsonl [--model M] [--tool NAME] [--by task|category]` prints, per model (and per group), the mean of the six [Vertex AI agent-evaluation](https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-agents) trajectory metrics (`exact`, `in_order`, `any_order`, `precision`, `recall`, and with `--tool` the single-tool-use check) next to the pass rate (mean `score`) of the same rows. 0/1 columns get a Wilson 95% interval, fractional ones a percentile bootstrap. Rows without both fields are skipped and counted. Rows are the unit; repeated samples are not clustered.

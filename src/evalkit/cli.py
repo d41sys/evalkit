@@ -64,6 +64,7 @@ from .judge_correct import (
 from .llmcache import CachedCompleter, CacheMiss, CallBudgetExceeded
 from .metrics.helm_compat import helm_metric_name
 from .models import DEFAULT_ANTHROPIC_MODEL, Completer, Model, get_model
+from .monitor import period_rates, render_monitor
 from .ranking import bradley_terry_bootstrap, render_bradley_terry
 from .results import ClusterLabel, ItemKey, load_results, merge_clusters
 from .review import failure_mode_counts, render_failure_modes, write_review_sheet
@@ -793,6 +794,18 @@ def failure_modes_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def monitor_command(args: argparse.Namespace) -> int:
+    """Pass rate per period with Wilson CIs; exit 3 when the latest lower bound is too low."""
+    try:
+        rates = period_rates(args.results, model=args.model)
+    except (OSError, ValueError, KeyError) as e:
+        sys.stderr.write(f"Error: {e}\n")
+        return 1
+    text, alert = render_monitor(rates, args.threshold)
+    print(text)
+    return 3 if alert else 0
+
+
 def judge_correct_command(args: argparse.Namespace) -> int:
     """Judge-corrected pass rate: TPR/TNR on a human-labelled subset, Rogan-Gladen estimate."""
     try:
@@ -1396,6 +1409,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     fm.add_argument("sheet", help="sheet.csv from `evalkit review`, annotated")
 
+    mo = subparsers.add_parser(
+        "monitor", help="Pass rate per period (task = week) of graded sessions, with an alert"
+    )
+    mo.add_argument("results", help="results.jsonl, one row per session, task = period")
+    mo.add_argument("--threshold", type=float, required=True, help="alert below this lower bound")
+    mo.add_argument("--model", default=None, help="only this model's rows")
+
     # audit command
     au = subparsers.add_parser(
         "audit", help="flag items that look broken, saturated, trivially passable or unstable"
@@ -1453,6 +1473,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return review_command(args)
     elif args.subcommand == "failure-modes":
         return failure_modes_command(args)
+    elif args.subcommand == "monitor":
+        return monitor_command(args)
     elif args.subcommand == "audit":
         return audit_command(args)
     elif args.subcommand == "trajectory":
