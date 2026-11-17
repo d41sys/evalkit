@@ -1,0 +1,376 @@
+{"id": "j001", "label": 1, "note": ""}
+{"id": "j002", "label": 1, "note": "borderline: causal reading of timeout hedged \"suggests\""}
+{"id": "j003", "label": 1, "note": ""}
+{"id": "j004", "label": 0, "note": "Task 7 chưa có issued_covariates/milestone; \"M1 (milestone 09:00 D-1)\" not in tools"}
+{"id": "j005", "label": 1, "note": "generic infra advice"}
+{"id": "j006", "label": 1, "note": ""}
+{"id": "j007", "label": 1, "note": ""}
+{"id": "j008", "label": 0, "note": "96 steps × 15 min = 24 hours asserted; tools gave only steps+resolution"}
+{"id": "j009", "label": 1, "note": ""}
+{"id": "j010", "label": 1, "note": ""}
+{"id": "j011", "label": 1, "note": ""}
+{"id": "j012", "label": 1, "note": "borderline: \"(theo đơn vị của target)\" attached to a percent"}
+{"id": "j013", "label": 1, "note": ""}
+{"id": "j014", "label": 1, "note": ""}
+{"id": "j015", "label": 1, "note": ""}
+{"id": "j016", "label": 1, "note": ""}
+{"id": "j017", "label": 1, "note": ""}
+{"id": "j018", "label": 1, "note": ""}
+{"id": "j019", "label": 1, "note": ""}
+{"id": "j020", "label": 1, "note": ""}
+{"id": "j021", "label": 1, "note": ""}
+{"id": "j022", "label": 1, "note": ""}
+{"id": "j023", "label": 0, "note": "\"zou dit in kWh zijn\" unit asserted without tool support"}
+{"id": "j024", "label": 1, "note": ""}
+{"id": "j025", "label": 0, "note": "M1 defined as 09:00 D-1; issued_covariates parameter"}
+{"id": "j026", "label": 0, "note": "issued_covariates and milestone params; M1 = 09:00 D-1"}
+{"id": "j027", "label": 0, "note": "\"Cột target là load_kw nên giá trị theo đơn vị của cột đó, không phải MW\" unit from column name"}
+{"id": "j028", "label": 1, "note": ""}
+{"id": "j029", "label": 1, "note": ""}
+{"id": "j030", "label": 1, "note": ""}
+{"id": "j031", "label": 1, "note": "statistical gloss on probability"}
+{"id": "j032", "label": 1, "note": ""}
+{"id": "j033", "label": 1, "note": ""}
+{"id": "j034", "label": 1, "note": ""}
+{"id": "j035", "label": 1, "note": ""}
+{"id": "j036", "label": 1, "note": ""}
+{"id": "j037", "label": 1, "note": ""}
+{"id": "j038", "label": 1, "note": ""}
+{"id": "j039", "label": 0, "note": "temp_ecmwf_12z gives 42 h lead; M2/M3 later gates; \"to cover 40 h horizon\" invented"}
+{"id": "j040", "label": 1, "note": ""}
+{"id": "j041", "label": 0, "note": "24 hours from steps×resolution; \"heat demand models\""}
+{"id": "j042", "label": 1, "note": ""}
+{"id": "j043", "label": 1, "note": ""}
+{"id": "j044", "label": 1, "note": ""}
+{"id": "j045", "label": 0, "note": "MAE is 5561.7 kW; 5.5617 MW"}
+{"id": "j046", "label": 1, "note": ""}
+{"id": "j047", "label": 1, "note": "generic \"day-ahead typically 24-36 h\""}
+{"id": "j048", "label": 1, "note": ""}
+{"id": "j049", "label": 1, "note": ""}
+{"id": "j050", "label": 0, "note": "load_kw, dus kW"}
+{"id": "j051", "label": 1, "note": ""}
+{"id": "j052", "label": 1, "note": ""}
+{"id": "j053", "label": 0, "note": "M1 gate 09:00 D-1; issued_covariates/milestone; \"thường cần ít nhất 15-24 giờ\""}
+{"id": "j054", "label": 1, "note": "Borderline: lists Nominatie/Onbalans covariates but doesn't flag them; no tool fact omitted."}
+{"id": "j055", "label": 0, "note": "\"lead time ... được xác định khi tạo task\" system behavior unsupported"}
+{"id": "j056", "label": 1, "note": ""}
+{"id": "j057", "label": 1, "note": ""}
+{"id": "j058", "label": 1, "note": "ezcross-ems API name likely from system prompt"}
+{"id": "j059", "label": 1, "note": ""}
+{"id": "j060", "label": 1, "note": ""}
+{"id": "j061", "label": 1, "note": ""}
+{"id": "j062", "label": 1, "note": ""}
+{"id": "j063", "label": 0, "note": "\"error occurred during GPU memory allocation rather than at a training epoch... couldn't even start training\" unsupported"}
+{"id": "j064", "label": 1, "note": ""}
+{"id": "j065", "label": 1, "note": ""}
+{"id": "j066", "label": 1, "note": ""}
+{"id": "j067", "label": 1, "note": ""}
+{"id": "j068", "label": 1, "note": ""}
+{"id": "j069", "label": 1, "note": ""}
+{"id": "j070", "label": 1, "note": ""}
+{"id": "j071", "label": 1, "note": ""}
+{"id": "j072", "label": 1, "note": ""}
+{"id": "j073", "label": 1, "note": ""}
+{"id": "j074", "label": 1, "note": ""}
+{"id": "j075", "label": 1, "note": ""}
+{"id": "j076", "label": 1, "note": "\"always same unit as target\" no tool here; conditional hedged"}
+{"id": "j077", "label": 0, "note": "no weather_source/gate_safe_weather field; task uses dataset temperature rather than NWP"}
+{"id": "j078", "label": 1, "note": ""}
+{"id": "j079", "label": 0, "note": "\"load measurement in kW\" from column name"}
+{"id": "j080", "label": 1, "note": ""}
+{"id": "j081", "label": 1, "note": ""}
+{"id": "j082", "label": 0, "note": "issued_covariates field / lead_hours param / set at task creation"}
+{"id": "j083", "label": 1, "note": ""}
+{"id": "j084", "label": 0, "note": "issued_covariates/lead_hours; \"ECMWF typically twice daily 00/12 UTC, available 7-9 h after\""}
+{"id": "j085", "label": 1, "note": ""}
+{"id": "j086", "label": 1, "note": ""}
+{"id": "j087", "label": 1, "note": ""}
+{"id": "j088", "label": 1, "note": ""}
+{"id": "j089", "label": 1, "note": ""}
+{"id": "j090", "label": 1, "note": ""}
+{"id": "j091", "label": 0, "note": "\"No issued_covariates are configured\"; M1 = 09:00 D-1"}
+{"id": "j092", "label": 0, "note": "MAE is in kilowatts (kW) from column name"}
+{"id": "j093", "label": 1, "note": ""}
+{"id": "j094", "label": 1, "note": ""}
+{"id": "j095", "label": 1, "note": ""}
+{"id": "j096", "label": 0, "note": "temperature taken directly from dataset temp column; weather_source/gate_safe_weather fields"}
+{"id": "j097", "label": 0, "note": "M1 gate 09:00 D-1; cycle issue times; issued_covariates"}
+{"id": "j098", "label": 1, "note": "Borderline: same as j054."}
+{"id": "j099", "label": 1, "note": ""}
+{"id": "j100", "label": 1, "note": ""}
+{"id": "j101", "label": 1, "note": ""}
+{"id": "j102", "label": 0, "note": "Ghent at 51.05°N, 3.72°E; MAE \"6788.3 kW\""}
+{"id": "j103", "label": 1, "note": ""}
+{"id": "j104", "label": 1, "note": ""}
+{"id": "j105", "label": 1, "note": ""}
+{"id": "j106", "label": 0, "note": "ECMWF 00Z previous day gives lead_hours 48-72 h; rationale of horizon 40 h"}
+{"id": "j107", "label": 1, "note": ""}
+{"id": "j108", "label": 1, "note": ""}
+{"id": "j109", "label": 0, "note": "\"6212.8 ... kW for this electric demand task\""}
+{"id": "j110", "label": 1, "note": "causes hedged as possible"}
+{"id": "j111", "label": 1, "note": ""}
+{"id": "j112", "label": 1, "note": ""}
+{"id": "j113", "label": 1, "note": ""}
+{"id": "j114", "label": 1, "note": ""}
+{"id": "j115", "label": 0, "note": "7120.4 kW = 7.1204 MWh; \"target column is in kW\""}
+{"id": "j116", "label": 1, "note": ""}
+{"id": "j117", "label": 1, "note": ""}
+{"id": "j118", "label": 1, "note": ""}
+{"id": "j119", "label": 1, "note": ""}
+{"id": "j120", "label": 1, "note": ""}
+{"id": "j121", "label": 1, "note": ""}
+{"id": "j122", "label": 1, "note": ""}
+{"id": "j123", "label": 1, "note": ""}
+{"id": "j124", "label": 0, "note": "\"kW based on your dataset's target column load_kw\""}
+{"id": "j125", "label": 0, "note": "96 steps × 15 min = 24 hours natively"}
+{"id": "j126", "label": 0, "note": "M1 (09:00 D-1); no issued_covariates/milestone; lead_hours minstens 40 with 24h/40h reasoning"}
+{"id": "j127", "label": 1, "note": ""}
+{"id": "j128", "label": 1, "note": ""}
+{"id": "j129", "label": 1, "note": ""}
+{"id": "j130", "label": 1, "note": ""}
+{"id": "j131", "label": 1, "note": ""}
+{"id": "j132", "label": 1, "note": ""}
+{"id": "j133", "label": 1, "note": ""}
+{"id": "j134", "label": 1, "note": ""}
+{"id": "j135", "label": 0, "note": "\"weather provider info is not stored in the task configuration\" unsupported absence claim"}
+{"id": "j136", "label": 1, "note": ""}
+{"id": "j137", "label": 1, "note": ""}
+{"id": "j138", "label": 1, "note": ""}
+{"id": "j139", "label": 1, "note": ""}
+{"id": "j140", "label": 1, "note": "answer says preflight passed (unsupported) but tool results contain no omitted fact"}
+{"id": "j141", "label": 1, "note": ""}
+{"id": "j142", "label": 1, "note": ""}
+{"id": "j143", "label": 0, "note": "\"the values are in kW\" / \"6212.8 ... in kW\""}
+{"id": "j144", "label": 1, "note": ""}
+{"id": "j145", "label": 1, "note": ""}
+{"id": "j146", "label": 1, "note": ""}
+{"id": "j147", "label": 1, "note": ""}
+{"id": "j148", "label": 1, "note": ""}
+{"id": "j149", "label": 1, "note": ""}
+{"id": "j150", "label": 1, "note": ""}
+{"id": "j151", "label": 1, "note": ""}
+{"id": "j152", "label": 1, "note": ""}
+{"id": "j153", "label": 1, "note": ""}
+{"id": "j154", "label": 1, "note": ""}
+{"id": "j155", "label": 1, "note": ""}
+{"id": "j156", "label": 1, "note": ""}
+{"id": "j157", "label": 1, "note": ""}
+{"id": "j158", "label": 1, "note": ""}
+{"id": "j159", "label": 1, "note": ""}
+{"id": "j160", "label": 1, "note": ""}
+{"id": "j161", "label": 1, "note": ""}
+{"id": "j162", "label": 1, "note": ""}
+{"id": "j163", "label": 1, "note": "model_params name offered in suggestion; causes hedged"}
+{"id": "j164", "label": 1, "note": ""}
+{"id": "j165", "label": 1, "note": ""}
+{"id": "j166", "label": 1, "note": "\"công suất tải\" descriptive only, no unit stated"}
+{"id": "j167", "label": 1, "note": ""}
+{"id": "j168", "label": 1, "note": ""}
+{"id": "j169", "label": 1, "note": ""}
+{"id": "j170", "label": 0, "note": "\"load_kw, dus kilowatt\""}
+{"id": "j171", "label": 1, "note": ""}
+{"id": "j172", "label": 1, "note": ""}
+{"id": "j173", "label": 1, "note": "\"appears\" hedged inference on darts; email config remark speculative"}
+{"id": "j174", "label": 1, "note": ""}
+{"id": "j175", "label": 1, "note": "Fallback reason not mentioned; question only asked model and MAE."}
+{"id": "j176", "label": 1, "note": ""}
+{"id": "j177", "label": 1, "note": ""}
+{"id": "j178", "label": 1, "note": ""}
+{"id": "j179", "label": 1, "note": "borderline: names milestone/issued_covariates but only as hedged pointers"}
+{"id": "j180", "label": 1, "note": ""}
+{"id": "j181", "label": 1, "note": ""}
+{"id": "j182", "label": 0, "note": "\"target's units (which are MWh for this task)\""}
+{"id": "j183", "label": 1, "note": ""}
+{"id": "j184", "label": 0, "note": "\"M1 ... standaard 09:00 op D-1\" not in tools; issued_covariates"}
+{"id": "j185", "label": 1, "note": ""}
+{"id": "j186", "label": 1, "note": ""}
+{"id": "j187", "label": 1, "note": ""}
+{"id": "j188", "label": 1, "note": ""}
+{"id": "j189", "label": 1, "note": ""}
+{"id": "j190", "label": 0, "note": "\"load_kw (kilowatts), so the MAE of 6079.4 is in kW\""}
+{"id": "j191", "label": 1, "note": ""}
+{"id": "j192", "label": 1, "note": ""}
+{"id": "j193", "label": 1, "note": ""}
+{"id": "j194", "label": 1, "note": ""}
+{"id": "j195", "label": 0, "note": "96 steps × 15 min = 24 hours; 4× native 24-hour range"}
+{"id": "j196", "label": 1, "note": ""}
+{"id": "j197", "label": 0, "note": "Omits that requested model was 'auto' and fell back to tft because nbeats weights missing, a status fact for the report."}
+{"id": "j198", "label": 1, "note": ""}
+{"id": "j199", "label": 0, "note": "96 steps × 15 min = 24 hours native"}
+{"id": "j200", "label": 1, "note": ""}
+{"id": "j201", "label": 1, "note": ""}
+{"id": "j202", "label": 0, "note": "\"M1 gate represents a specific issue time (09:00 on Day-1)\" not in tools"}
+{"id": "j203", "label": 1, "note": ""}
+{"id": "j204", "label": 1, "note": ""}
+{"id": "j205", "label": 1, "note": ""}
+{"id": "j206", "label": 0, "note": "\"load_kw (in kilowatts)\""}
+{"id": "j207", "label": 1, "note": ""}
+{"id": "j208", "label": 1, "note": ""}
+{"id": "j209", "label": 1, "note": ""}
+{"id": "j210", "label": 0, "note": "issued_covariates field would hold lead hours/weather source"}
+{"id": "j211", "label": 0, "note": "weather_source and milestone configuration claims; M1 = 09:00 D-1"}
+{"id": "j212", "label": 1, "note": ""}
+{"id": "j213", "label": 1, "note": ""}
+{"id": "j214", "label": 1, "note": ""}
+{"id": "j215", "label": 1, "note": ""}
+{"id": "j216", "label": 0, "note": "weather_source parameter; no weather model configured; temp comes from dataset column"}
+{"id": "j217", "label": 0, "note": "issued_covariates field in task config would hold lead time/release time"}
+{"id": "j218", "label": 1, "note": ""}
+{"id": "j219", "label": 1, "note": ""}
+{"id": "j220", "label": 1, "note": "kW hedged (\"suggests\")"}
+{"id": "j221", "label": 1, "note": ""}
+{"id": "j222", "label": 1, "note": ""}
+{"id": "j223", "label": 1, "note": ""}
+{"id": "j224", "label": 1, "note": ""}
+{"id": "j225", "label": 1, "note": ""}
+{"id": "j226", "label": 1, "note": ""}
+{"id": "j227", "label": 0, "note": "task 7 does not appear to have issued_covariates; uses observed temperature; \"issued_covariates parameter\""}
+{"id": "j228", "label": 1, "note": ""}
+{"id": "j229", "label": 1, "note": ""}
+{"id": "j230", "label": 1, "note": ""}
+{"id": "j231", "label": 1, "note": ""}
+{"id": "j232", "label": 1, "note": ""}
+{"id": "j233", "label": 1, "note": ""}
+{"id": "j234", "label": 1, "note": ""}
+{"id": "j235", "label": 1, "note": ""}
+{"id": "j236", "label": 1, "note": ""}
+{"id": "j237", "label": 1, "note": ""}
+{"id": "j238", "label": 1, "note": ""}
+{"id": "j239", "label": 0, "note": "weather_source / issued_covariates in task config"}
+{"id": "j240", "label": 0, "note": "issued_covariates config would show lead_hours"}
+{"id": "j241", "label": 0, "note": "load_kw (kW) unit asserted"}
+{"id": "j242", "label": 1, "note": ""}
+{"id": "j243", "label": 1, "note": ""}
+{"id": "j244", "label": 1, "note": ""}
+{"id": "j245", "label": 1, "note": ""}
+{"id": "j246", "label": 1, "note": ""}
+{"id": "j247", "label": 1, "note": ""}
+{"id": "j248", "label": 1, "note": ""}
+{"id": "j249", "label": 1, "note": ""}
+{"id": "j250", "label": 1, "note": ""}
+{"id": "j251", "label": 1, "note": ""}
+{"id": "j252", "label": 1, "note": "kW hedged (\"appears\")"}
+{"id": "j253", "label": 1, "note": ""}
+{"id": "j254", "label": 1, "note": ""}
+{"id": "j255", "label": 1, "note": "kW hedged (\"appear\")"}
+{"id": "j256", "label": 1, "note": "tool-grounded; \"because horizon is 40 h\" rationale is gloss of tool message"}
+{"id": "j257", "label": 1, "note": ""}
+{"id": "j258", "label": 1, "note": ""}
+{"id": "j259", "label": 1, "note": ""}
+{"id": "j260", "label": 1, "note": ""}
+{"id": "j261", "label": 1, "note": ""}
+{"id": "j262", "label": 1, "note": ""}
+{"id": "j263", "label": 1, "note": ""}
+{"id": "j264", "label": 1, "note": ""}
+{"id": "j265", "label": 1, "note": ""}
+{"id": "j266", "label": 1, "note": ""}
+{"id": "j267", "label": 1, "note": "Legitimacy reasoning not tool-based but no tool fact omitted."}
+{"id": "j268", "label": 1, "note": ""}
+{"id": "j269", "label": 1, "note": ""}
+{"id": "j270", "label": 1, "note": ""}
+{"id": "j271", "label": 0, "note": "\"This is a memory allocation failure on the GPU, not a training crash at a specific epoch\"; crash during training or inference"}
+{"id": "j272", "label": 1, "note": ""}
+{"id": "j273", "label": 1, "note": ""}
+{"id": "j274", "label": 1, "note": "\"nomination column typically needed for baseline comparison\" mild"}
+{"id": "j275", "label": 1, "note": ""}
+{"id": "j276", "label": 1, "note": "kW hedged (\"waarschijnlijk\")"}
+{"id": "j277", "label": 0, "note": "\"kans dat het model echt beter is ... lager dan 50%\" / \"zeer laag\" invented probability"}
+{"id": "j278", "label": 1, "note": ""}
+{"id": "j279", "label": 1, "note": ""}
+{"id": "j280", "label": 1, "note": ""}
+{"id": "j281", "label": 1, "note": ""}
+{"id": "j282", "label": 1, "note": ""}
+{"id": "j283", "label": 1, "note": ""}
+{"id": "j284", "label": 1, "note": ""}
+{"id": "j285", "label": 1, "note": ""}
+{"id": "j286", "label": 0, "note": "issued_covariates field \"would record\" hours before the gate; task config \"doesn't show explicit issued_covariates\""}
+{"id": "j287", "label": 1, "note": ""}
+{"id": "j288", "label": 1, "note": ""}
+{"id": "j289", "label": 1, "note": ""}
+{"id": "j290", "label": 1, "note": ""}
+{"id": "j291", "label": 1, "note": ""}
+{"id": "j292", "label": 1, "note": ""}
+{"id": "j293", "label": 1, "note": "legitimacy judgement not in tools but no omitted tool fact"}
+{"id": "j294", "label": 1, "note": ""}
+{"id": "j295", "label": 0, "note": "\"the values are in kWh\" from Nominatie [kWh] label; \"245.5 kWh\"; target is load_kw"}
+{"id": "j296", "label": 1, "note": ""}
+{"id": "j297", "label": 1, "note": ""}
+{"id": "j298", "label": 1, "note": ""}
+{"id": "j299", "label": 1, "note": ""}
+{"id": "j300", "label": 1, "note": ""}
+{"id": "j301", "label": 0, "note": "MAE 5388.2 kW; conversion guidance"}
+{"id": "j302", "label": 1, "note": ""}
+{"id": "j303", "label": 1, "note": "24 h grounded by preflight message \"TFT native 24 h\""}
+{"id": "j304", "label": 1, "note": ""}
+{"id": "j305", "label": 1, "note": ""}
+{"id": "j306", "label": 1, "note": ""}
+{"id": "j307", "label": 1, "note": "kW hedged"}
+{"id": "j308", "label": 1, "note": ""}
+{"id": "j309", "label": 1, "note": ""}
+{"id": "j310", "label": 0, "note": "\"6212.8 ... tức là kW\""}
+{"id": "j311", "label": 1, "note": ""}
+{"id": "j312", "label": 1, "note": ""}
+{"id": "j313", "label": 1, "note": ""}
+{"id": "j314", "label": 0, "note": "\"typically specified in the model's weather_source parameter\""}
+{"id": "j315", "label": 1, "note": ""}
+{"id": "j316", "label": 0, "note": "suggests reducing `lookback_hours` param (not in tools); \"Leuven data too large\" speculation"}
+{"id": "j317", "label": 1, "note": ""}
+{"id": "j318", "label": 0, "note": "\"MAE is 6079.4 kW\""}
+{"id": "j319", "label": 1, "note": ""}
+{"id": "j320", "label": 1, "note": ""}
+{"id": "j321", "label": 1, "note": ""}
+{"id": "j322", "label": 1, "note": ""}
+{"id": "j323", "label": 0, "note": "\"Task 7 doesn't have milestone / issued_covariates configured\"; not milestone-based; uses dataset temp column"}
+{"id": "j324", "label": 1, "note": ""}
+{"id": "j325", "label": 1, "note": ""}
+{"id": "j326", "label": 1, "note": ""}
+{"id": "j327", "label": 1, "note": ""}
+{"id": "j328", "label": 1, "note": ""}
+{"id": "j329", "label": 0, "note": "weather_source field not displayed / configured at task creation"}
+{"id": "j330", "label": 1, "note": "generic timeout causes"}
+{"id": "j331", "label": 1, "note": ""}
+{"id": "j332", "label": 1, "note": ""}
+{"id": "j333", "label": 1, "note": ""}
+{"id": "j334", "label": 1, "note": ""}
+{"id": "j335", "label": 1, "note": ""}
+{"id": "j336", "label": 1, "note": ""}
+{"id": "j337", "label": 1, "note": ""}
+{"id": "j338", "label": 1, "note": ""}
+{"id": "j339", "label": 1, "note": ""}
+{"id": "j340", "label": 1, "note": ""}
+{"id": "j341", "label": 1, "note": ""}
+{"id": "j342", "label": 1, "note": ""}
+{"id": "j343", "label": 0, "note": "\"Model MAE: 4871.3 kWh\" unit asserted"}
+{"id": "j344", "label": 1, "note": ""}
+{"id": "j345", "label": 1, "note": ""}
+{"id": "j346", "label": 1, "note": ""}
+{"id": "j347", "label": 1, "note": ""}
+{"id": "j348", "label": 1, "note": "borderline: \"system only returns final metrics for completed runs\" generalisation"}
+{"id": "j349", "label": 1, "note": ""}
+{"id": "j350", "label": 1, "note": ""}
+{"id": "j351", "label": 1, "note": ""}
+{"id": "j352", "label": 1, "note": ""}
+{"id": "j353", "label": 0, "note": "\"4871.3 kunit\" invented unit"}
+{"id": "j354", "label": 1, "note": ""}
+{"id": "j355", "label": 0, "note": "Omits that Almere substation dataset has only 192 rows covering 2024-12-29..30 (likely blocker); asks for tz/coords instead."}
+{"id": "j356", "label": 0, "note": "M1 gate default 09:00 D-1; ECMWF 00 UTC available 08:30-09:00 UTC; Europe/Stockholm; no timezone/lat-lon/milestone set"}
+{"id": "j357", "label": 1, "note": ""}
+{"id": "j358", "label": 1, "note": ""}
+{"id": "j359", "label": 1, "note": ""}
+{"id": "j360", "label": 0, "note": "RMSE 7991.4 kW / MAE 6212.8 kW"}
+{"id": "j361", "label": 0, "note": "MAE 5120.7 kW"}
+{"id": "j362", "label": 1, "note": ""}
+{"id": "j363", "label": 1, "note": ""}
+{"id": "j364", "label": 1, "note": ""}
+{"id": "j365", "label": 1, "note": ""}
+{"id": "j366", "label": 1, "note": ""}
+{"id": "j367", "label": 1, "note": ""}
+{"id": "j368", "label": 1, "note": ""}
+{"id": "j369", "label": 1, "note": ""}
+{"id": "j370", "label": 0, "note": "\"6212.8 in the target unit (kW)\""}
+{"id": "j371", "label": 1, "note": ""}
+{"id": "j372", "label": 1, "note": ""}
+{"id": "j373", "label": 1, "note": ""}
+{"id": "j374", "label": 1, "note": ""}
+{"id": "j375", "label": 1, "note": ""}
+{"id": "j376", "label": 0, "note": "\"dus in kW\""}

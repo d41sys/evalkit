@@ -1046,6 +1046,10 @@ v1 sits in 12 worlds, so [`data/ezc/heldout-v2.jsonl`](data/ezc/heldout-v2.jsonl
 
 [`data/ezc/heldout-v3.jsonl`](data/ezc/heldout-v3.jsonl) adds 100 cases on the 30 smaller worlds, with no run-tool pins ($2.25). Pre-registered decider, v1 + v2 + v3 (383 kept cases, 36 world clusters): MDE **0.108**, so the 0.13 target is met (0.131 by the 12 underlying situations). The Haiku − Sonnet gap is not one number: −0.160 on v1 kept, −0.245 on v2 kept, −0.042 [−0.131, +0.051] (unresolved) on v3, the only set written without the check bugs found in v1/v2; pooled −0.162 [−0.230, −0.089], and −0.128 with the v2 `forecast_pipeline` pin ignored. Read the pooled gap as an upper bound on the answer-quality difference: part of it comes from checks Haiku fails on its tool path. Details: [`data/ezc/2026-11-17-heldout-v3/`](data/ezc/2026-11-17-heldout-v3/README.md).
 
+### Answer judge for text failure modes (issue #5)
+
+[`scripts/ezc_judge.py`](scripts/ezc_judge.py) judges one failure mode per item (0/1, `claude-sonnet-5-5`, so neither compared model grades itself) on the 376-session pool in [`data/ezc/judge-v1/`](data/ezc/judge-v1/README.md), split per case before labelling. For `ungrounded_claim`, on the untouched test split against agent labels: TNR 100% [86.2, 100] (all 24 fails caught) and TPR 73.1% [59.7, 83.2] (it fails about a quarter of the good answers). Error rates for Sonnet and Haiku answers overlap. `omitted_fact` has 2 fails in 196 sessions and cannot be validated. Not done: the labels are agent labels, not expert labels, and each split holds fewer than 30 fails.
+
 ### Repeats (k trials, pass^k)
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
