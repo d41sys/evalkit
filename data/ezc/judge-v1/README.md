@@ -48,11 +48,15 @@ r4, `evalkit judge-correct`, positive = pass ([`r4-dev/`](r4-dev/), [`r4-test/`]
 |---|---|---|---|
 | dev, both pools (tuned on pool 1) | 39 / 113 | 92.0% [85.6, 95.8] | 94.9% [83.1, 98.6] |
 | **test, pool 2 (new sessions, never read)** | 25 / 51 | **88.2% [76.6, 94.5]** | **96.0% [80.5, 99.3]** |
-| **test, both pools** | 49 / 103 | **89.3% [81.9, 93.9]** | **95.9% [86.3, 98.9]** |
+| test, both pools (pool-1 test was read once at r3, as aggregates) | 49 / 103 | 89.3% [81.9, 93.9] | 95.9% [86.3, 98.9] |
 | test, both pools, Sonnet 4.5 answers | 20 / 56 | 91.1% [80.7, 96.1] | 100% [83.9, 100] |
 | test, both pools, Haiku 4.5 answers | 29 / 47 | 87.2% [74.8, 94.0] | 93.1% [78.0, 98.1] |
 
-One test reply had no parsable score and counts as a fail (k049). Per-model error rates overlap; the pooled Rogan–Gladen correction in `judge-correct` assumes they are equal.
+The intervals are Wilson intervals, which treat sessions as independent. The test split holds up to 4 sessions per case (2 pools × 2 models), so the case-clustered bootstrap (`evalkit.clustered.cluster_bootstrap_ci`, 10,000 resamples by case) is the honest interval:
+- pool 2: TPR 88.2% [76.9, 97.9] over 31 cases, TNR 96.0% [86.4, 100] over 18 cases;
+- both pools: TPR 89.3% [82.0, 95.3] over 34 cases, TNR 95.9% [89.1, 100] over 22 cases.
+
+One test reply had no parsable score (k049). It counts as a fail; its label is pass, so this lowers TPR and does not inflate TNR. Per-model error rates overlap. The pooled Rogan–Gladen correction in `judge-correct` assumes they are equal.
 
 ## Through `evalkit compare`
 
