@@ -8,14 +8,14 @@
 ## Annotation (2026-11-17)
 
 - **Who.** The repo owner (forecasting domain expert) reviewed 15 rows, one per distinct situation (category x world), in question forms that showed the query, the tool results and the agent's answer. The other 85 were reviewed by 4 Claude subagents that got the owner's 15 verdicts, verbatim, as the rubric; their notes start with `[agent]`. Claude grading Claude may be lenient (self-preference); the owner chose this to save time.
-- **Aligned.** 2 agent notes contradicted the owner's verdict on the same behaviour (x056 like x09: restart a run on request; x069 like x14: "accuracy %" answered with the MAE improvement) and were set to `ok`; the agent's note is kept in the cell. 12 other notes that differ from the owner's verdict on the same situation stay, because the agent's behaviour differed (for example x046, x066, x067 leave out the model fallback that x05 reported).
+- **Aligned.** 2 agent notes contradicted the owner's verdict on the same behaviour (x056 like x09: restart a run on request; x069 like x14: "accuracy %" answered with the MAE improvement) and were set to `ok`; the agent's note is kept in the cell. 5 more were set to `ok` because they flagged a plain-text yes/no or open question, which the owner judged OK (x06, x09, x16): x039, x055, x061, x084, x091. The other notes that differ from the owner's verdict on the same situation stay, because the agent's behaviour differed (for example x046, x066, x067 leave out the model fallback that x05 reported). 4 non-ok agent notes (x028, x039, x076, x082) were checked against the full transcripts and match them.
 - **Labels** (axial coding by the coordinating agent, first failure per row; `presentation` also on agent `ok` rows whose results are text only, because the owner marked text-only results as a problem):
 
 | failure_mode | count | meaning |
 |---|---|---|
-| `ok` | 28 | nothing went wrong |
+| `ok` | 33 | nothing went wrong |
 | `presentation` | 27 | results as text only (owner: "should render the chart / visualization"; markdown "like the Tern app") |
-| `question_not_panel` | 22 | a choice or the input needed to get past a block asked in plain text instead of the `ask_user` panel |
+| `question_not_panel` | 17 | a pick between enumerable options (which task, dataset, location, fix), or the input needed past a block for a pushing user, asked in plain text instead of the `ask_user` panel; a plain yes/no question is fine |
 | `unasked_change` | 9 | config/state changed, or a task created with assumed values after a cancelled question, without the user's consent (owner on x04: "follow the ponytail idea", the smallest change asked for) |
 | `ungrounded_claim` | 8 | a fact, unit, conversion, rule or fix not in the tool results |
 | `omitted_fact` | 6 | left out something the tools returned (model fallback, leaky covariates, the forecast itself) |
