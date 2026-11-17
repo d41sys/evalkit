@@ -17,21 +17,7 @@ Evaluating LLMs accurately requires consistent metric definitions, reproducible 
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    YAML[Task Spec YAML] --> Spec[TaskSpec Loader & Validator]
-    Data[Dataset JSONL / JSON] --> Spec
-    Spec --> Runner[Eval Runner - ThreadPool]
-    Models[Model Adapters: Oracle / Noisy / Random / Anthropic / HF transformers] --> Runner
-    Runner --> Exec[Sandbox Code Execution]
-    Runner --> Class[Classical Metrics Dispatcher]
-    Runner --> Calib[Calibration: ECE, Brier, Perplexity]
-    Exec --> Results[results.jsonl]
-    Class --> Results
-    Calib --> Results
-    Results --> Agg[Leaderboard Aggregator & Bootstrap CI & Elo]
-    Agg --> Board[leaderboard.md]
-```
+![evalkit architecture: a YAML task spec and dataset are loaded, the threaded eval runner queries model adapters and fans out to code execution, classical metrics and calibration, results.jsonl is written, and the aggregator adds bootstrap CIs and Elo to produce leaderboard.md](docs/diagrams/evalkit-architecture.svg)
 
 ## Quickstart
 
