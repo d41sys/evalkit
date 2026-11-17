@@ -1050,7 +1050,7 @@ A real agent that does not beat `donothing` or `refuseall` by a resolved margin 
 | `--temperature 0` | 1 | 18/20 = 0.900 | |
 | `--temperature default` | 5 | 99/100 = 0.990 | 0.950 [0.850, 1.000] |
 
-T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3 failures are the D5 claim check flagging a number the answer uses as an example or a constant ("e.g., 24 hours", "dividing by 1000", "a 48h lead time forecast"), not a reported result: grader false positives, so no run failed a check for something the agent did wrong (the passes are not human-reviewed). forecast-v1 is saturated for this model; the held-out set of issue #4 needs harder cases.
+T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3 failures come from the D5 claim check, and they are not all alike: `numbers-mwh` (T0) is a true positive, the answer gives a conversion factor ("dividing by 1000 would give MWh") that the system prompt forbids; `blocked-late-weather` (trial 4) puts a lead time no tool returned in a suggestion ("like a 48h lead time forecast"), a real if minor invented number; `clarify-no-dataset` (T0) flags an illustrative "e.g., 24 hours", the only clear false positive ([ezcross-ems#250](https://github.com/d41sys/ezcross-ems/issues/250)). The passes are not human-reviewed. forecast-v1 is saturated for this model; the held-out set of issue #4 needs harder cases.
 
 ### Repeats (k trials, pass^k)
 
