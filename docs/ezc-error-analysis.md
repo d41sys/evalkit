@@ -1,14 +1,14 @@
 # How to annotate ezc transcripts (issue #3)
 
-About 1 hour for 20 rows. You need a spreadsheet app and a browser.
+About 4 to 5 hours for the 100 rows (3 minutes each); it can be split over several sittings. You need a spreadsheet app and a browser.
 
 ## Steps
 
-1. Open [`data/ezc/2026-11-15-qwen3.6-27b/explore-sheet.csv`](../data/ezc/2026-11-15-qwen3.6-27b/explore-sheet.csv) in a spreadsheet.
+1. Open [`data/ezc/2026-11-17-sonnet-4.5-explore/explore-sheet.csv`](../data/ezc/2026-11-17-sonnet-4.5-explore/explore-sheet.csv) in a spreadsheet: 100 synthetic queries answered by the production model (`claude-sonnet-4-5`, production temperature). The older 20-row sheet of a local model (`data/ezc/2026-11-15-qwen3.6-27b/`) is a pipeline check; skip it.
 2. For each row, open the file in the `transcript` column (a readable Markdown version of the session; on GitHub it renders).
 3. Read it as the domain expert. Write in `note` the **first** thing that went wrong, in one plain sentence. If nothing went wrong, write `ok`. About 3 minutes per row.
-4. After all 20 rows, read your notes together and invent 3 to 6 short labels that cover them. Put each row's label in `failure_mode` (`ok` rows stay empty; several labels: separate with `;`).
-5. Save the CSV, then count: `uv run evalkit failure-modes data/ezc/2026-11-15-qwen3.6-27b/explore-sheet.csv`.
+4. After the first 30 rows, and again at the end, read your notes together and invent 3 to 6 short labels that cover them. Put each row's label in `failure_mode` (`ok` rows stay empty; several labels: separate with `;`).
+5. Save the CSV, then count: `uv run evalkit failure-modes data/ezc/2026-11-17-sonnet-4.5-explore/explore-sheet.csv`. These are synthetic queries: the counts show which failure modes exist, not how often real users hit them.
 
 ## Rules
 
