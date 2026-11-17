@@ -7,7 +7,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from .statscheck import wilson_interval
+from .small_n_ci import wilson_interval
 
 OPTIONAL_COLUMNS = ("sample", "prompt", "output", "transcript")
 

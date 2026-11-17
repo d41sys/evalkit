@@ -67,7 +67,7 @@ def test_round_trip_counts_multi_mode_and_unannotated(tmp_path, capsys):
     assert (reviewed, unannotated) == (2, 1)
     assert [(m, c) for m, c, _ in modes] == [("wrong tool", 2), ("hallucination", 1)]
     lo, hi = modes[0][2]
-    exp = wilson_interval(2, 2)
+    exp = wilson_interval(2, 2, 0.95)  # the column header says 95%
     assert math.isclose(lo, exp[0]) and math.isclose(hi, exp[1])
     assert "m1: 2 reviewed, 1 unannotated" in out
     assert "wrong tool" in out and "100.0%" in out and "50.0%" in out
