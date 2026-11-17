@@ -1019,7 +1019,7 @@ Use one price set per agent: run the `jq` once per provider and `cat` the files 
 
 ### The floor: a fresh clone reproduces it without an API key
 
-Three scripted agents bound what a real agent can score. The script ships in [d41sys/ezcross-ems#240](https://github.com/d41sys/ezcross-ems/pull/240); until that PR is merged, run it from that branch. Without ezcross, `data/ezc/floor-results.jsonl` holds the same 60 scores. From ezcross `harness/`:
+Three scripted agents bound what a real agent can score. The script is on ezcross `dev` (merged with [d41sys/ezcross-ems#240](https://github.com/d41sys/ezcross-ems/pull/240)). Without ezcross, `data/ezc/floor-results.jsonl` holds the same 60 scores. From ezcross `harness/`:
 
 ```bash
 bun run packages/ezc-cli/scripts/eval-floor.ts --out runs/floor
