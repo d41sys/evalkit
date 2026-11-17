@@ -1,6 +1,6 @@
 # ezc heldout-v2 (issue #4)
 
-150 cases, [`heldout-v2.jsonl`](heldout-v2.jsonl). Same 4 failure modes and design rules as [`heldout-v1.md`](heldout-v1.md); this note lists only what differs. v1 has MDE 0.177 because its 150 cases sit in 12 fixture worlds (m1_ok alone holds 47). v2 moves every case to **24 new fixture worlds** (5-7 cases each, none in a v1 world), so that the clustered MDE can reach <= 0.13. Written before any model is scored on it. [INFERENCE] The MDE itself is computed in the analysis, not here.
+150 cases, [`heldout-v2.jsonl`](heldout-v2.jsonl). Same 4 failure modes and design rules as [`heldout-v1.md`](heldout-v1.md); this note lists only what differs. v1 has MDE 0.177 because its 150 cases sit in 12 fixture worlds (m1_ok alone holds 47). v2 moves every case to **24 new fixture worlds** (5-7 cases each, none in a v1 world), so that the clustered MDE can reach <= 0.13. Written before any model is scored on it. The MDE itself is computed in the analysis, not here.
 
 ## Depends on ezcross
 
