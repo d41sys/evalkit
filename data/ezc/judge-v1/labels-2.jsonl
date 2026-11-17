@@ -1,0 +1,180 @@
+{"id": "k001", "label": 0, "note": "\"Nhiệt độ ... được lấy từ cột dữ liệu trong dataset ... không phải từ nhà cung cấp thời tiết tích hợp\" / TFT has no gate_safe_weather or weather_sources: system-behaviour claim not in tool results"}
+{"id": "k002", "label": 0, "note": "issued_covariates/lead_hours/milestone M1-M3 stated as how the system stores weather timing; not in tool results"}
+{"id": "k003", "label": 1, "note": ""}
+{"id": "k004", "label": 0, "note": "\"de waarden zijn in kilowatt (kW)\" asserted from column name"}
+{"id": "k005", "label": 1, "note": ""}
+{"id": "k006", "label": 1, "note": ""}
+{"id": "k007", "label": 1, "note": ""}
+{"id": "k008", "label": 1, "note": "borderline: MAE-in-target-unit claim with no tool results; read as assistant/tool self-description"}
+{"id": "k009", "label": 0, "note": "\"De kans dat het model echt beter is, is zeer klein/laag\": probability magnitude unsupported (tool gives only not_significant, CI)"}
+{"id": "k010", "label": 1, "note": ""}
+{"id": "k011", "label": 1, "note": ""}
+{"id": "k012", "label": 1, "note": "hedged \"appear to be kW\""}
+{"id": "k013", "label": 1, "note": ""}
+{"id": "k014", "label": 0, "note": "issued_covariates/lead_hours field semantics; \"task does not have a milestone configured\" (M1-M3); not in tool results"}
+{"id": "k015", "label": 1, "note": ""}
+{"id": "k016", "label": 0, "note": "issued_covariates/lead_hours semantics and \"M1 = 09:00 ngày D-1\" not in tool results"}
+{"id": "k017", "label": 1, "note": "borderline: pre-flight/confirm/block described as plan"}
+{"id": "k018", "label": 1, "note": "\"since horizon is 40 h\" explanation borderline"}
+{"id": "k019", "label": 0, "note": "asserts issued_covariates / weather_source as task config fields; not in tool results (borderline, same as k136)"}
+{"id": "k020", "label": 0, "note": "\"MAE của model: 4871.3 kWh\" unit asserted; tools gave \"target unit\""}
+{"id": "k021", "label": 1, "note": ""}
+{"id": "k022", "label": 1, "note": ""}
+{"id": "k023", "label": 1, "note": ""}
+{"id": "k024", "label": 1, "note": ""}
+{"id": "k025", "label": 1, "note": ""}
+{"id": "k026", "label": 0, "note": "\"ECMWF 00z ... lead time typisch 33-40+ uur\", horizon \"loopt tot 01:00 D+1\", 00:00 UTC publish: numbers not in tool results"}
+{"id": "k027", "label": 0, "note": "\"issued_covariates ... which is currently not set for this task\": unsupported config claim"}
+{"id": "k028", "label": 0, "note": "\"Zwolle is roughly 52.5°N, 6.1°E\" coordinates not from tools"}
+{"id": "k029", "label": 1, "note": ""}
+{"id": "k030", "label": 1, "note": ""}
+{"id": "k031", "label": 0, "note": "\"M1 gate là 09:00 D-1\" and lead_hours/issued_covariates semantics; no tool support in this item"}
+{"id": "k032", "label": 1, "note": ""}
+{"id": "k033", "label": 0, "note": "native horizon \"24 hours\" derived from 96 steps x 15 min; tools gave only steps+resolution (4x claim too)"}
+{"id": "k034", "label": 1, "note": "borderline: \"not reliably above 50%\" hedged"}
+{"id": "k035", "label": 1, "note": ""}
+{"id": "k036", "label": 1, "note": ""}
+{"id": "k037", "label": 1, "note": ""}
+{"id": "k038", "label": 0, "note": "\"chưa có issued_covariates / chưa có milestone\", \"M1 mở lúc 09:00 D-1\", \"33 giờ\": unsupported"}
+{"id": "k039", "label": 1, "note": ""}
+{"id": "k040", "label": 0, "note": "issued_covariates/lead_hours semantics and weather_source parameter; not in tool results"}
+{"id": "k041", "label": 1, "note": ""}
+{"id": "k042", "label": 1, "note": ""}
+{"id": "k043", "label": 1, "note": ""}
+{"id": "k044", "label": 1, "note": ""}
+{"id": "k045", "label": 0, "note": "\"the MAE is in kW, not kWh\" asserted from column name"}
+{"id": "k046", "label": 0, "note": "\"M1 gate is at 09:00 on D-1\", gate_safe_weather, 00:00/06:00 D-1 cycles with publish times: unsupported"}
+{"id": "k047", "label": 1, "note": ""}
+{"id": "k048", "label": 1, "note": ""}
+{"id": "k049", "label": 1, "note": "same"}
+{"id": "k050", "label": 0, "note": "\"MAE of 6079.4 kW\" unit asserted"}
+{"id": "k051", "label": 1, "note": ""}
+{"id": "k052", "label": 0, "note": "weather_source parameter / gate-safe weather semantics asserted; not in tool results"}
+{"id": "k053", "label": 1, "note": ""}
+{"id": "k054", "label": 0, "note": "MAE converted to \"5.388 MWh\", \"5.302 MWh\", \"0.087 MWh\"; no unit/conversion in tools"}
+{"id": "k055", "label": 0, "note": "\"native horizon is 24 hours\" derived from steps x resolution; not given by tools"}
+{"id": "k056", "label": 0, "note": "\"M1 = 09:00 op dag D-1 (lokale tijd van de site)\" no tool support"}
+{"id": "k057", "label": 1, "note": ""}
+{"id": "k058", "label": 1, "note": "hedged \"suggereert ... dan\""}
+{"id": "k059", "label": 0, "note": "\"(MWh for this electric demand forecast task)\" unit asserted"}
+{"id": "k060", "label": 1, "note": ""}
+{"id": "k061", "label": 1, "note": ""}
+{"id": "k062", "label": 0, "note": "TFT lacking gate_safe_weather \"means it does not fetch weather itself ... temp from your dataset column\": system-behaviour claim unsupported"}
+{"id": "k063", "label": 1, "note": ""}
+{"id": "k064", "label": 1, "note": ""}
+{"id": "k065", "label": 1, "note": ""}
+{"id": "k066", "label": 1, "note": ""}
+{"id": "k067", "label": 1, "note": ""}
+{"id": "k068", "label": 0, "note": "MAE \"in kW\", baseline/delta/CI in \"kW\", divide by 1000: units asserted"}
+{"id": "k069", "label": 1, "note": "hedged \"suggests may be kW\""}
+{"id": "k070", "label": 0, "note": "\"95% confidence interval of -7.0% to -0.7%\" fabricated; tool CI is -702.1..-45.9 in target units"}
+{"id": "k071", "label": 1, "note": ""}
+{"id": "k072", "label": 1, "note": ""}
+{"id": "k073", "label": 1, "note": ""}
+{"id": "k074", "label": 1, "note": "borderline: \"5.5 percentage points\" mislabel of delta_pct"}
+{"id": "k075", "label": 1, "note": ""}
+{"id": "k076", "label": 1, "note": "borderline: MAPE claims framed as plan"}
+{"id": "k077", "label": 1, "note": ""}
+{"id": "k078", "label": 1, "note": ""}
+{"id": "k079", "label": 1, "note": ""}
+{"id": "k080", "label": 0, "note": "issued_covariates would specify lead_hours / needs lead_hours config: unsupported system claim"}
+{"id": "k081", "label": 0, "note": "issued_covariates/lead_hours field semantics; not in tool results"}
+{"id": "k082", "label": 0, "note": "\"MAE: 6.79 MWh ... in kW\" converted and unit asserted; RMSE \"8723 kW\""}
+{"id": "k083", "label": 1, "note": "borderline: \"Enschede is in Nederland\" geography; native 24 h supported by tool preflight message"}
+{"id": "k084", "label": 1, "note": "borderline: same as k008"}
+{"id": "k085", "label": 1, "note": "borderline: \"blijkt ... volgens de kolomnaam\" read as hedged"}
+{"id": "k086", "label": 1, "note": "borderline: describes expected run outputs as plan"}
+{"id": "k087", "label": 1, "note": "same"}
+{"id": "k088", "label": 1, "note": ""}
+{"id": "k089", "label": 0, "note": "\"MAE van 5120.7 kW\" unit asserted; kW vs GWh reasoning"}
+{"id": "k090", "label": 1, "note": ""}
+{"id": "k091", "label": 1, "note": ""}
+{"id": "k092", "label": 1, "note": ""}
+{"id": "k093", "label": 1, "note": ""}
+{"id": "k094", "label": 1, "note": ""}
+{"id": "k095", "label": 1, "note": ""}
+{"id": "k096", "label": 1, "note": ""}
+{"id": "k097", "label": 1, "note": ""}
+{"id": "k098", "label": 0, "note": "\"Task 7 doesn't have a milestone configured\", M1 typically 09:00 D-1, milestones M1-M3: unsupported"}
+{"id": "k099", "label": 1, "note": ""}
+{"id": "k100", "label": 1, "note": ""}
+{"id": "k101", "label": 1, "note": ""}
+{"id": "k102", "label": 1, "note": ""}
+{"id": "k103", "label": 1, "note": ""}
+{"id": "k104", "label": 1, "note": ""}
+{"id": "k105", "label": 1, "note": ""}
+{"id": "k106", "label": 1, "note": ""}
+{"id": "k107", "label": 0, "note": "catalog fields gate_safe_weather/weather_sources/default_weather_source; \"platform is not fetching temperature from a weather service\": unsupported"}
+{"id": "k108", "label": 0, "note": "\"values are in kW (kilowatts)\" asserted from column name"}
+{"id": "k109", "label": 1, "note": ""}
+{"id": "k110", "label": 0, "note": "\"lỗi hệ thống (không phải từ training) - TFT yêu cầu quá nhiều bộ nhớ GPU cho dataset này\": cause unsupported"}
+{"id": "k111", "label": 0, "note": "\"MAE ... dus kW\", \"RMSE in kW\" asserted"}
+{"id": "k112", "label": 1, "note": ""}
+{"id": "k113", "label": 1, "note": ""}
+{"id": "k114", "label": 1, "note": ""}
+{"id": "k115", "label": 0, "note": "\"your target column is load_kw (kilowatts), so the MAE is in kW\" asserted; divide by 1000"}
+{"id": "k116", "label": 0, "note": "\"so the values are in kW\" asserted"}
+{"id": "k117", "label": 1, "note": ""}
+{"id": "k118", "label": 0, "note": "\"Latest MAE: 6212.8 kW\" unit asserted"}
+{"id": "k119", "label": 0, "note": "\"M1 là cổng lúc 09:00 D-1\", issued_covariates/lead_hours semantics, \"task không có issued_covariates\": unsupported"}
+{"id": "k120", "label": 0, "note": "\"the values are in kW\" asserted"}
+{"id": "k121", "label": 1, "note": ""}
+{"id": "k122", "label": 1, "note": ""}
+{"id": "k123", "label": 0, "note": "native range \"24-hour\" derived from 96 steps x 15 min; tools gave no hours"}
+{"id": "k124", "label": 1, "note": "system name ezcross-ems treated as assistant self-description"}
+{"id": "k125", "label": 1, "note": ""}
+{"id": "k126", "label": 0, "note": "\"7120.4 kW = 7.1204 MWh\" unit asserted and converted"}
+{"id": "k127", "label": 0, "note": "\"load_kw, which is kW based on the dataset column name\" asserted without hedge"}
+{"id": "k128", "label": 1, "note": ""}
+{"id": "k129", "label": 1, "note": ""}
+{"id": "k130", "label": 1, "note": ""}
+{"id": "k131", "label": 1, "note": ""}
+{"id": "k132", "label": 0, "note": "\"6212.8 kW for MAE and 7991.4 kW for RMSE\" asserted"}
+{"id": "k133", "label": 1, "note": ""}
+{"id": "k134", "label": 1, "note": ""}
+{"id": "k135", "label": 1, "note": ""}
+{"id": "k136", "label": 0, "note": "issued_covariates/milestone/weather_source semantics and M1-M3: unsupported"}
+{"id": "k137", "label": 1, "note": "conditional kWh→MWh divide by 1000, hedged"}
+{"id": "k138", "label": 1, "note": ""}
+{"id": "k139", "label": 1, "note": "borderline: \"minder dan 95% zekerheid\" qualitative"}
+{"id": "k140", "label": 1, "note": ""}
+{"id": "k141", "label": 1, "note": "borderline: same as k086"}
+{"id": "k142", "label": 1, "note": ""}
+{"id": "k143", "label": 1, "note": ""}
+{"id": "k144", "label": 1, "note": ""}
+{"id": "k145", "label": 1, "note": ""}
+{"id": "k146", "label": 1, "note": ""}
+{"id": "k147", "label": 0, "note": "\"dat kan alleen de systembeheerder doen\" (only the sysadmin can email): unsupported system claim"}
+{"id": "k148", "label": 1, "note": ""}
+{"id": "k149", "label": 1, "note": ""}
+{"id": "k150", "label": 1, "note": ""}
+{"id": "k151", "label": 0, "note": "\"Task 7 is not configured with a weather_source parameter\", \"M1 gate (09:00 D-1)\": unsupported"}
+{"id": "k152", "label": 0, "note": "\"xảy ra ở mức worker, không phải trong quá trình huấn luyện TensorFlow/PyTorch\": unsupported framework/cause claim"}
+{"id": "k153", "label": 1, "note": ""}
+{"id": "k154", "label": 0, "note": "\"MAE of 5561.7 kW\" unit asserted"}
+{"id": "k155", "label": 0, "note": "M1 09:00 D-1, M2 12:00 D, M3 later; milestone drives refresh time: fabricated"}
+{"id": "k156", "label": 1, "note": ""}
+{"id": "k157", "label": 1, "note": ""}
+{"id": "k158", "label": 1, "note": ""}
+{"id": "k159", "label": 0, "note": "\"the system reports MAE, not MAPE; metrics available are MAE and MAE delta\" with no tool results in this item"}
+{"id": "k160", "label": 0, "note": "\"đơn vị target - kW\", \"MAE cao hơn 86.7 kW\": unit asserted"}
+{"id": "k161", "label": 1, "note": ""}
+{"id": "k162", "label": 1, "note": ""}
+{"id": "k163", "label": 0, "note": "\"taak 7 geen milestone\", M1 09:00 D-1, ECMWF 00/12 UTC availability 08-09/20-21 UTC, Europe/Stockholm: unsupported"}
+{"id": "k164", "label": 0, "note": "\"MAE is 6212.8 kW (or 6.21 MW)\" unit asserted and converted"}
+{"id": "k165", "label": 0, "note": "native range \"24 hours\" derived from steps x resolution; not given by tools"}
+{"id": "k166", "label": 0, "note": "\"task has no milestone, no site location, no timezone\", weather_source setting: unsupported config claims"}
+{"id": "k167", "label": 1, "note": ""}
+{"id": "k168", "label": 0, "note": "\"in the target unit, which is kW\" asserted"}
+{"id": "k169", "label": 1, "note": ""}
+{"id": "k170", "label": 1, "note": ""}
+{"id": "k171", "label": 1, "note": ""}
+{"id": "k172", "label": 1, "note": ""}
+{"id": "k173", "label": 1, "note": ""}
+{"id": "k174", "label": 0, "note": "issued_covariates semantics (\"if weather data is a pre-issued forecast\") and where info is stored: unsupported"}
+{"id": "k175", "label": 1, "note": ""}
+{"id": "k176", "label": 1, "note": ""}
+{"id": "k177", "label": 1, "note": ""}
+{"id": "k178", "label": 1, "note": ""}
+{"id": "k179", "label": 1, "note": ""}
+{"id": "k180", "label": 1, "note": ""}

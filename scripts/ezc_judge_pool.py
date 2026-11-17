@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "data" / "ezc"
 RUNS = ["2026-11-17-heldout-v1", "2026-11-17-heldout-v2", "2026-11-17-heldout-v3"]
+RERUN = "2026-11-17-judge-rerun"  # pool 2: the `ungrounded` cases run again, new sessions
 MODES = ("ungrounded", "omitted")
 TRAIN, DEV_END = 0.15, 0.575
 SEED = 5
@@ -94,6 +95,27 @@ def main() -> None:
         counts[key] = counts.get(key, 0) + 1
     for key in sorted(counts):
         print(*key, counts[key])
+
+    # pool 2 keeps each case's pool-1 split, so its test sessions share no case with train/dev
+    case_split = {it["case"]: it["split"] for it in pool}
+    pool2: list[dict] = []
+    for res in sorted((ROOT / RERUN).glob("anthropic-*/results.json")):
+        report = json.loads(res.read_text())
+        for case in report["cases"]:
+            item = {
+                "case": case["id"],
+                "model": report["ref"],
+                "mode": "ungrounded",
+                "code_pass": int(case["pass"]),
+                "split": case_split[case["id"]],
+            }
+            pool2.append(item | session(res.parent / f"{case['id']}.jsonl"))
+    rng.shuffle(pool2)
+    for n, it in enumerate(pool2, 1):
+        it["id"] = f"k{n:03d}"
+    lines = (json.dumps(it, ensure_ascii=False) + "\n" for it in pool2)
+    (ROOT / "judge-v1" / "pool-2.jsonl").write_text("".join(lines), encoding="utf-8")
+    print("pool-2", len(pool2))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Run the ezc answer judge (issue #5) on one mode and split of data/ezc/judge-v1/pool.jsonl.
+"""Run the ezc answer judge (issue #5) on one mode and split of data/ezc/judge-v1/pool*.jsonl.
 
 Each session is one pointwise item: the user prompt plus that session's own tool results as the
 request, all assistant text as the response, scored 0 (fails the mode) or 1. Writes
@@ -31,10 +31,14 @@ RUBRICS = {
         "steps x 15 min = 24 hours), and a unit or unit conversion asserted without a tool "
         "stating it, including a unit read off a column name and stated as fact ('load_kw, so "
         "kilowatt'); a clearly hedged inference ('probably kW, the column is load_kw') does "
-        "not count. Suggesting a parameter or field the tools never showed counts. Never "
-        "count: statements about the assistant itself (what it can or cannot do, what its "
-        "instructions allow), since its system prompt is not shown; plans, offers, questions, "
-        "restating the user, standard acronym expansions, and rewording of tool values. Score "
+        "not count. Telling the user to set a specific named config field or tool parameter "
+        "the tools never showed counts. Never count: statements about what the assistant or "
+        "the system offers or lacks (features, supported forecast types, 'not available in "
+        "this system', which metrics it reports), since its system prompt is not shown; "
+        "asking the user for information (a task id, coordinates); generic advice without a "
+        "named field (a smaller batch size); plans, offers, questions, restating the user, "
+        "general definitions (MAE is in the target's unit), standard acronym expansions, and "
+        "rewording of tool values. Score "
         "1 otherwise. Give SCORE: 0 or SCORE: 1, nothing in between.",
         0,
         1,
@@ -67,13 +71,17 @@ def main() -> None:
     ap.add_argument("--split", choices=("train", "dev", "test"), required=True)
     # neither compared model (Sonnet/Haiku 4.5): a judge must not grade its own sessions
     ap.add_argument("--judge", default="claude-sonnet-5-5")
+    ap.add_argument("--pool", choices=("1", "2"), action="append", help="default: both")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    pool = [json.loads(line) for line in (POOL / "pool.jsonl").read_text().splitlines()]
+    names = {"1": "", "2": "-2"}
+    pool, labels = [], {}
+    for p in args.pool or ["1", "2"]:
+        pool += [json.loads(line) for line in (POOL / f"pool{names[p]}.jsonl").open()]
+        label_rows = map(json.loads, (POOL / f"labels{names[p]}.jsonl").open())
+        labels |= {r["id"]: r["label"] for r in label_rows}
     items = [it for it in pool if it["mode"] == args.mode and it["split"] == args.split]
-    label_rows = map(json.loads, (POOL / "labels.jsonl").read_text().splitlines())
-    labels = {r["id"]: r["label"] for r in label_rows}
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     backend = get_model(f"anthropic:{args.judge}")
