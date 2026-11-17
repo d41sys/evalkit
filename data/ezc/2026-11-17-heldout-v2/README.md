@@ -33,5 +33,9 @@ Haiku − Sonnet, `evalkit compare --all-pairs`, pre-registered analysis:
 | v1 + v2 kept, by world (decides #4) | 36 | −0.202 [−0.278, −0.116] | 0.0001 | 0.11 | 2.54 | **0.140** |
 | v1 + v2 kept, by family (situation) | 12 | −0.202 [−0.283, −0.107] | 0.005 | 0.07 | 3.23 | 0.157 |
 | v2 kept, by world | 24 | −0.245 [−0.345, −0.148] | 0.0002 | 0.17 | 1.84 | 0.169 |
+| sensitivity: v1 + v2 kept, pin ignored, by world | 36 | −0.157 [−0.231, −0.074] | 0.0007 | 0.05 | 1.77 | 0.108 |
+| sensitivity: v1 + v2 kept, pin ignored, by family | 12 | −0.157 [−0.232, −0.066] | 0.009 | 0.05 | 2.48 | 0.128 |
+
+**The `outcome: forecast_pipeline` pin is a check bug, not a footnote.** It is in the failed checks of 25 Haiku cases and 3 Sonnet cases; in 14 Haiku cases (Sonnet: 0) it is the only failing check, because Haiku takes the equally valid `run_forecast` + `get_runs` path (v099 among them is dropped). The sensitivity rows score those 13 kept cases as passes for Haiku (134 -> 147 of 287), slightly generous because Haiku's "MWh for this task" in v096 is a real failure no check caught: the gap shrinks from −0.202 to −0.157 and stays resolved, and the MDE falls to 0.108 by world and 0.128 by family, because the pin inflated both the discordance and the between-world correlation. The pre-registered row stays the decider; heldout-v3 pins no tool.
 
 The difference is resolved under every clustering. The done-when (MDE <= 0.13) is **not met**: 0.140 by world, 0.157 by family. ICC by world rose from 0.06 (v1) to 0.11, so the 24 new worlds bought less than the plan assumed; by family the variants add little, as expected, because they repeat the 12 situations. Family clustering pools both sets in one task (`task` set to one value), so v1 `m1_ok` and v2 `m1_ok_*` share a cluster. The first commit of this README (`f25f0c7`) dropped 6 cases and reported 0.136; v099 was added under the uniform reading above.
