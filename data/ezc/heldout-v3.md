@@ -68,7 +68,7 @@ Users: operator 30, researcher 28, DSO 23, student 19. Intent categories: blocke
 
 Every `qnp` case sits in a world where a block or a roll-out `confirm` exists (late weather, leaky, short history, unscoped, roll-out), since only there is an `ask_user` panel the right answer. The other 75 cases are spread over all 30 worlds.
 
-Indicative design effect, from the case counts above and v1's pre-drop counts for the six large worlds (m1_ok 47, two_datasets 24, late_weather 19, leaky 17, unscoped 10, rollout_confirm 9): `m` = 15.7 for v1 + v2 (n 292), 15.3 for v1 + v2 + v3 (n 392). With variance proportional to `m / n` that is a factor of about 0.85 on the MDE, i.e. about 0.116 from 0.136 `[INFERENCE]`; the real MDE comes from the analysis below.
+Indicative design effect, from the case counts above and v1's pre-drop counts for the six large worlds (m1_ok 47, two_datasets 24, late_weather 19, leaky 17, unscoped 10, rollout_confirm 9): `m` = 15.7 for v1 + v2 (n 292), 15.3 for v1 + v2 + v3 (n 392). With variance proportional to `m / n` that is a factor of about 0.85 on the MDE, i.e. about 0.12 from the v1 + v2 decider's 0.140 (an estimate written before the run); the real MDE comes from the analysis below. Single-tool `tools_any` entries other than `ask_user` (14 cases) name the only tool that holds the fact asked for: `list_datasets` (empty worlds, nomination column), `model_catalog` (which models exist), `get_runs` (an earlier run's fallback), `update_forecast_task` (denied-write cases).
 
 ## Check design
 
