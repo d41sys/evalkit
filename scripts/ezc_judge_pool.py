@@ -73,7 +73,9 @@ def main() -> None:
                     item |= session(res.parent / f"{case['id']}.jsonl")
                     cases.setdefault(case["id"], []).append(item)
         for any_fail in (True, False):
-            ids = sorted(c for c, its in cases.items() if any_fail != all(i["code_pass"] for i in its))
+            ids = sorted(
+                c for c, its in cases.items() if any_fail != all(i["code_pass"] for i in its)
+            )
             rng.shuffle(ids)
             for i, case_id in enumerate(ids):
                 frac = i / len(ids)
@@ -84,7 +86,8 @@ def main() -> None:
         it["id"] = f"j{n:03d}"
     out = ROOT / "judge-v1" / "pool.jsonl"
     out.parent.mkdir(exist_ok=True)
-    out.write_text("".join(json.dumps(it, ensure_ascii=False) + "\n" for it in pool), encoding="utf-8")
+    lines = (json.dumps(it, ensure_ascii=False) + "\n" for it in pool)
+    out.write_text("".join(lines), encoding="utf-8")
     counts: dict[tuple, int] = {}
     for it in pool:
         key = (it["mode"], it["split"], it["code_pass"])
