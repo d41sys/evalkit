@@ -1058,6 +1058,8 @@ T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3
 
 v1 sits in 12 worlds, so [`data/ezc/heldout-v2.jsonl`](data/ezc/heldout-v2.jsonl) adds 150 cases in 24 new worlds ([d41sys/ezcross-ems#254](https://github.com/d41sys/ezcross-ems/pull/254)). On v1 + v2 (287 kept cases, $3.41 for v2): Sonnet 192, Haiku 134, difference −0.202 [−0.278, −0.116], resolved (cluster randomisation p 0.0001); MDE 0.140 clustered by world, 0.157 by the 12 underlying situations, so the 0.13 target is not met yet. Details: [`data/ezc/2026-11-17-heldout-v2/`](data/ezc/2026-11-17-heldout-v2/README.md).
 
+[`data/ezc/heldout-v3.jsonl`](data/ezc/heldout-v3.jsonl) adds 100 cases on the 30 smaller worlds, with no run-tool pins ($2.25). Pre-registered decider, v1 + v2 + v3 (383 kept cases, 36 world clusters): Sonnet 254, Haiku 192, difference −0.162 [−0.230, −0.089], cluster randomisation p 0.0002, **MDE 0.108**, so the 0.13 target is met; by the 12 underlying situations the MDE is 0.131. v3 alone separates the models little (−0.042, unresolved), and in v2 a `forecast_pipeline` pin widens the gap (sensitivity: −0.128). Details: [`data/ezc/2026-11-17-heldout-v3/`](data/ezc/2026-11-17-heldout-v3/README.md).
+
 ### Repeats (k trials, pass^k)
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
