@@ -1048,7 +1048,7 @@ v1 sits in 12 worlds, so [`data/ezc/heldout-v2.jsonl`](data/ezc/heldout-v2.jsonl
 
 ### Answer judge for text failure modes (issue #5)
 
-[`scripts/ezc_judge.py`](scripts/ezc_judge.py) judges `ungrounded_claim` (0/1, `claude-sonnet-5-5`, so neither compared model grades itself) on 360 sessions in [`data/ezc/judge-v1/`](data/ezc/judge-v1/README.md), split per case before labelling. On the test split it never tuned on, 49 fail / 103 pass: TPR 89.3% [81.9, 93.9], TNR 95.9% [86.3, 98.9]; on the 76 new sessions alone, 88.2% / 96.0%. The verdicts are ordinary result rows, so `evalkit compare` runs on them (Haiku − Sonnet −0.105 [−0.214, +0.030], unresolved). Labels come from Claude subagents at the owner's request, not from a domain expert. `omitted_fact` has 2 fails in 196 sessions and is not judged.
+[`scripts/ezc_judge.py`](scripts/ezc_judge.py) judges `ungrounded_claim` (0/1, `claude-sonnet-5-5`, so neither compared model grades itself) on 360 sessions in [`data/ezc/judge-v1/`](data/ezc/judge-v1/README.md), split per case before labelling. On the 76 test sessions it never read (pool 2, 25 fail / 51 pass), with intervals from a bootstrap over cases: TPR 88.2% [76.9, 97.9], TNR 96.0% [86.4, 100]. The verdicts are ordinary result rows, so `evalkit compare` runs on them (Haiku − Sonnet −0.105 [−0.214, +0.030], unresolved). Labels come from Claude subagents at the owner's request, not from a domain expert. `omitted_fact` has 2 fails in 196 sessions and is not judged.
 
 ### Repeats (k trials, pass^k)
 

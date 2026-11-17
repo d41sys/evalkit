@@ -71,11 +71,13 @@ def main() -> None:
     ap.add_argument("--split", choices=("train", "dev", "test"), required=True)
     # neither compared model (Sonnet/Haiku 4.5): a judge must not grade its own sessions
     ap.add_argument("--judge", default="claude-sonnet-5-5")
-    ap.add_argument("--pool", choices=("1", "2"), action="append", help="default: both")
+    ap.add_argument("--pool", choices=("1", "2", "3"), action="append", help="default: 1 and 2")
+    # 5 samples at the API's default temperature, majority vote (Lail 2026, arXiv 2604.13717)
+    ap.add_argument("--samples", type=int, default=5, help="majority vote over k samples")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    names = {"1": "", "2": "-2"}
+    names = {"1": "", "2": "-2", "3": "-3"}
     pool, labels = [], {}
     for p in args.pool or ["1", "2"]:
         pool += [json.loads(line) for line in (POOL / f"pool{names[p]}.jsonl").open()]
@@ -86,15 +88,20 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
-    completer = CachedCompleter(backend, out / "judge-cache.jsonl", model_id=args.judge)
-    judge = Judge(completer, rubric=RUBRICS[args.mode])
-    verdicts = judge.score_many([PointItem(request(it), it["answer"]) for it in items])
+    rubric = RUBRICS[args.mode]
+    votes: list[list[float | None]] = []
+    for s in range(args.samples):
+        cache = out / ("judge-cache.jsonl" if s == 0 else f"judge-cache-{s}.jsonl")
+        completer = CachedCompleter(backend, cache, model_id=args.judge)
+        judge = Judge(completer, rubric=rubric)
+        got = judge.score_many([PointItem(request(it), it["answer"]) for it in items])
+        votes.append([v.score for v in got])
+    # an unparsable reply is a fail vote; the count is printed
+    scores = [float(sum(v or 0 for v in vs) * 2 > len(vs)) for vs in zip(*votes, strict=True)]
 
     groups: dict[str, list[str]] = {"labels.jsonl": []}
     with (out / "results.jsonl").open("w") as res:
-        for it, v in zip(items, verdicts, strict=True):
-            # unparsable reply counts as fail; the count is printed
-            score = 0.0 if v.score is None else v.score
+        for it, score in zip(items, scores, strict=True):
             row = {"task": args.mode, "model": args.judge, "example_id": it["id"], "score": score}
             res.write(json.dumps(row) + "\n")
             lab = json.dumps({"example_id": it["id"], "label": labels[it["id"]]}) + "\n"
@@ -103,9 +110,10 @@ def main() -> None:
     for name, rows in groups.items():
         (out / name).write_text("".join(rows))
     with (out / "judgments.jsonl").open("w") as f:
-        for it, v in zip(items, verdicts, strict=True):
-            f.write(json.dumps({"id": it["id"], "score": v.score, "text": v.text}) + "\n")
-    print(len(items), "items,", sum(v.score is None for v in verdicts), "unparsable")
+        for it, vs in zip(items, zip(*votes, strict=True), strict=True):
+            f.write(json.dumps({"id": it["id"], "votes": list(vs)}) + "\n")
+    n_none = sum(v is None for vs in votes for v in vs)
+    print(len(items), "items,", n_none, "unparsable replies")
 
 
 if __name__ == "__main__":
