@@ -1056,7 +1056,7 @@ T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3
 
 [`data/ezc/heldout-v1.jsonl`](data/ezc/heldout-v1.jsonl): 150 cases built from the #3 failure modes, committed before any scored run; `local/donothing` and `local/refuseall` pass 0/150. First run (2026-11-17, provider-default temperature, $2.94): `claude-sonnet-4-5` 94/150, `claude-haiku-4-5` 71/150, difference −0.153 [−0.266, 0.000], unresolved; clustered by world the MDE is 0.177. 6 cases failed by both models were dropped under the pre-registered rule. Details: [`data/ezc/2026-11-17-heldout-v1/`](data/ezc/2026-11-17-heldout-v1/README.md).
 
-v1 sits in 12 worlds, so [`data/ezc/heldout-v2.jsonl`](data/ezc/heldout-v2.jsonl) adds 150 cases in 24 new worlds ([d41sys/ezcross-ems#254](https://github.com/d41sys/ezcross-ems/pull/254)). On v1 + v2 (288 kept cases, $3.41 for v2): Sonnet 192, Haiku 134, difference −0.201 [−0.276, −0.116], resolved (cluster randomisation p 0.0001); MDE 0.136 clustered by world, 0.155 by the 12 underlying situations, so the 0.13 target is not met yet. Details: [`data/ezc/2026-11-17-heldout-v2/`](data/ezc/2026-11-17-heldout-v2/README.md).
+v1 sits in 12 worlds, so [`data/ezc/heldout-v2.jsonl`](data/ezc/heldout-v2.jsonl) adds 150 cases in 24 new worlds ([d41sys/ezcross-ems#254](https://github.com/d41sys/ezcross-ems/pull/254)). On v1 + v2 (287 kept cases, $3.41 for v2): Sonnet 192, Haiku 134, difference −0.202 [−0.278, −0.116], resolved (cluster randomisation p 0.0001); MDE 0.140 clustered by world, 0.157 by the 12 underlying situations, so the 0.13 target is not met yet. Details: [`data/ezc/2026-11-17-heldout-v2/`](data/ezc/2026-11-17-heldout-v2/README.md).
 
 ### Repeats (k trials, pass^k)
 

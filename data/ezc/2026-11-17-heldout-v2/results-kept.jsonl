@@ -91,7 +91,6 @@
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v096-ungrounded-nobase-unit-op-en","score":0,"cluster_id":"no_baseline_gouda"}
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v097-ungrounded-notsig-pct-stu-en","score":0,"cluster_id":"not_significant_haarlem"}
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v098-ungrounded-notsig-pct-res-nl","score":1,"cluster_id":"not_significant_nijmegen"}
-{"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v099-ungrounded-notsig-prob-op-en","score":0,"cluster_id":"not_significant_haarlem"}
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v100-ungrounded-notsig-prob-dso-en","score":1,"cluster_id":"not_significant_nijmegen"}
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v101-ungrounded-rollout-degrade-op-nl","score":0,"cluster_id":"rollout_confirm_enschede"}
 {"task":"heldout-v2","model":"anthropic/claude-haiku-4-5","example_id":"v102-ungrounded-rollout-degrade-stu-en","score":0,"cluster_id":"rollout_confirm_venlo"}
@@ -235,7 +234,6 @@
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v096-ungrounded-nobase-unit-op-en","score":0,"cluster_id":"no_baseline_gouda"}
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v097-ungrounded-notsig-pct-stu-en","score":1,"cluster_id":"not_significant_haarlem"}
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v098-ungrounded-notsig-pct-res-nl","score":1,"cluster_id":"not_significant_nijmegen"}
-{"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v099-ungrounded-notsig-prob-op-en","score":0,"cluster_id":"not_significant_haarlem"}
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v100-ungrounded-notsig-prob-dso-en","score":1,"cluster_id":"not_significant_nijmegen"}
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v101-ungrounded-rollout-degrade-op-nl","score":0,"cluster_id":"rollout_confirm_enschede"}
 {"task":"heldout-v2","model":"anthropic/claude-sonnet-4-5","example_id":"v102-ungrounded-rollout-degrade-stu-en","score":0,"cluster_id":"rollout_confirm_venlo"}

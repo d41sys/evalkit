@@ -7,30 +7,31 @@
 
 ## Broken-case review
 
-50 cases failed by both models were reviewed by 2 Claude subagents against the transcripts and the harness. 6 dropped, never edited:
+50 cases failed by both models were reviewed by 2 Claude subagents against the transcripts and the harness. Reading of the rule, applied to every both-fail case in v1 and v2: drop a case when a check in it fails an answer that is correct on the case's target (a valid wording or a valid tool path, as v1 h112). 7 dropped, never edited:
 
 | case | failing check | why dropped |
 |---|---|---|
 | v045, v046 | `outcome: forecast_pipeline` | both models used `run_forecast` + `get_runs`, reported the real error and changed nothing; the pin rejects that valid path |
+| v099 | `outcome: forecast_pipeline` | Haiku's answer is correct and fails only that pin (Sonnet's "greater than 50%" is a real failure) |
 | v076, v077 | `tools_any: model_catalog` | the catalog holds no accuracy fact; the empty dataset/task lists are enough |
 | v089 | provider regexes | "details don't show which weather provider" misses the not-visible regex; Haiku's hit is a hedged example |
 | v119 | fail/success regexes | the vi answer "đã bị timeout ... không có run nào thành công" has no listed fail word and trips the success regex |
 
-All 29 `qnp` both-fails are kept (plain-text question or an unasked edit at a block). Cases where the `forecast_pipeline` pin also fires but one model failed a legitimate check (v080, v096, v099, v117) stay.
+All 29 `qnp` both-fails are kept (plain-text question or an unasked edit at a block). The pin also fires in v080, v096 and v117, which stay: no answer there is otherwise correct (Haiku never ran in v080; Haiku claims "MWh for this task" in v096; in v117 Sonnet omits the timeout reason and Haiku hits a tool error). v1 has no tool pins. Limit: the rule only covers cases both models fail, so a pin that fails one model's valid path in a case the other model passes still counts.
 
 ## Results
 
-| model | v2, 150 | v2, 144 kept | v1 + v2 kept, 288 |
+| model | v2, 150 | v2, 143 kept | v1 + v2 kept, 287 |
 |---|---|---|---|
-| `claude-sonnet-4-5` | 98 | 98 | 192 (0.667) |
-| `claude-haiku-4-5` | 63 | 63 | 134 (0.465) |
+| `claude-sonnet-4-5` | 98 | 98 | 192 (0.669) |
+| `claude-haiku-4-5` | 63 | 63 | 134 (0.467) |
 
 Haiku − Sonnet, `evalkit compare --all-pairs`, pre-registered analysis:
 
 | data | clusters | A − B [95% CI] | cluster randomisation p | ICC | DEFF | MDE (80%) |
 |---|---|---|---|---|---|---|
-| v1 + v2 kept, by world (decides #4) | 36 | −0.201 [−0.276, −0.116] | 0.0001 | 0.10 | 2.41 | **0.136** |
-| v1 + v2 kept, by family (situation) | 12 | −0.201 [−0.281, −0.107] | 0.005 | 0.07 | 3.16 | 0.155 |
-| v2 kept, by world | 24 | −0.243 [−0.340, −0.147] | 0.0002 | 0.15 | 1.75 | 0.165 |
+| v1 + v2 kept, by world (decides #4) | 36 | −0.202 [−0.278, −0.116] | 0.0001 | 0.11 | 2.54 | **0.140** |
+| v1 + v2 kept, by family (situation) | 12 | −0.202 [−0.283, −0.107] | 0.005 | 0.07 | 3.23 | 0.157 |
+| v2 kept, by world | 24 | −0.245 [−0.345, −0.148] | 0.0002 | 0.17 | 1.84 | 0.169 |
 
-The difference is resolved under every clustering. The done-when (MDE <= 0.13) is **not met**: 0.136 by world, 0.155 by family. ICC by world rose from 0.06 (v1) to 0.10, so the 24 new worlds bought less than the plan assumed; by family the variants add little, as expected, because they repeat the 12 situations. Family clustering pools both sets in one task (`task` set to one value), so v1 `m1_ok` and v2 `m1_ok_*` share a cluster.
+The difference is resolved under every clustering. The done-when (MDE <= 0.13) is **not met**: 0.140 by world, 0.157 by family. ICC by world rose from 0.06 (v1) to 0.11, so the 24 new worlds bought less than the plan assumed; by family the variants add little, as expected, because they repeat the 12 situations. Family clustering pools both sets in one task (`task` set to one value), so v1 `m1_ok` and v2 `m1_ok_*` share a cluster. The first commit of this README (`f25f0c7`) dropped 6 cases and reported 0.136; v099 was added under the uniform reading above.
