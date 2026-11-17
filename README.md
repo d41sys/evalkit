@@ -1052,6 +1052,10 @@ A real agent that does not beat `donothing` or `refuseall` by a resolved margin 
 
 T0 − default: −0.090, CI [−0.240, +0.020], W/L/T 1/2/17, unresolved. All 3 failures come from the D5 claim check, and they are not all alike: `numbers-mwh` (T0) is a true positive, the answer gives a conversion factor ("dividing by 1000 would give MWh") that the system prompt forbids; `blocked-late-weather` (trial 4) puts a lead time no tool returned in a suggestion ("like a 48h lead time forecast"), a real if minor invented number; `clarify-no-dataset` (T0) flags an illustrative "e.g., 24 hours", the only clear false positive ([ezcross-ems#250](https://github.com/d41sys/ezcross-ems/issues/250)). The passes are not human-reviewed. forecast-v1 is saturated for this model; the held-out set of issue #4 needs harder cases.
 
+### Held-out capability set (issue #4)
+
+[`data/ezc/heldout-v1.jsonl`](data/ezc/heldout-v1.jsonl): 150 cases built from the #3 failure modes, committed before any scored run; `local/donothing` and `local/refuseall` pass 0/150. First run (2026-11-17, provider-default temperature, $2.94): `claude-sonnet-4-5` 94/150, `claude-haiku-4-5` 71/150, difference −0.153 [−0.266, 0.000], unresolved; clustered by world the MDE is 0.177. 6 cases failed by both models were dropped under the pre-registered rule. Details: [`data/ezc/2026-11-17-heldout-v1/`](data/ezc/2026-11-17-heldout-v1/README.md).
+
 ### Repeats (k trials, pass^k)
 
 For a model run several times at `--temperature` above 0, give each run's rows `sample:$i` (`$i` the trial index, passed to `jq` with `--argjson i <n>`); evalkit averages samples within a case and `evalkit compare` / `pass^k` handle the rest as in the multi-sample section above.
