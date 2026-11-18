@@ -4,7 +4,9 @@ A judge for `ungrounded_claim`, the text failure mode from #3 that the code chec
 - **Not judged:** `question_not_panel` and `unasked_change` are tool-state checks and stay in code. `omitted_fact` occurs 2 times in 196 sessions, too rarely to validate a judge or to need one.
 - **Deviation from #5:** the labels are Claude-subagent labels, on the owner's instruction, not labels from a domain expert. The labellers and the judge are both Claude, so their agreement can be inflated.
 
-**Current result (frozen judge, `1b2a127`, one run on pools 4–5):** the test set is 152 new sessions (45 fail / 107 pass). The judge passes 93.5% [86.9, 98.3] of the good answers and catches all 45 ungrounded ones (Wilson [92.1, 100]). Intervals come from a bootstrap over cases. The judge agrees with the two labellers about as often as they agree with each other: 94.1% and 89.5% against 92.8%. All 7 errors are borderline answers that the labellers passed and the judge failed. See [Round 3](#round-3-one-rule-for-labellers-and-judge).
+**Current result (frozen judge, `1b2a127`, one run on pools 4–5):** the test set is 152 new sessions (45 fail / 107 pass). The judge passes 93.5% [86.9, 98.3] of the good answers and catches all 45 ungrounded ones (Wilson [92.1, 100]). Intervals come from a bootstrap over cases. The judge agrees with the two labellers about as often as they agree with each other: 94.1% and 89.5% against 92.8%.
+
+Most of the gain over Round 2 comes from the sharper rule and the new labels, not from a better prompt. The old r4 prompt, scored on the same test against the same labels, makes 9 errors to rule v2's 7. See [Round 3](#round-3-one-rule-for-labellers-and-judge).
 
 ## Pools and split
 
@@ -14,7 +16,7 @@ A judge for `ungrounded_claim`, the text failure mode from #3 that the code chec
   - The new answers are not copies: their median similarity to the same case and model in pool 1 is 0.27.
   - 5 are ≥ 0.8 similar. Removing the one in test (k022) moves test TPR from 88.2% to 88.0% and leaves TNR at 96.0%.
 - [`pool-3.jsonl`](pool-3.jsonl): the 38 test cases run a third time ([`../2026-11-18-judge-test-rerun/`](../2026-11-18-judge-test-rerun/README.md)), 76 new sessions, committed with the frozen judge in `fd57bb8` before they were labelled. The highest similarity to the same case and model in pools 1–2 has median 0.33; 2 answers are ≥ 0.8.
-- [`pool-4.jsonl`](pool-4.jsonl), [`pool-5.jsonl`](pool-5.jsonl): the 38 test cases run twice more, 152 sessions ([`../2026-11-18-judge-test-rerun-2/`](../2026-11-18-judge-test-rerun-2/README.md)), run and committed after the rule-v2 judge was frozen in `1b2a127`.
+- [`pool-4.jsonl`](pool-4.jsonl), [`pool-5.jsonl`](pool-5.jsonl): the 38 test cases run twice more, 152 sessions ([`../2026-11-18-judge-test-rerun-2/`](../2026-11-18-judge-test-rerun-2/README.md), [`../2026-11-18-judge-test-rerun-3/`](../2026-11-18-judge-test-rerun-3/README.md)), run and committed after the rule-v2 judge was frozen in `1b2a127`. Matched pool-4 and pool-5 answers (same case and model) have median similarity 0.25; 3 of 76 pairs are ≥ 0.8 and none is identical.
 
 ## Labels
 
@@ -28,6 +30,8 @@ A judge for `ungrounded_claim`, the text failure mode from #3 that the code chec
   - The rule was fixed after the first dev run, so dev was seen.
 - [`owner-labels.jsonl`](owner-labels.jsonl): 130 items the owner labelled in forms before handing labelling to agents. All 130 are "pass". On the 66 `ungrounded` ones, the owner passed all 30 that the agents failed. These labels are kept but not used.
 - **Round 3 labels (current gold):** [`labels-v2.jsonl`](labels-v2.jsonl) relabels pools 1–3 under [`rule-v2.md`](rule-v2.md); [`labels-4.jsonl`](labels-4.jsonl) and [`labels-5.jsonl`](labels-5.jsonl) label the test pools. Each item has `labels_ab` (two independent labellers) and `adjudicated` (a third agent decided a split). See [Round 3](#round-3-one-rule-for-labellers-and-judge).
+
+Counts under the Round 1–2 labels (superseded by Round 3):
 
 | `ungrounded` | train fail / pass | dev fail / pass | test fail / pass |
 |---|---|---|---|
@@ -142,14 +146,14 @@ The judge now uses the same file as its rubric.
 | 1–3 (train, dev, pool-3 test) | 436 | 97.0% | 0.93 | 13 |
 | 4–5 (final test) | 152 | 92.8% | 0.82 | 11 |
 
-**Tuning, one sample each, against the v2 gold.** Pool 3 was read at this step, so it is tuning data now.
+**Tuning, one sample each, against the v2 gold.** Pool 3 was read at this step, so it is tuning data now. The boundary decisions in rule v2 are the maintainer's: the owner was asked and did not answer. They were written after reading the pool-3 errors.
 
 | rubric | train (56) | dev, pools 1–2 (152) | pool 3 (76) |
 |---|---|---|---|
 | r4 | 2 errors | TPR 93.8%, TNR 100%, 7 errors | TPR 96.2%, TNR 95.8%, 3 errors |
 | **rule v2** | 2 errors | **TPR 97.3%, TNR 100%, 3 errors** | **TPR 98.1%, TNR 100%, 1 error** |
 
-Rule v2 was frozen in `1b2a127`. That commit came before any pool-4/5 label existed and before the judge saw pools 4–5.
+Rule v2 was frozen in `1b2a127`. That commit came before any pool-4/5 label existed and before the judge saw pools 4–5. Pools 4–5 are new sessions of the same 38 test cases whose pool-3 sessions were used for tuning. The test is therefore held out by session, not by case.
 
 **Final test, pools 4–5**, run once ([`final-p45/`](final-p45/)):
 
@@ -157,18 +161,26 @@ Rule v2 was frozen in `1b2a127`. That commit came before any pool-4/5 label exis
 |---|---|---|---|
 | TPR, 100 / 107 (35 cases) | 93.5% | [86.9, 98.3] | [87.1, 96.8] |
 | TNR, 45 / 45 (20 cases) | 100% | (no misses to resample) | [92.1, 100] |
-| Sonnet 4.5 answers (18 fail) | TPR 96.6%, TNR 100% | | |
-| Haiku 4.5 answers (27 fail) | TPR 89.8%, TNR 100% | | |
+| Sonnet 4.5 answers (18 fail) | TPR 96.6%, TNR 100% | TPR [90.9, 100] | |
+| Haiku 4.5 answers (27 fail) | TPR 89.8%, TNR 100% | TPR [78.7, 98.0] | |
+| without the 11 adjudicated items | TPR 93.4% (99/106), TNR 100% (35/35) | TPR [86.7, 98.2] | |
+| r4 prompt on the same items and labels ([`r4-p45/`](r4-p45/)) | TPR 92.5%, TNR 97.8%, 9 errors | | |
 
 - **Agreement:** the judge agrees with labeller A on 143/152 items and with labeller B on 136/152. A and B agree with each other on 141/152. On these items the judge is as consistent with the labels as a second labeller.
+- **Adjudication does not drive the result.** The adjudicator chose fail on 10 of the 11 splits, and the judge matches the adjudicated label on all 11. Dropping those items leaves TPR and TNR unchanged within 0.1 point.
 - **Errors:** all 7 are labelled passes that the judge failed, so the judge is stricter, not looser. Six fail a mild inference the labellers accepted, about system behaviour or a config field (`lead_hours`). Examples:
   - "terminated without saving intermediate metrics", read off `metrics: null`;
   - a "guaranteed" D-1 availability.
 
-  One (p015) had no parsable score and counts as a fail, although its reasoning passes the answer.
-- **Compared with Round 2:** TNR is 100% against 91.7%, and TPR is 93.5% against 92.3%. The test sets differ (pool 3 vs pools 4–5), so this is not a paired comparison.
+  The seventh, p015, is a parsing artifact: the reply hit `Judge`'s default `max_tokens=1024` before its `SCORE:` line, so it counts as a fail. Its reasoning passes the answer. The frozen result keeps it as a fail; future runs can raise `max_tokens`.
+- **Where the gain over Round 2 comes from:**
+  - (a) Relabelling: on pool 3 the same r4 prompt drops from 5 errors (Round 2 labels) to 3 (v2 gold) with no prompt change.
+  - (b) The prompt: on pools 4–5 against the same gold, rule v2 has 7 errors and r4 has 9. The paired, case-clustered accuracy gain is +1.3 points [0.0, +3.3]. r4 alone misses n023, n068 and p042; rule v2 alone misses p070.
+  - The headline 91.7% → 100% TNR is therefore mostly a change of target: the boundaries are now decided. A better judge on a fixed target accounts for a small part.
+- **Per model:** the judge wrongly fails 10.2% of good Haiku answers and 3.4% of good Sonnet ones. The case-bootstrap intervals overlap ([78.7, 98.0] vs [90.9, 100]), and TNR is 100% for both. The pooled correction in `judge-correct` assumes equal error rates. That is not rejected here, but if the gap is real, raw verdicts widen the Haiku − Sonnet gap by a few points.
 - **Caveats:**
   - The labels are agent labels.
   - Labellers and judge read the same rule text, so part of their agreement comes from shared wording. The two labellers still agree with each other only at κ 0.82 on test.
   - Either/or cause guesses ("training didn't complete or couldn't log") are still undecided in the rule. The adjudicator passed n068 and flagged it.
+  - Interval width is bounded by the 38 test cases, not by the session count. More reruns of these cases will barely narrow it; new test cases (new worlds or prompts) would.
 - **Cost:** about 0.92M input and 0.14M output judge tokens, plus $1.27 for the pool-4/5 sessions.
