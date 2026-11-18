@@ -24,9 +24,18 @@ Our judge's per-task detail:
 
 **Reading.**
 - The zero-shot judge ties the paper's GPT-4-turbo prompt and is 15 F1 points below the fine-tuned detector.
-- **Over-flagging:** it catches 99% of hallucinated responses, but it also flags 1,084 of the 1,757 responses that the annotators passed (62%). Its reasons are mostly "subtle conflicts" and dropped qualifiers that the annotators did not mark.
+- **Over-flagging:** it catches 99% of hallucinated responses, but it also flags 1,084 of the 1,757 responses that the annotators passed (62%). A keyword count over those 1,084 reasons (one reason can match several types):
+
+  | reason mentions | share of the 1,084 |
+  |---|---|
+  | "baseless" | 56% |
+  | "subtle conflict" | 33% |
+  | qualifier or overstatement | 27% |
+  | "evident conflict" or "contradict" | 15% |
+
+  The count does not check whether those flags are wrong. RAGTruth's labels can miss hallucinations, and a few of the reasons read like real subtle conflicts, so part of the 62% may be annotation misses.
 - **Same pattern in other work:** Valjakka et al. 2026 ([arXiv 2610.08026](https://arxiv.org/abs/2610.08026)) found the same false-positive-heavy errors when the written criterion is stricter than the annotators' practice.
-- **The criterion, not the model, sets the score.** On ezc the rule was aligned with the labellers over 4 rounds, and the judge reaches 94.5% balanced accuracy there. Here the rule is the paper's short taxonomy, applied literally.
+- **Likely cause: the criterion.** On ezc the rule was aligned with the labellers over 4 rounds, and the judge reaches 94.5% balanced accuracy there. Here the rule is the paper's short taxonomy, applied literally. This run tested one criterion with one model, so it does not separate the criterion's effect from the model's.
 
 **Not comparable:** FaithJudge's RAGTruth numbers (Tamber et al. 2025, balanced accuracy about 85%) use up to 150 sources per task, top up with dev, drop sources with no hallucinated response, and put annotated examples of other responses in the prompt.
 
