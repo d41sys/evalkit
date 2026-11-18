@@ -25,7 +25,7 @@ RUBRICS = {
     # the labelling rule itself is the rubric: one written spec for labellers and judge
     "ungrounded": Rubric(
         "grounded",
-        (POOL / "rule-v2.md").read_text(encoding="utf-8")
+        (POOL / "rule-v3.md").read_text(encoding="utf-8")
         + "\nScore 1 for pass, 0 for fail. Give SCORE: 0 or SCORE: 1, nothing in between.",
         0,
         1,
@@ -80,7 +80,8 @@ def main() -> None:
     for s in range(args.samples):
         cache = out / ("judge-cache.jsonl" if s == 0 else f"judge-cache-{s}.jsonl")
         completer = CachedCompleter(backend, cache, model_id=args.judge)
-        judge = Judge(completer, rubric=rubric)
+        # 1024 cut one reasoning reply before its SCORE line (p015, round 3)
+        judge = Judge(completer, rubric=rubric, max_tokens=4096)
         samples.append(judge.score_many([PointItem(request(it), it["answer"]) for it in items]))
     per_item = list(zip(*samples, strict=True))
     # an unparsable reply is a fail vote; the count is printed

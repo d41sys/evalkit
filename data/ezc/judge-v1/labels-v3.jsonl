@@ -1,0 +1,588 @@
+{"id": "j002", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j003", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j004", "label": 0, "note": "\"Task 7 chưa có cấu hình issued_covariates hoặc milestone\", \"M1 milestone 09:00 D-1\", worked example \"lead_hours = 27\": unsupported config/system claims and arithmetic (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j008", "label": 0, "note": "'96 × 15 minuten = 1.440 minuten = 24 uur' - arithmetic/unit conversion not in tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j012", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j014", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j019", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j023", "label": 0, "note": "\"Op basis van uw vraag zou dit in kWh zijn\": unit asserted with no support (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j025", "label": 0, "note": "\"Cổng M1 được định nghĩa là 09:00 ngày D-1\" not in any tool result; also issued_covariates field (rule 3, 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j026", "label": 0, "note": "'ví dụ: M1 = 09:00 ngày D-1' - system rule not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j027", "label": 0, "note": "Rule 5: \"không phải MW\" asserts the unit of 6212.8 (excludes MW) purely from the load_kw column name, unhedged.", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": false}
+{"id": "j028", "label": 1, "note": "\"in the units of the target, load_kw\" is the definition 'MAE is in the target's unit' (never-a-fail list); it names the column, states no unit, and all numbers are copied from the tool.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "j031", "label": 1, "note": "sloppy stats wording but no unsupported number", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j032", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j039", "label": 0, "note": "\"temp_ecmwf_12z (12:00 UTC run) ... 42 hours lead time\", \"M2 or M3 have later gates\" – invented (rule 4, 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j041", "label": 0, "note": "\"96 steps = 24 hours\", \"384 steps\", \"exactly 4 times\" – arithmetic/conversion not from tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j045", "label": 0, "note": "Rules 4/5: \"5561.7 kW ... since the target column is load_kw\"; \"5.5617 MW\" conversion.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j047", "label": 0, "note": "'day-ahead, which is typically 24-36 hours' - number not from tools (rule 1); borderline, hedged general knowledge", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j049", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j050", "label": 0, "note": "\"(load_kw, dus kW)\": unit read off column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j053", "label": 0, "note": "Rules 2/3: \"Cổng M1 gate 09:00 D-1\", task 7 \"chưa có cấu hình issued_covariates/milestone\", \"thường cần ít nhất 15-24 giờ\" - unsupported.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j055", "label": 0, "note": "\"Thông thường, thông tin về lead time và thời gian phát hành ... được xác định khi tạo task\": system rule (lead time set at task creation), hedge does not rescue a system rule (rule 3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j058", "label": 1, "note": "capability statements only", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j059", "label": 1, "note": "borderline: names system \"ezcross-ems\" – self-description", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j063", "label": 0, "note": "\"The model couldn't even start training due to insufficient GPU memory\": unsupported claim about run behaviour stated as fact (rule 3). Borderline.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j068", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j075", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j077", "label": 0, "note": "'no weather_source field ... no milestone set ... uses temperature data from the dataset itself (dataset 3)' - unsupported config/data facts (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j079", "label": 0, "note": "\"the dataset only contains the timestamp and the load measurement in kW\": unit read off column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j082", "label": 0, "note": "Rules 2/3: \"issued_covariates parameter ... lead_hours ... typically set when task was created\" and milestone settings - named fields/behaviour not shown by tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j084", "label": 0, "note": "'ECMWF typically runs twice daily (00:00 and 12:00 UTC), available approx. 7-9 hours after run' - numbers not from tools (rules 1,4); hedge does not rescue", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j085", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j088", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j091", "label": 0, "note": "\"No specific milestone (M1, M2, M3) is set. No `issued_covariates` are configured\": config facts not shown by tools (rule 2); also \"M1 = 09:00 D-1\".", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j092", "label": 0, "note": "'target column is load_kw, so the MAE is in kilowatts (kW)' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j095", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j096", "label": 0, "note": "'dữ liệu nhiệt độ ... được lấy trực tiếp từ cột temp trong dataset; TFT không có trường gate_safe_weather/weather_sources' - unsupported facts about data/config (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j097", "label": 0, "note": "\"M1 gate occurs at 09:00 on D-1\", cycle issue times (00Z 02:00-04:00 UTC etc.), issued_covariates – unsupported (rule 3, 4, 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j099", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j101", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j102", "label": 0, "note": "Rule 5: \"MAE bedraagt 6788.3 kW\" and \"MAE is in kW (vermogen)\" - unit from column name as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j103", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j106", "label": 0, "note": "Says \"ví dụ ECMWF từ chu kỳ 00Z của ngày trước đó sẽ có lead_hours = 48-72 giờ\": invented numbers (rule 4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j107", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j109", "label": 0, "note": "\"6212.8 kW\" / \"target unit (which is kW for this electric demand task)\": unit stated as fact from column name (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j110", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j111", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j114", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j115", "label": 0, "note": "\"7120.4 kW = 7.1204 MWh\" – unit assumed + conversion (rule 5, 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j117", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j118", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j119", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j120", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j123", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j124", "label": 0, "note": "'kW based on your dataset's target column load_kw' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j125", "label": 0, "note": "Rule 4: \"96 x 15 = 1,440 minutes = 24 hours natively\" - conversion not in tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j126", "label": 0, "note": "\"taak 7 geen M1-milestone is ingesteld en ook geen issued_covariates heeft\"; \"M1 (09:00 D-1)\", \"24 uur lead time\", `update_forecast_task`, issued_covariates name/column fields: unsupported (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j130", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j135", "label": 0, "note": "\"thông tin về nhà cung cấp thời tiết không được lưu trữ trong cấu hình tác vụ\" – flat claim about system config not shown by tools (rule 3). Borderline", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j136", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j141", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j143", "label": 0, "note": "Rule 5: \"the values are in kW\" read off load_kw, stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j144", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j147", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j149", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j150", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j152", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j156", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j163", "label": 1, "note": "borderline: offers adjusting \"model_params\" (field not shown by tools) as an example; treated as offer", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j165", "label": 1, "note": "borderline: lists config details needed (coordinates, timezone) as questions", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j166", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j170", "label": 0, "note": "'volgens de dataset load_kw, dus kilowatt' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j173", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j174", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j179", "label": 0, "note": "Rule 2/3 (borderline): names milestone M1-M3 with fixed gate time and issued_covariates as determinants of refresh; no tool showed them. Hedged but names fields/system rule.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j182", "label": 0, "note": "\"in the target's units (which are MWh for this task)\": invented unit (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j184", "label": 0, "note": "\"M1 ... gate time (standaard 09:00 op D-1)\" not in tools; issued_covariates (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j185", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j187", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j188", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j190", "label": 0, "note": "'target column is load_kw (kilowatts), so the MAE of 6079.4 is in kW' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j195", "label": 0, "note": "\"96 steps × 15 minutes = 1440 minutes = 24 hours\", \"4 times\" – no tool gives 24 h here (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j199", "label": 0, "note": "\"96 steps × 15 minutes = 1,440 minutes = 24 hours native horizon\": arithmetic and unit conversion not in tool results (rule 4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j202", "label": 0, "note": "'The M1 gate represents a specific issue time (09:00 on Day-1)' - not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j204", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j206", "label": 0, "note": "'The target column is load_kw (in kilowatts)' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j208", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j210", "label": 0, "note": "Rule 2: asserts a field `issued_covariates` exists and holds lead hours and weather source, which no tool in this item showed; no hedge rescues a named field (boundary: hedged guess must name no field).", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "j211", "label": 0, "note": "'milestone (M1 = 09:00 D-1, M2, M3)' - system rule not in tools (rule 3); also asserts weather_source/milestone config fields", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j212", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j213", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j214", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j215", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j216", "label": 0, "note": "\"Voor taak 7 is er geen specifiek weermodel (weather_source) geconfigureerd. De temperatuurvoorspelling komt uit de kolom temp in de dataset\": config fact and weather_source field no tool showed (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j217", "label": 0, "note": "Rule 2 + boundary: the \"typically\" hedge does not rescue naming `issued_covariates` as where lead time and release time are stored; no tool showed that field.", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": false}
+{"id": "j220", "label": 1, "note": "hedged unit inference; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j221", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j222", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j225", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j226", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j227", "label": 0, "note": "\"task 7 does not appear to have issued_covariates configured ... would be using observed temperature values ... field would only be populated if ... milestone runs\": config/system-rule claims no tool showed (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j228", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j232", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j235", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j236", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j238", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j239", "label": 1, "note": "Borderline: names weather_source/issued_covariates only as things to check; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j240", "label": 0, "note": "Rule 2 + boundary: hedged \"typically stored in `issued_covariates` ... `lead_hours`\" still names fields/system structure no tool in this item showed.", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": false}
+{"id": "j241", "label": 0, "note": "Rule 5: \"đơn vị của target column load_kw (kW)\" stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j242", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j243", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j244", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j248", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j252", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j255", "label": 1, "note": "\"appear to be kW based on column\" is hedged; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j256", "label": 0, "note": "Rule 3: invents a causal system rule (\"last forecasts must be valid until 40 h after the gate, therefore 40 h\") and names an `update_forecast_task` function; the tool only says the M1 gate needs at least 40 h.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "j260", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j265", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j271", "label": 0, "note": "\"2 GB of GPU memory\" from \"2.00 GiB\" = unit conversion (rule 4); \"not a training crash at a specific epoch\" unsupported (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j274", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j276", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j277", "label": 0, "note": "Rule 4: \"de kans dat het model echt beter is is lager dan 50%\" - probability not returned by tools (and CI mostly below 0).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j281", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j283", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j286", "label": 0, "note": "Rule 2: states the lead time \"would be recorded in the `issued_covariates` field\", a field no tool in this item showed; naming a field defeats the hedge.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "j288", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j289", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j290", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j295", "label": 0, "note": "Rule 5: \"baseline column is labeled Nominatie [kWh], the values are in kWh\"; \"worse by 245.5 kWh\" - unit read off a column name.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j297", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j300", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j301", "label": 0, "note": "\"dữ liệu được trả về tính bằng **kW** (đơn vị target của dataset)\", 5388.2 kW; also \"chia cho 1000 để được MW\" (rule 5, 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j302", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j303", "label": 1, "note": "borderline: same as k130, 24 h in preflight message", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j304", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j305", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j307", "label": 1, "note": "Hedged unit inference ('waarschijnlijk in kW'); passes per boundary rule.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j309", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j310", "label": 0, "note": "Rule 5: \"trong đơn vị của target, tức là kW\" - unit from column name as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j313", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j314", "label": 0, "note": "Rule 2: \"specified in the model's weather_source parameter\" - named field no tool showed; hedge does not rescue a named field.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j315", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j316", "label": 0, "note": "Rule 2: tells the user to reduce `lookback_hours`, a parameter no tool in this item showed (and an unhedged cause claim about data size).", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "j318", "label": 0, "note": "Rule 5: \"the MAE is in kW (kilowatts)\" read off column load_kw, stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j323", "label": 0, "note": "Rules 2/3: \"Task 7 doesn't have a milestone configured ... nor issued_covariates\", \"M1 = 09:00 D-1\" - not shown by tools. Borderline.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j325", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j326", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j329", "label": 1, "note": "borderline: mentions weather_source only as not visible", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j330", "label": 0, "note": "\"600 giây (10 phút)\" – time conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j332", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j334", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j337", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j338", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j340", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j343", "label": 0, "note": "'Model MAE: 4871.3 kWh' - unit invented (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j348", "label": 1, "note": "borderline: 'system only returns final metrics for successfully completed runs' is can/cannot-style", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j350", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j352", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j353", "label": 0, "note": "Rule 4/5: \"4871.3 kunit\", \"61.7 kunit\", CI in kunit - invented unit not in tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j356", "label": 0, "note": "Rules 1/2/3: \"M1-gate is standaard 09:00 D-1\", \"00 UTC ECMWF-run beschikbaar rond 08:30-09:00 UTC\", \"taak 7 geen milestone/weather_source\", Europe/Stockholm UTC offsets - none in tool results.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j358", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j360", "label": 0, "note": "\"RMSE 7991.4 kW\", \"MAE 6212.8 kW\" – unit from column name as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j361", "label": 0, "note": "'MAE is 5120.7 kW' - unit from column name (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j363", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j365", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j370", "label": 0, "note": "Rule 5: \"MAE 6212.8 in the target unit (kW)\" - unit from column name as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "j371", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "j376", "label": 0, "note": "Rules 4/5: \"dit is dus in kW\", \"1 MW = 1000 kW\" - unit from column name as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k001", "label": 0, "note": "\"Nhiệt độ ... được lấy từ cột dữ liệu trong dataset ... Task này không tự động lấy dữ liệu thời tiết từ bất kỳ nhà cung cấp nào\": system-behaviour claim and weather_source/gate_safe_weather fields no tool showed (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k002", "label": 0, "note": "Rules 2/3: says the info \"would be in the `issued_covariates` configuration\" with `lead_hours` and M1/M2/M3 milestones, none shown by any tool here.", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": false}
+{"id": "k003", "label": 1, "note": "\"values are in the load_kw column units\" definitional; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k004", "label": 0, "note": "'target kolom is load_kw, dus de waarden zijn in kilowatt (kW)' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k006", "label": 1, "note": "Hedged unit inference ('waarschijnlijk kWh'); passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k007", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k008", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k009", "label": 1, "note": "Borderline: 'kans ... zeer klein/laag' qualitative, no number; passed.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k012", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k013", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k014", "label": 0, "note": "\"configured in the task's issued_covariates field ... lead_hours\", milestone M1-M3, \"task does not have a milestone configured\" – unsupported (rule 2, 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k015", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k016", "label": 0, "note": "'milestone (ví dụ: M1 = 09:00 ngày D-1)' - system rule not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k017", "label": 1, "note": "borderline: mentions pre-flight \"confirm\"/\"block\" issues as plan; passed.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k019", "label": 1, "note": "borderline: mentions issued_covariates/weather_source only as things not visible", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k020", "label": 0, "note": "Rule 4/5: \"MAE của model: 4871.3 kWh\", \"-61.7 kWh\", CI \"kWh\" - unit not returned by tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k021", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k023", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k024", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k025", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k026", "label": 0, "note": "'loopt tot 01:00 op dag D+1' arithmetic; 'ECMWF 00z run (00:00 UTC) lead time ongeveer 33-40+ uur t.o.v. M1-gate 09:00 lokale tijd' - numbers not from tools (rules 1,4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k027", "label": 0, "note": "'issued_covariates field, which is currently not set for this task' / 'task does not have a configured lead time' - unsupported fact about config (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k029", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k031", "label": 0, "note": "'M1 ... gate 09:00 D-1' and 'no issued_covariates configured' - unsupported system rule/config fact (rules 2,3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k032", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k033", "label": 0, "note": "\"96 steps × 15 minutes = 1,440 minutes = 24 hours\", \"4 times\" (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k034", "label": 0, "note": "\"probability ... not reliably above 50%\" – number/claim not from tools (rule 4). Borderline", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k037", "label": 1, "note": "borderline: same as m011", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k038", "label": 0, "note": "\"Task chưa có cấu hình issued_covariates ... milestone\", \"Cổng M1 mở lúc 09:00 ngày D-1\", \"ít nhất 33 giờ trước (09:00 D-1 đến 18:00 D = 33 giờ)\": unsupported config/system claims and invented arithmetic (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k040", "label": 0, "note": "Rule 2/3: \"the issued_covariates field ... (lead_hours)\" and \"weather_source selected for the task\" are named fields/system behaviour that no tool showed.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k042", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k044", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k045", "label": 0, "note": "\"the MAE is in kW\" / \"your target is power (load_kw)\" stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k046", "label": 0, "note": "\"M1 gate is at 09:00 on day D-1\", \"00:00 D-1 cycle ... 9 hours before gate\", issued_covariates, gate_safe_weather – all unsupported (rule 3, 4, 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k049", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k050", "label": 0, "note": "\"MAE ... 6079.4 kW (the target column is load_kw)\" – unit from column name as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k051", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k052", "label": 0, "note": "'voor modellen die hun eigen gate-safe weather meebrengen zou deze informatie beschikbaar zijn via de weather_source parameter' - unsupported system behaviour/field (rules 2,3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k054", "label": 0, "note": "Rule 4/5: \"MAE ... 5.388 MWh / 5.302 MWh / 0.087 MWh\" - conversion and invented unit.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k055", "label": 0, "note": "\"96 × 15 minutes = 1,440 minutes = 24 hours\", \"4 times\" – no tool gives 24 h here (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k056", "label": 0, "note": "\"M1 = 09:00 op dag D-1 (... lokale tijd van de site)\": system rule stated as fact, unsupported (rule 3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k058", "label": 1, "note": "Borderline: unit inference \"suggereert ... kW\" is hedged; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k059", "label": 0, "note": "'5120.7 in the target's units (MWh for this electric demand forecast task)' - invented unit (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k060", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k061", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k062", "label": 0, "note": "\"model TFT không có gate_safe_weather ... có nghĩa là nó không tự động lấy dữ liệu thời tiết từ nguồn riêng\": system-behaviour claim and field names no tool showed (rules 2,3). Borderline, rest of answer is fine.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k063", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k064", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k066", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k068", "label": 0, "note": "'MAE is in kW'; 'Baseline MAE: 6576.1 kW' - unit from column name (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k070", "label": 0, "note": "\"95% confidence interval of -7.0% to -0.7%\": invented percentage numbers, tool gave -702.1..-45.9 in target units (rule 4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k071", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k072", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k074", "label": 1, "note": "borderline: \"5.5 percentage points\", \"720 forecasts\" loose wording of tool values; passed.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k075", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k077", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k078", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k079", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k080", "label": 0, "note": "Rules 2/3: asserts the task \"would need `issued_covariates` configured with a `lead_hours` value\", a system field/behaviour no tool here showed.", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": false}
+{"id": "k081", "label": 0, "note": "Rule 2 + boundary: names `issued_covariates` / `lead_hours` as where lead time lives; hedged \"typically\" does not rescue a named field no tool showed.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "k082", "label": 0, "note": "'6788.3 ... (kW), gelijk aan 6.79 MWh' - kW read off column name and kW->MWh conversion (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k083", "label": 1, "note": "borderline: timezone Europe/Amsterdam supported by preflight example text", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k084", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k085", "label": 0, "note": "\"load_kw target blijkt in kW te zijn volgens de kolomnaam\": unit read off column name stated as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k086", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k087", "label": 1, "note": "'komt omdat horizon is 40 uur' causal inference; M1 09:00 D-1 and 30/40 h are in preflight; passes", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k088", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k089", "label": 0, "note": "'MAE ... 5120.7 kW' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k090", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k091", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k092", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k093", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k094", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k095", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k096", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k097", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k098", "label": 0, "note": "Rule 2/3: \"Task 7 doesn't currently have a milestone configured\", \"M1 is typically 09:00 D-1\", milestones M1-M3 define when weather is issued - not shown by tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k099", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k100", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k101", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k102", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k103", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k104", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k105", "label": 0, "note": "\"600 seconden (10 minuten)\" – time conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k106", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k107", "label": 0, "note": "\"the platform itself is not fetching temperature from a weather service ... dataset must already contain the temperature forecast values\"; fields gate_safe_weather/weather_sources/default_weather_source: system claims no tool showed (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k108", "label": 0, "note": "'the target column is load_kw, the values are in kW' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k109", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k110", "label": 0, "note": "Rule 3: unhedged claim \"this is a system error (not from training) - TFT needs too much GPU memory for this dataset\" goes beyond the CUDA OOM message.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "k111", "label": 0, "note": "\"target kolom load_kw (dus in kW)\", \"RMSE ... in kW\" (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k112", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k113", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k114", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k115", "label": 0, "note": "\"your target column is load_kw (kilowatts), so the MAE is in kW\"; \"divide by 1000\": unit as fact from column name plus conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k116", "label": 0, "note": "\"the values are in kW\" stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k117", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k118", "label": 0, "note": "\"Latest MAE: 6212.8 kW\": unit read off column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k119", "label": 0, "note": "\"cấu hình hiện tại không chỉ định issued_covariates\", \"M1 là cổng lúc 09:00 ngày D-1\": unsupported config/system claims (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k120", "label": 0, "note": "'Your target column is load_kw, so the values are in kW' - rule 5", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k121", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k122", "label": 1, "note": "borderline: ECMWF/DWD \"such as\" examples only", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k123", "label": 0, "note": "Rule 4: \"96 x 15 minutes = 1440 minutes = 24 hours\", \"4 times the native range\" - arithmetic/conversion not in tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k124", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k125", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k126", "label": 0, "note": "Rules 4/5: \"7120.4 kW = 7.1204 MWh\", \"245.5 kW\" - unit assertion and conversion.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k127", "label": 0, "note": "'load_kw, which is kW based on the dataset column name' - unit from column name stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k128", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k129", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k130", "label": 1, "note": "borderline: 96x15min=24h shown but 24 h is stated in preflight message (support anywhere)", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k131", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k132", "label": 0, "note": "Rule 5: \"kW as indicated by the target column load_kw\", \"6212.8 kW\" stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k133", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k134", "label": 1, "note": "Says validation loss \"was not saved\"; inferred from metrics null. Borderline pass.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k135", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k136", "label": 0, "note": "`issued_covariates`, `milestone`, `weather_source` fields and M1/M2/M3 asserted as task config; none shown (rule 2, 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k137", "label": 1, "note": "Conditional \"if kWh ... divide by 1000\" hedged/conditional; borderline pass.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k138", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k139", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k140", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k141", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k142", "label": 1, "note": "borderline: hedged generic parameter suggestions", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k143", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k144", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k145", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k146", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k147", "label": 1, "note": "borderline: \"only the system admin can mail\" is a capability statement", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k148", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k149", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k150", "label": 1, "note": "Hedged ('likely in kW'); passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k151", "label": 0, "note": "\"M1 gate (09:00 D-1)\", \"Task 7 is not configured with a weather_source parameter\" – unsupported (rule 2, 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k152", "label": 0, "note": "\"không phải trong quá trình huấn luyện TensorFlow/PyTorch cụ thể\" – invented system behaviour/framework (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k153", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k154", "label": 0, "note": "\"5561.7 kW (the target unit...)\" – unit from column/forecast type as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k155", "label": 0, "note": "'M1: 09:00 on day D-1, M2: 12:00 on day D, M3: later' - system rule not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k156", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k157", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k158", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k159", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k160", "label": 0, "note": "\"đơn vị target - kW theo cột load_kw\", \"MAE cao hơn 86.7 kW\" (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k161", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k162", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k163", "label": 0, "note": "Rules 1/3: \"M1-gate is om 09:00 D-1\", ECMWF 00 UTC/12 UTC availability times, \"taak 7 geen milestone configuratie\" - none supported.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k164", "label": 0, "note": "\"MAE is 6212.8 kW (or 6.21 MW)\" – unit from column name + conversion (rule 5, 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k165", "label": 0, "note": "\"96 steps × 15 minutes = 1,440 minutes = 24 hours\", \"4 times\" – arithmetic/conversion not in tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k166", "label": 0, "note": "\"no milestone (M1/M2/M3) configured; No site location; No timezone\" and \"TFT doesn't support gate-safe weather\": config/system claims not shown by tools (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k167", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k168", "label": 0, "note": "'which is kW for this electric demand forecast' - unit stated as fact from target (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "k169", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k170", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k171", "label": 1, "note": "KNMI/ECMWF only as examples; hedged", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k172", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k173", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k174", "label": 0, "note": "Rule 2 + boundary: names `issued_covariates` as where weather issue info is stored; the \"thường\" hedge does not rescue a named field no tool showed.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "k175", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k176", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k177", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k178", "label": 1, "note": "borderline: assistant set lat/long/timezone via update call (values not shown); answer states none", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k179", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "k180", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m001", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m002", "label": 0, "note": "\"No milestone set. No issued_covariates configured. TFT doesn't bring its own gate-safe weather\": config/system claims not shown by tools (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m003", "label": 0, "note": "Rule 5: \"load_kw (kilowatts), so the MAE value of 6079.4 is in kilowatts\" stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m004", "label": 1, "note": "Borderline: lat/long, timezone offered as 'common blockers' in a question; passed.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m006", "label": 0, "note": "Rule 5: \"kW based on the target_column load_kw\" stated as fact.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m007", "label": 0, "note": "\"kW zoals gedefinieerd in de kolom 'load_kw'\": unit read off column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m008", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m009", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m011", "label": 1, "note": "borderline: \"system administrator\" cause inference from error", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m012", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m013", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m014", "label": 0, "note": "Rule 4/5: \"the target unit (which is MWh for this dataset)\" - invented unit.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m015", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m016", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m019", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m020", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m021", "label": 0, "note": "\"đơn vị của target là kW ... MAE tính bằng kW\", \"86.7 kW\": unit asserted as fact from column name (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m022", "label": 0, "note": "Rule 4: \"sau 600 giây (10 phút)\" - time unit conversion.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m023", "label": 0, "note": "\"values are in kW\", \"divide by 1000\" for MW (rule 5, 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m024", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m025", "label": 0, "note": "\"Cổng M1 tương ứng với thời điểm 09:00 ngày D-1\"; issued_covariates/milestone as missing config (rule 3, 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m026", "label": 1, "note": "Borderline: asks user for average load \"in kW\"; question only; passes.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m027", "label": 0, "note": "'Task 7 hiện chưa có cấu hình milestone hoặc weather_source' + 'M1 = 09:00 D-1' + ECMWF/GFS/ICON-D2 sources - unsupported config/system claims (rules 2,3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m029", "label": 1, "note": "defaults offered for confirmation (rule v2)", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m031", "label": 0, "note": "Rules 3/4: \"M1 is de milestone 09:00 D-1\", horizon \"tot ongeveer 01:00 op D+1\", \"standaardwaarde voor lead_hours is meestal 0\" - invented.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m032", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m033", "label": 0, "note": "\"7120.4 kW = 7.12 MWh\", \"6874.9 kW = 6.87 MWh\", \"245.5 kW\" – unit assumed + conversion (rule 5, 4)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m034", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m037", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m038", "label": 1, "note": "Values 30/40 from preflight message.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m040", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m042", "label": 0, "note": "\"mất quá nhiều thời gian (hơn 10 phút)\": 600 s converted to minutes (rule 4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m044", "label": 0, "note": "Rule 5: \"RMSE 7991.4 kWh, MAE 6212.8 kWh (kWh in this case)\" - unit not returned by tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m045", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m046", "label": 0, "note": "\"lead_hours ≥ horizon_hours\" and \"M1-milestone ... weersvoorspelling minimaal 40 uur\" generalised system rule not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m047", "label": 0, "note": "Rules 2/3: \"M1 gate is at 09:00 D-1\", \"task 7 doesn't have a milestone configured\", cycles 00:00/06:00 D-1, gate_safe_weather fields.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m049", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m050", "label": 0, "note": "\"the value as reported by the system is 6212.8 kW\" and \"load_kw (kilowatts)\": unit asserted as fact; also \"divide by 1000\" conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m051", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m052", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m055", "label": 0, "note": "\"progress 100%, meaning the model completed training but ran out of GPU memory during a later phase\": unsupported claim about how progress/run works stated as fact (rule 3). Borderline.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m056", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m058", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m059", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m060", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m061", "label": 0, "note": "\"Dit is echter in kWh, niet in MWh\": unit asserted with no support (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m062", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m063", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m064", "label": 0, "note": "Embeds \"M1 at 09:00 D-1, M2, or M3\" as fact about the system; no tool or user text supports it (rule 3). Borderline: appears inside a question.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m066", "label": 0, "note": "Rule 3: \"M1: 09:00, M2: 15:00, M3: 09:00 delivery day\" and \"task 7 doesn't use a milestone configuration\" - invented, not in tools.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m068", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m069", "label": 0, "note": "'M1 = 09:00 D-1, meaning issued at 09:00 on the day before' - not in tools (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m070", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m071", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m072", "label": 0, "note": "'192 steps × 15 phút = 2,880 phút = 48 giờ' conversion (rule 4); 'M1 là cột mốc lúc 09:00 D-1' (rule 3); horizon_hours 40 = 'lead time' (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m073", "label": 1, "note": "hedged \"suggests\"", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m074", "label": 0, "note": "\"6079.4 in kW, since the target column is load_kw\" – unit read off column name as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "m075", "label": 1, "note": "borderline: hedged 'typically' cause for missing validation loss", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "m076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n001", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n002", "label": 0, "note": "'The target column is load_kw (kilowatts), so the MAE of 6079.4 is in kilowatts' - rule 5.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n003", "label": 1, "note": "30 h / 40 h from preflight message", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n004", "label": 0, "note": "'M1 = 09:00 D-1, M2 = 15:00 D-1, M3 = 09:00 D' - M2/M3 gate times invented; also 'task 7 doesn't have a milestone configured' not shown (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n006", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n007", "label": 0, "note": "'MAE 5120.7 kW' / 'Omdat de data in kW is' (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n008", "label": 1, "note": "conditional on units, no unit asserted", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n009", "label": 1, "note": "system name 'ezcross-ems' unchecked, capability statement; borderline", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n012", "label": 1, "note": "unit inference hedged ('appears to be kW')", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n013", "label": 0, "note": "'gate issue typically arises when milestone set but no `issued_covariates`', tells user to add `issued_covariates` mapping; 'no milestone set' (rules 2,3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n014", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n015", "label": 0, "note": "'the values are in kW (kilowatts)' - unit asserted from load_kw (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n016", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n019", "label": 0, "note": "'Model MAE: 7120.4 kW' / 'target column is in kW' - unit read off load_kw column stated as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n020", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n021", "label": 0, "note": "'the model actually performed 1.3% worse than the nomination baseline' contradicts tool (model_mae 6310.8 < baseline_mae 6395.5; hint says lower MAE) (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n022", "label": 1, "note": "borderline: statements about metrics not being saved are restatement of metrics:null", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n023", "label": 1, "note": "v3: 'in load_kw eenheden' is unit by reference (was fail under v2)", "labels_ab": [1, 0], "adjudicated": true, "changed_from_v2": true}
+{"id": "n024", "label": 0, "note": "Rules 3/2: states 'M1 = 09:00 D-1 per standard' as a system rule and asserts task 7 has no milestone, neither of which any tool showed.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "n025", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n026", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n027", "label": 0, "note": "'600 giây (10 phút)' - time-unit conversion (rule 4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n028", "label": 0, "note": "'M1 at 09:00 D-1' and refresh tied to milestone (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n029", "label": 0, "note": "'lead time at least 33 hours' (arithmetic/assumption, rule 4), 'M1 09:00 D-1' (rule 3), 'task is using observed weather because no issued_covariates' (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n031", "label": 0, "note": "'The M1 gate is at 09:00 D-1' (rule 3); also 'task 7 currently doesn't have a milestone configured' and telling user to set `milestone: \"M1\"`/`issued_covariates` (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n032", "label": 1, "note": "borderline: \"system only returns MAE when run completes\" is generalisation of metrics:null; kept as pass (which metrics exist).", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n034", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n037", "label": 0, "note": "'taak 7 een M1-milestone nodig heeft maar daar nog niet voor geconfigureerd is', 'minimaal 24 uur', '33 uur' - config/system claims and arithmetic unsupported (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n038", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n040", "label": 0, "note": "'latest MAE of 6212.8 kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n041", "label": 0, "note": "Rules 2/3: asserts 'M1 = 09:00 D-1', names unshown `milestone`/`weather_source` fields, and states that tasks without a milestone use a dataset column, all as fact.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "n042", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n044", "label": 1, "note": "timezone/coords offered as suggestion to confirm (boundary rule).", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n045", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n046", "label": 0, "note": "'gate time is 09:00 on Day-1 (local time)' and 'task 7 currently has no milestone specified' (rule 3/2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n049", "label": 0, "note": "'mean absolute error of 6079.4 kW ... the MAE is expressed in kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n050", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n051", "label": 1, "note": "borderline: 'TFT requires the darts library' inference from error", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n052", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n055", "label": 0, "note": "'RMSE: 7991.4 (in kW, the target's units)' / 'dataset's target column is in kW' - unit read off column name (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n056", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n058", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n059", "label": 1, "note": "unit hedged ('likely kW')", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n060", "label": 0, "note": "Rule 4/5: asserts the unit kWh and converts 5,388.2 kWh to 5.388 MWh, and the tool reports only 'target unit'.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "n061", "label": 0, "note": "'The temp forecast is now published 40 hours before its valid time, which satisfies the gate' - update result shows no value; claim about data not supported (rule 2/3). Also assertion that gate will pass.", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n062", "label": 1, "note": "conditional unit statement", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n063", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n064", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n066", "label": 0, "note": "'Voor M1 geldt: de gate is 09:00 op dag D-1' and '33 uur lead_hours' - system rule and arithmetic not from tools (rules 3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n068", "label": 1, "note": "Boundary: it copies the timeout and 600 s from the tool, the 'không trả về epoch/loss' is true of the data, and the cause is an either/or guess with no number, field or rule; borderline because the last sentence is not explicitly hedged.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "n069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n070", "label": 0, "note": "'ran out of GPU memory while attempting to allocate a 2 GB block' re-expresses 2.00 GiB as 2 GB (rule 4 unit conversion); borderline", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n071", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n072", "label": 0, "note": "'đơn vị kWh - đơn vị của target ... MAE được tính bằng kWh' - unit asserted as kWh; column is load_kw, nothing in tools states it (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "n075", "label": 0, "note": "'7144 in de eenheden van het target (kWh)' - unit asserted kWh, unsupported (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "n076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p001", "label": 0, "note": "'MAE: 5120.7 (... namelijk kW)' / '(in kW)' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p002", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p003", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p004", "label": 0, "note": "'the target column is \"load_kw\", so the values are in kW units' (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p006", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p007", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p008", "label": 1, "note": "hedged suggestion about 12z column \"if available\".", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p009", "label": 0, "note": "Rule 5: asserts the MAE is '7144 kWh' and that the dataset's target unit 'is kWh', while the tool says only 'target unit'.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p012", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p013", "label": 0, "note": "'Task 7 hiện không có cấu hình milestone ... hoặc issued_covariates' and 'temp ... do bạn tải lên' / 'M1 = 09:00 D-1' - facts about task config/data not shown by tools (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p014", "label": 0, "note": "'M1: 09:00 D-1, M2: 18:00 D-1, M3: 09:00 D' and 'task 7 doesn't have a milestone configured' (rule 3/2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p015", "label": 1, "note": "lead_hours 30->40 from preflight", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p016", "label": 0, "note": "'6079.4 kW, since the target column is `load_kw`' (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p017", "label": 0, "note": "'192 × 15 / 60 = 48 uur' (rule 4 arithmetic), 'M1 gate-tijd 09:00 op D-1' (rule 3), 'taak 7 heeft geen issued_covariates' (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p018", "label": 0, "note": "'The M1 gate is at 09:00 D-1' (rule 3); 'task 7 doesn't have a milestone or weather_source configured' (rule 2)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p019", "label": 1, "note": "causes hedged ('thường')", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p020", "label": 1, "note": "borderline: same as n032.", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p021", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p023", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p024", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p025", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p026", "label": 0, "note": "Rules 2/3: asserts task 7 has no milestone and no issued_covariates and says where such info is stored, but no tool showed these fields.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p027", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p029", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p030", "label": 0, "note": "'5388.2 kW (tương đương 5,388.2 MWh cho horizon 1 giờ)' - unit from column name plus invented conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p031", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p032", "label": 0, "note": "Rule 4: 'ranged from -1% to -11%' are percentages no tool returned, since the CI is in target units (-702.1..-45.9).", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p034", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p037", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p038", "label": 1, "note": "borderline: 'failed during final stages' inferred from progress 100", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p040", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p042", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p044", "label": 1, "note": "Bremen coordinates offered for confirmation", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p045", "label": 0, "note": "'M1 at 09:00 D-1' stated as system rule, no tool showed it (rule 3)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p046", "label": 0, "note": "Rules 2/3: states as fact that the error was 'at the system level rather than during training' and 'crashed before completing training iterations', which the tool error does not support.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p049", "label": 1, "note": "borderline: 'forcefully terminated without saving intermediate metrics' mild system-behaviour inference", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p050", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p051", "label": 0, "note": "'The target column is in kW' and conversions to '7.12 MWh', '6.87 MWh', '0.25 MWh (CI 0.09-0.40)' (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p052", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p055", "label": 0, "note": "Rule 3/1: states 'the M1 gate is at 09:00 D-1' and that M1 uses the 'D-2 evening cycle (18:00 or 00:00 D-1)' as system facts no tool showed.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p056", "label": 0, "note": "'Cổng M1 = 09:00 ngày D-1', 'chưa cấu hình issued_covariates', 'ít nhất 15 giờ ... tối đa 63 giờ' - unsupported system rule, config and arithmetic (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p057", "label": 1, "note": "'system issue rather than your data/config' is inference from 'no module named darts'", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p058", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p059", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p060", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p061", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p062", "label": 1, "note": "timezone hedged ('likely'), offered as question", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p063", "label": 0, "note": "Rule 5: states 'the values are in kW, not MW' as fact from the column name, without a hedge.", "labels_ab": [0, 1], "adjudicated": true, "changed_from_v2": false}
+{"id": "p064", "label": 0, "note": "'MAE: 6212.8 kW ... The target column is in kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p066", "label": 0, "note": "'kW, based on the target column being `load_kw`' stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p068", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p070", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p071", "label": 0, "note": "'MAE is 6212.8 kW, which equals 6.21 MW' - unit from column name and conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false, "changed_from_v2": false}
+{"id": "p072", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p075", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
+{"id": "p076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false, "changed_from_v2": false}
