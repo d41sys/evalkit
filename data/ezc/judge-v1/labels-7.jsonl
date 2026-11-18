@@ -1,0 +1,80 @@
+{"id": "r001", "label": 0, "note": "'96 hours short (4 days x 24 hours/day)': arithmetic/unit conversion not returned by tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r002", "label": 0, "note": "\"đơn vị target - kW theo dataset ... load_kw (kW), không phải MWh\" - unit from column name stated as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r003", "label": 1, "note": "Rule 5 / v2 hedge: 'would be in kW, based on the target column load_kw' marks the unit as an inference from the column name, like the allowed 'probably kW, the column is load_kw'; the rest is a capability statement.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "r004", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r006", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r007", "label": 0, "note": "'192 x 15 minutes = 2,880 minutes = 48 hours': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r008", "label": 0, "note": "\"the data were in kWh based on the baseline column name\" - unit from column name, unhedged (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r009", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r010", "label": 0, "note": "'192 x 15 min = 48 hours': arithmetic/unit conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r012", "label": 0, "note": "No tools: \"M3 milestone is defined as a specific local clock time\", \"09:00 D-1 for M1\" asserted as system facts with no support (rule 3/1).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r013", "label": 0, "note": "Tells to set `lookback_hours: 24 (tương đương 1 ngày)` - field no tool showed, plus conversion (rule 2/4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r014", "label": 0, "note": "\"baseline-kolom heet Nominatie [kWh], dus de waarden zijn in kilowattuur, niet megawattuur\" - unit read off column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r015", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r016", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r019", "label": 1, "note": "borderline: \"why TFT is marked unavailable\" while catalog shows available:true, but within hedged either/or", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r020", "label": 0, "note": "'M3 gate time: 21:00 on day D-1' (also M1/M2 times) not in any tool result (rules 1,3)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r021", "label": 1, "note": "Borderline: assumed Europe/Amsterdam is stated as an assumption, and tool run shows horizon 12 despite update; no ungrounded claim in answer.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r023", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r024", "label": 0, "note": "'Model MAE: 6079.4 kWh' and '6.0794 MWh': unit asserted from column name, conversion (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r025", "label": 0, "note": "'M2 gate 15:00 on day D-1 ... 9 hours before midnight' and M1/M3 times: ungrounded time and arithmetic (rules 3,4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r026", "label": 1, "note": "borderline: offer to run/check issued_covariates; fields named only to look up", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r027", "label": 1, "note": "capability statement only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r029", "label": 0, "note": "\"2 dagen\" derived from dates/rows; not returned by tool (rule 4). Borderline.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r031", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r032", "label": 0, "note": "'96 x 15 minutes = 1440 minutes = 24 hours ... 3 times': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r033", "label": 1, "note": "borderline: unit named but explicitly hedged ('or let me know if the target is actually measured in a different unit')", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r034", "label": 1, "note": "capability statements only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r036", "label": 1, "note": "Borderline: \"data leakage\" rationale is plain reading of nomination-as-scoring-reference message.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r037", "label": 0, "note": "\"dit is de maximale horizon die het model kan produceren\" / \"theoretisch geldig voor de volledige 72 uur\" - unsupported system claim (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r038", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r039", "label": 0, "note": "'must cover up to 40 + 15 = 55 hours ahead' and '15 hours of lead beyond the 40-hour minimum': arithmetic not returned by tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r040", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r042", "label": 0, "note": "\"auto tournament only runs when model_id auto ... tries multiple candidate models and uses the best on validation data\" - unsupported system behaviour (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r043", "label": 1, "note": "borderline: renamed covariate per user request; 'should be cleared' hedged", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r044", "label": 0, "note": "'neerkomt op 2 dagen': day count derived from dates, not returned by tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r045", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r046", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r048", "label": 0, "note": "\"192 x 15 = 2,880 minutes = 48 hours\" - conversion (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r049", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r050", "label": 0, "note": "\"96 steps x 15 minutes = 1,440 minutes = 24 hours\" - arithmetic/unit conversion (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r051", "label": 1, "note": "Borderline: mentions M2/M3 as other milestones; treated as offer.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r052", "label": 0, "note": "No tools: \"M1 is 09:00 D-1 in site local timezone\", `data_timezone` setting, UTC conversions for Amsterdam/New York (rule 3/4/2).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r053", "label": 0, "note": "\"364 days\", \"approximately 96.3 rows per day\" - arithmetic not returned by tools (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r054", "label": 0, "note": "'target's units (which is kW based on the target column load_kw)': unit read off column name as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r055", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r056", "label": 0, "note": "'365 days', '358 days', '8,592 hours (358 x 24)': arithmetic/conversion not from tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r058", "label": 0, "note": "\"364 days\" derived, not returned (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r059", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r060", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r061", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r062", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r063", "label": 1, "note": "capability statement only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r064", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r065", "label": 0, "note": "\"Die gegevens zijn opgeslagen in de taakinstellingen\" and \"webinterface van ezcross-ems\" - where lat/lon stored / unseen system (rule 2/3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r066", "label": 0, "note": "'target column is in kilowatts, so MAE values are in kWh' and every value labelled kWh: unit/conversion (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r067", "label": 1, "note": "capability statement only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r068", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r069", "label": 0, "note": "\"lookback tối thiểu là 7 ngày\", \"tham số cố định của mô hình\" - min/fixed not in catalog (rule 3). Borderline vs plain reading of lookback_days 7.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r070", "label": 0, "note": "Says issued weather details are specified via `issued_covariates` or `weather_source` params, and TFT \"gate-safe weather\" behaviour; fields/system rules no tool showed (rule 2/3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r071", "label": 0, "note": "search_eu_law returned nothing yet states M1 09:00 D-1, M2 15:00 D, M3 23:00 D as \"system standard conventions\" (rule 3/1).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r072", "label": 1, "note": "hedged (\"meestal\")", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r075", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r076", "label": 0, "note": "'6,0794 MWh' / 'kWh' as target unit: unit asserted from column name and kWh->MWh conversion (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r077", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r078", "label": 0, "note": "\"192 hàng, tương đương 2 ngày dữ liệu\" - rows-to-days conversion/derived duration (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "r079", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "r080", "label": 0, "note": "'M1 gate closes at 09:00 local time on day D-1' with no tool call and UTC offsets 08:00/07:00 (rules 3,4)", "labels_ab": [0, 0], "adjudicated": false}

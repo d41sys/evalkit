@@ -1,0 +1,80 @@
+{"id": "q001", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q002", "label": 0, "note": "\"would typically be configured in the `issued_covariates` field\" - says where unseen config is stored; hedge does not rescue (rule 2).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q003", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q004", "label": 0, "note": "'96 steps at 15-minute resolution ... equals 1,440 minutes or 24 hours ... 3 times': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q005", "label": 0, "note": "'7 days - 3 days = 4 days short = 96 hours short': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q006", "label": 1, "note": "borderline: asks about M1/M2/M3 as a question to user", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q007", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q008", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q009", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q012", "label": 1, "note": "borderline: 'mệnh giá' gloss for nomination follows tool message", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q013", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q014", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q015", "label": 0, "note": "Metrics presented 'in megawatt-hours' / '-331.5 megawatt-hours': unit asserted for values the tool gave in target unit (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q016", "label": 0, "note": "'95% confidence interval of -12.2% to -2.9%': invented numbers (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q018", "label": 0, "note": "\"standard milestone definitions\": M2 15:00 D-1, M3 21:00 D-1, \"9 hours before midnight\" - not from tools (rule 3/1/4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q019", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q020", "label": 0, "note": "'M2 gate: 15:00 on day D ... 9 hours': gate times from 'standard definitions', not in tools (rules 3,4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q021", "label": 0, "note": "No tools: \"M1 is defined as 09:00 D-1 in site local timezone\" asserted (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q023", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q024", "label": 0, "note": "\"auto tournament ... would choose among candidate models at task creation time\" - invented system behaviour; no auto run/catalog seen (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q025", "label": 1, "note": "Borderline: \"mặc định\" for lookback 7 is a mild reading of lookback_days.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q026", "label": 1, "note": "borderline: hedged general remark on imbalance price", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q027", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q029", "label": 1, "note": "unit hedged (\"có thể là kWh\")", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q031", "label": 1, "note": "Borderline: design-rationale sentence (\"zodat model geen toegang heeft tot info die niet beschikbaar is\") read as plain-language gloss of preflight messages.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q032", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q034", "label": 0, "note": "\"Target column là load_kw, nên giá trị ở đơn vị kW (không phải MWh)\" - rule 5.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q035", "label": 1, "note": "generic hedged factors", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q037", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q038", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q040", "label": 0, "note": "\"35,040 / 96 = 365 days\", \"358 days MORE\", \"8,592 hours\" - arithmetic/conversion not returned (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q042", "label": 1, "note": "capability statements only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q043", "label": 0, "note": "'95% betrouwbaarheidsinterval: -8,0 tot -1,9 kWh': interval values invented (tool: -801.3..-190.4), unit kWh asserted (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q044", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q045", "label": 0, "note": "'192 x 15 = 2,880 minutes = 48 hours': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q046", "label": 1, "note": "v3 'What the tools return is a capability statement': 'once it runs, the system will record lead time and weather model' says what the system reports, not a fact about the user's task, config or data, and adds no number, field or rule.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "q047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q048", "label": 0, "note": "\"364 days\" derived from dates; tools returned no day count (and Jan 2-Dec 31 2024 is 365) (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q049", "label": 0, "note": "No tools: \"M1 gate is 09:00 D-1 local time\" plus CET->UTC conversions (08:00/07:00 UTC) asserted (rule 3/4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q050", "label": 0, "note": "\"When model_id auto, it runs a validation tournament that tries multiple models and picks the best\" - unsupported system behaviour (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q051", "label": 0, "note": "\"Deze gegevens zijn beschikbaar in de volledige taakconfiguratie\" - states where lat/lon live; unseen (rule 2).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q052", "label": 0, "note": "\"Lookback tối thiểu cho phép cũng là 7 ngày (không có tùy chọn thấp hơn)\" / \"cố định\", \"cấu hình mặc định trong hệ thống\": catalog only shows lookback_days 7; min/fixed is an unsupported system rule (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q053", "label": 0, "note": "'M3 gate = 15:00 on day D-1': not in any tool result (rules 1,3)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q055", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q056", "label": 0, "note": "'96 steps at 15-minute resolution = 24 hours ... 3x': arithmetic/conversion (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q058", "label": 0, "note": "\"For M1 (gate at 09:00 D-1)\" not in any tool here; \"need to configure the issued_covariates parameter\" - unseen field (rule 2/3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q059", "label": 1, "note": "Europe/Stockholm offered as example", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q060", "label": 0, "note": "\"15 hours of lead beyond the 40-hour minimum (15 hours = 55 total - 40)\" - invented arithmetic; issue_lead_hours 15 misread, 55 not returned (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q061", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q062", "label": 0, "note": "\"dữ liệu 2 ngày\" derived from dates; no tool returned it (rule 4). Borderline.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q063", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q064", "label": 1, "note": "Hedged unit inference (\"appears to be kW\").", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q065", "label": 0, "note": "\"De Emmen-taak heeft geen breedte- en lengtegraad ingesteld\" - list view does not show config; fact about task config unsupported (rule 2).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q066", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q067", "label": 0, "note": "\"2 dagen\" derived from 2024-12-29..30 / 192 rows; not returned by tool (rule 4). Borderline.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q068", "label": 0, "note": "\"364 days\" derived, not returned (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q070", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q071", "label": 0, "note": "No tools: \"M3 is defined as 15:00 on day D ... standard across the platform\" - invented gate time (rule 3/1).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q072", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q073", "label": 0, "note": "\"the neutral task name should clear the block\" / \"pre-flight should now run again without the blocking issue\" - no pre-flight shown; asserts how pre-flight behaves (rule 3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q074", "label": 0, "note": "\"35040 rows at 15-minute resolution equals exactly 365 days\", \"1 year\" - arithmetic not returned (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q075", "label": 1, "note": "capability statement only", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q076", "label": 0, "note": "'6212.8 kWh ... as shown in the baseline column Nominatie [kWh]': unit read off column name stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q077", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q078", "label": 0, "note": "'loopt over 2 dagen': day count derived, not returned by tools (rule 4)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "q079", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "q080", "label": 0, "note": "\"192 x 15 minutes = 2,880 minutes = 48 hours\" - conversion (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
