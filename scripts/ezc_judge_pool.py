@@ -16,12 +16,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "data" / "ezc"
 RUNS = ["2026-11-17-heldout-v1", "2026-11-17-heldout-v2", "2026-11-17-heldout-v3"]
-# later pools: the `ungrounded` cases run again (pools 3-5: test cases only), new sessions
+# later pools: the `ungrounded` cases run again (pools 3-5: test cases only), new sessions;
+# pools 6-7: heldout-v4, new cases on worlds no earlier `ungrounded` case used, all test
 RERUNS = [
     ("pool-2", "2026-11-17-judge-rerun", "k"),
     ("pool-3", "2026-11-18-judge-test-rerun", "m"),
     ("pool-4", "2026-11-18-judge-test-rerun-2", "n"),
     ("pool-5", "2026-11-18-judge-test-rerun-3", "p"),
+    ("pool-6", "2026-11-18-heldout-v4", "q"),
+    ("pool-7", "2026-11-18-heldout-v4-b", "r"),
 ]
 MODES = ("ungrounded", "omitted")
 TRAIN, DEV_END = 0.15, 0.575
@@ -114,7 +117,7 @@ def main() -> None:
                     "model": report["ref"],
                     "mode": "ungrounded",
                     "code_pass": int(case["pass"]),
-                    "split": case_split[case["id"]],
+                    "split": case_split.get(case["id"], "test"),
                 }
                 later.append(item | session(res.parent / f"{case['id']}.jsonl"))
         rng.shuffle(later)

@@ -58,7 +58,7 @@ def main() -> None:
     ap.add_argument("--split", choices=("train", "dev", "test"), required=True)
     # neither compared model (Sonnet/Haiku 4.5): a judge must not grade its own sessions
     ap.add_argument("--judge", default="claude-sonnet-5-5")
-    ap.add_argument("--pool", choices="12345", action="append", help="default: 1 and 2")
+    ap.add_argument("--pool", choices="1234567", action="append", help="default: 1 and 2")
     ap.add_argument("--samples", type=int, default=1, help="majority vote over k samples")
     ap.add_argument("--labels", help="label file in judge-v1/ (default: labels<pool>.jsonl)")
     ap.add_argument("--out", required=True)
