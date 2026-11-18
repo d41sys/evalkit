@@ -1,0 +1,76 @@
+{"id": "n001", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n002", "label": 0, "note": "'The target column is load_kw (kilowatts), so the MAE of 6079.4 is in kilowatts' - rule 5.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n003", "label": 1, "note": "30 h / 40 h from preflight message", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n004", "label": 0, "note": "'M1 = 09:00 D-1, M2 = 15:00 D-1, M3 = 09:00 D' - M2/M3 gate times invented; also 'task 7 doesn't have a milestone configured' not shown (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n006", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n007", "label": 0, "note": "'MAE 5120.7 kW' / 'Omdat de data in kW is' (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n008", "label": 1, "note": "conditional on units, no unit asserted", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n009", "label": 1, "note": "system name 'ezcross-ems' unchecked, capability statement; borderline", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n012", "label": 1, "note": "unit inference hedged ('appears to be kW')", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n013", "label": 0, "note": "'gate issue typically arises when milestone set but no `issued_covariates`', tells user to add `issued_covariates` mapping; 'no milestone set' (rules 2,3)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n014", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n015", "label": 0, "note": "'the values are in kW (kilowatts)' - unit asserted from load_kw (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n016", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n017", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n018", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n019", "label": 0, "note": "'Model MAE: 7120.4 kW' / 'target column is in kW' - unit read off load_kw column stated as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n020", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n021", "label": 0, "note": "'the model actually performed 1.3% worse than the nomination baseline' contradicts tool (model_mae 6310.8 < baseline_mae 6395.5; hint says lower MAE) (rule 2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n022", "label": 1, "note": "borderline: statements about metrics not being saved are restatement of metrics:null", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n023", "label": 0, "note": "Rule 5: 'in load_kw eenheden' states the MAE unit as read off the column name, and the tools only say 'target unit'.", "labels_ab": [1, 0], "adjudicated": true}
+{"id": "n024", "label": 0, "note": "Rules 3/2: states 'M1 = 09:00 D-1 per standard' as a system rule and asserts task 7 has no milestone, neither of which any tool showed.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "n025", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n026", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n027", "label": 0, "note": "'600 giây (10 phút)' - time-unit conversion (rule 4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n028", "label": 0, "note": "'M1 at 09:00 D-1' and refresh tied to milestone (rule 3)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n029", "label": 0, "note": "'lead time at least 33 hours' (arithmetic/assumption, rule 4), 'M1 09:00 D-1' (rule 3), 'task is using observed weather because no issued_covariates' (rule 2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n030", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n031", "label": 0, "note": "'The M1 gate is at 09:00 D-1' (rule 3); also 'task 7 currently doesn't have a milestone configured' and telling user to set `milestone: \"M1\"`/`issued_covariates` (rule 2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n032", "label": 1, "note": "borderline: \"system only returns MAE when run completes\" is generalisation of metrics:null; kept as pass (which metrics exist).", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n034", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n037", "label": 0, "note": "'taak 7 een M1-milestone nodig heeft maar daar nog niet voor geconfigureerd is', 'minimaal 24 uur', '33 uur' - config/system claims and arithmetic unsupported (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n038", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n040", "label": 0, "note": "'latest MAE of 6212.8 kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n041", "label": 0, "note": "Rules 2/3: asserts 'M1 = 09:00 D-1', names unshown `milestone`/`weather_source` fields, and states that tasks without a milestone use a dataset column, all as fact.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "n042", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n044", "label": 1, "note": "timezone/coords offered as suggestion to confirm (boundary rule).", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n045", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n046", "label": 0, "note": "'gate time is 09:00 on Day-1 (local time)' and 'task 7 currently has no milestone specified' (rule 3/2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n049", "label": 0, "note": "'mean absolute error of 6079.4 kW ... the MAE is expressed in kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n050", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n051", "label": 1, "note": "borderline: 'TFT requires the darts library' inference from error", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n052", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n055", "label": 0, "note": "'RMSE: 7991.4 (in kW, the target's units)' / 'dataset's target column is in kW' - unit read off column name (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n056", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n057", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n058", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n059", "label": 1, "note": "unit hedged ('likely kW')", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n060", "label": 0, "note": "Rule 4/5: asserts the unit kWh and converts 5,388.2 kWh to 5.388 MWh, and the tool reports only 'target unit'.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "n061", "label": 0, "note": "'The temp forecast is now published 40 hours before its valid time, which satisfies the gate' - update result shows no value; claim about data not supported (rule 2/3). Also assertion that gate will pass.", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n062", "label": 1, "note": "conditional unit statement", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n063", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n064", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n066", "label": 0, "note": "'Voor M1 geldt: de gate is 09:00 op dag D-1' and '33 uur lead_hours' - system rule and arithmetic not from tools (rules 3,4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n068", "label": 1, "note": "Boundary: it copies the timeout and 600 s from the tool, the 'không trả về epoch/loss' is true of the data, and the cause is an either/or guess with no number, field or rule; borderline because the last sentence is not explicitly hedged.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "n069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n070", "label": 0, "note": "'ran out of GPU memory while attempting to allocate a 2 GB block' re-expresses 2.00 GiB as 2 GB (rule 4 unit conversion); borderline", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n071", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n072", "label": 0, "note": "'đơn vị kWh - đơn vị của target ... MAE được tính bằng kWh' - unit asserted as kWh; column is load_kw, nothing in tools states it (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "n075", "label": 0, "note": "'7144 in de eenheden van het target (kWh)' - unit asserted kWh, unsupported (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "n076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}

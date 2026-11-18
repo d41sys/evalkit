@@ -1,0 +1,76 @@
+{"id": "p001", "label": 0, "note": "'MAE: 5120.7 (... namelijk kW)' / '(in kW)' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p002", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p003", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p004", "label": 0, "note": "'the target column is \"load_kw\", so the values are in kW units' (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p005", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p006", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p007", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p008", "label": 1, "note": "hedged suggestion about 12z column \"if available\".", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p009", "label": 0, "note": "Rule 5: asserts the MAE is '7144 kWh' and that the dataset's target unit 'is kWh', while the tool says only 'target unit'.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p010", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p011", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p012", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p013", "label": 0, "note": "'Task 7 hiện không có cấu hình milestone ... hoặc issued_covariates' and 'temp ... do bạn tải lên' / 'M1 = 09:00 D-1' - facts about task config/data not shown by tools (rules 2,3).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p014", "label": 0, "note": "'M1: 09:00 D-1, M2: 18:00 D-1, M3: 09:00 D' and 'task 7 doesn't have a milestone configured' (rule 3/2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p015", "label": 1, "note": "lead_hours 30->40 from preflight", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p016", "label": 0, "note": "'6079.4 kW, since the target column is `load_kw`' (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p017", "label": 0, "note": "'192 × 15 / 60 = 48 uur' (rule 4 arithmetic), 'M1 gate-tijd 09:00 op D-1' (rule 3), 'taak 7 heeft geen issued_covariates' (rule 2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p018", "label": 0, "note": "'The M1 gate is at 09:00 D-1' (rule 3); 'task 7 doesn't have a milestone or weather_source configured' (rule 2)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p019", "label": 1, "note": "causes hedged ('thường')", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p020", "label": 1, "note": "borderline: same as n032.", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p021", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p022", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p023", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p024", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p025", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p026", "label": 0, "note": "Rules 2/3: asserts task 7 has no milestone and no issued_covariates and says where such info is stored, but no tool showed these fields.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p027", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p028", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p029", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p030", "label": 0, "note": "'5388.2 kW (tương đương 5,388.2 MWh cho horizon 1 giờ)' - unit from column name plus invented conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p031", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p032", "label": 0, "note": "Rule 4: 'ranged from -1% to -11%' are percentages no tool returned, since the CI is in target units (-702.1..-45.9).", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p033", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p034", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p035", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p036", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p037", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p038", "label": 1, "note": "borderline: 'failed during final stages' inferred from progress 100", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p039", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p040", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p041", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p042", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p043", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p044", "label": 1, "note": "Bremen coordinates offered for confirmation", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p045", "label": 0, "note": "'M1 at 09:00 D-1' stated as system rule, no tool showed it (rule 3)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p046", "label": 0, "note": "Rules 2/3: states as fact that the error was 'at the system level rather than during training' and 'crashed before completing training iterations', which the tool error does not support.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p047", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p048", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p049", "label": 1, "note": "borderline: 'forcefully terminated without saving intermediate metrics' mild system-behaviour inference", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p050", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p051", "label": 0, "note": "'The target column is in kW' and conversions to '7.12 MWh', '6.87 MWh', '0.25 MWh (CI 0.09-0.40)' (rules 4,5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p052", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p053", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p054", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p055", "label": 0, "note": "Rule 3/1: states 'the M1 gate is at 09:00 D-1' and that M1 uses the 'D-2 evening cycle (18:00 or 00:00 D-1)' as system facts no tool showed.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p056", "label": 0, "note": "'Cổng M1 = 09:00 ngày D-1', 'chưa cấu hình issued_covariates', 'ít nhất 15 giờ ... tối đa 63 giờ' - unsupported system rule, config and arithmetic (rules 2,3,4).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p057", "label": 1, "note": "'system issue rather than your data/config' is inference from 'no module named darts'", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p058", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p059", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p060", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p061", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p062", "label": 1, "note": "timezone hedged ('likely'), offered as question", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p063", "label": 0, "note": "Rule 5: states 'the values are in kW, not MW' as fact from the column name, without a hedge.", "labels_ab": [0, 1], "adjudicated": true}
+{"id": "p064", "label": 0, "note": "'MAE: 6212.8 kW ... The target column is in kW' - unit from column name as fact (rule 5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p065", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p066", "label": 0, "note": "'kW, based on the target column being `load_kw`' stated as fact (rule 5)", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p067", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p068", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p069", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p070", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p071", "label": 0, "note": "'MAE is 6212.8 kW, which equals 6.21 MW' - unit from column name and conversion (rules 4,5).", "labels_ab": [0, 0], "adjudicated": false}
+{"id": "p072", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p073", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p074", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p075", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
+{"id": "p076", "label": 1, "note": "", "labels_ab": [1, 1], "adjudicated": false}
