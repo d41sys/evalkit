@@ -2,7 +2,7 @@
 
 [`scripts/ragtruth_judge.py`](../../scripts/ragtruth_judge.py) runs evalkit's pointwise `Judge` on the full [RAGTruth](https://github.com/ParticleMedia/RAGTruth) test split (Niu et al., ACL 2024; commit `c103204`, MIT): 2,700 responses from 6 LLMs on 450 sources.
 - **Same protocol as the paper's Table 5:** response-level detection, where a response is hallucinated if it has any labelled span; precision / recall / F1 for the hallucinated class, per task.
-- **Setup:** `claude-sonnet-5-5`, 1 sample, zero-shot. The rubric is the paper's annotation rule (section 3), written once before the run and not tuned. This is the same method as the ezc judge, where the written rule is the rubric.
+- **Setup:** `claude-sonnet-5-5`, 1 sample, zero-shot. For rule v1 (this section), the rubric is the paper's annotation rule (section 3), written once before the run and not tuned. This is the same method as the ezc judge, where the written rule is the rubric. Rule v2 (below) was tuned on train labels.
 - **Interval:** 95% bootstrap over sources.
 
 [`sonnet-5-5-test.jsonl`](sonnet-5-5-test.jsonl) holds the verdicts (`gold`/`score`: 1 = hallucinated / passes). The judge's reasoning texts stay in `runs/` (2.5 MB).
@@ -35,7 +35,7 @@ Our judge's per-task detail:
 
   The count does not check whether those flags are wrong. RAGTruth's labels can miss hallucinations, and a few of the reasons read like real subtle conflicts, so part of the 62% may be annotation misses.
 - **Same pattern in other work:** Valjakka et al. 2026 ([arXiv 2610.08026](https://arxiv.org/abs/2610.08026)) found the same false-positive-heavy errors when the written criterion is stricter than the annotators' practice.
-- **Likely cause: the criterion.** On ezc the rule was aligned with the labellers over 4 rounds, and the judge reaches 94.5% balanced accuracy there. Here the rule is the paper's short taxonomy, applied literally. This run tested one criterion with one model, so it does not separate the criterion's effect from the model's.
+- **Cause: the criterion.** Here the rule is the paper's short taxonomy, applied literally. Confirmed below: with the same model and settings, rule v2 alone raises balanced accuracy from 68.7 to 84.7 on test.
 
 **Not comparable:** FaithJudge's RAGTruth numbers (Tamber et al. 2025, balanced accuracy about 85%) use up to 150 sources per task, top up with dev, drop sources with no hallucinated response, and put annotated examples of other responses in the prompt.
 
@@ -64,7 +64,7 @@ Train has more hallucinated responses than test (45% in part 1 vs 35% in test), 
 | GPT-4-turbo prompt (paper, zero-shot) | 45.6 | 78.3 | 47.6 | 63.4 | |
 | evalkit judge, rule v1 (zero-shot) | 43.9 | 81.6 | 48.1 | 63.1 [60.4, 65.6] | 68.7 |
 | fine-tuned Llama-2-13B (paper, train labels) | 68.2 | 88.1 | 59.1 | 78.7 | |
-| **evalkit judge, rule v2** (aligned on ~600 train responses, 2 samples × 17 sources/task) | 63.3 | 88.2 | 67.1 | **78.2** [76.0, 80.2] | **84.7** |
+| **evalkit judge, rule v2** (revised on 306 train responses, checked on another 306) | 63.3 | 88.2 | 67.1 | **78.2** [76.0, 80.2] | **84.7** |
 
 - **Headline:** balanced accuracy 68.7 → 84.7 (+16.0 points), and F1 63.1 → 78.2. The two F1 intervals do not overlap.
 - **Where the gain comes from:** recall drops slightly (99.2% → 96.0%). Clean responses flagged fall from 1,084 to 467 of 1,757 (62% → 27%).
