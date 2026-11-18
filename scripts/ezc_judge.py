@@ -89,15 +89,15 @@ def main() -> None:
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
     rubric = RUBRICS[args.mode]
-    votes: list[list[float | None]] = []
+    samples = []  # per sample: one PointVerdict (score, text) per item
     for s in range(args.samples):
         cache = out / ("judge-cache.jsonl" if s == 0 else f"judge-cache-{s}.jsonl")
         completer = CachedCompleter(backend, cache, model_id=args.judge)
         judge = Judge(completer, rubric=rubric)
-        got = judge.score_many([PointItem(request(it), it["answer"]) for it in items])
-        votes.append([v.score for v in got])
+        samples.append(judge.score_many([PointItem(request(it), it["answer"]) for it in items]))
+    per_item = list(zip(*samples, strict=True))
     # an unparsable reply is a fail vote; the count is printed
-    scores = [float(sum(v or 0 for v in vs) * 2 > len(vs)) for vs in zip(*votes, strict=True)]
+    scores = [float(sum(v.score or 0 for v in vs) * 2 > len(vs)) for vs in per_item]
 
     groups: dict[str, list[str]] = {"labels.jsonl": []}
     with (out / "results.jsonl").open("w") as res:
@@ -110,9 +110,10 @@ def main() -> None:
     for name, rows in groups.items():
         (out / name).write_text("".join(rows))
     with (out / "judgments.jsonl").open("w") as f:
-        for it, vs in zip(items, zip(*votes, strict=True), strict=True):
-            f.write(json.dumps({"id": it["id"], "votes": list(vs)}) + "\n")
-    n_none = sum(v is None for vs in votes for v in vs)
+        for it, vs in zip(items, per_item, strict=True):
+            row = {"id": it["id"], "votes": [v.score for v in vs], "texts": [v.text for v in vs]}
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    n_none = sum(v.score is None for vs in per_item for v in vs)
     print(len(items), "items,", n_none, "unparsable replies")
 
 

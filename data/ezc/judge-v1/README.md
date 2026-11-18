@@ -95,7 +95,7 @@ One test reply had no parsable score (k049). It counts as a fail; its label is p
 
 - **Decomposition:** listing claims one by one made the judge find "support" too generously, so it caught fewer ungrounded answers.
 - **Labellers' rule verbatim:** the same happened. The r4 rubric's explicit cases (derived arithmetic, units read off column names) do the work.
-- **Choice:** r4 with a 5-sample majority vote. It ties Opus on errors and has the best TNR. It was frozen in `fd57bb8`, before the pool-3 labels existed.
+- **Choice:** r4 with a 5-sample majority vote: it ties Opus on errors and has the best TNR. It was frozen in `fd57bb8`, before the pool-3 labels existed. None of these variants separates from r4 with 1 sample on dev: the differences are 1–3 items.
 
 **Final test, pool 3**, run once ([`final-p3/`](final-p3/)). Labels by a fresh agent told to read every tool result in full; the read tool truncates long lines, which earlier labellers had flagged.
 
@@ -115,3 +115,7 @@ One test reply had no parsable score (k049). It counts as a fail; its label is p
   - "600 s = 10 min".
 
   Narrowing the error further needs a decision on those boundaries, not a better prompt.
+
+**Recommendation:** run with `--samples 1` from now on. The vote buys nothing measurable at 5× the cost; the unanimity rate shows that without using labels.
+
+**Limit of the pool 1–2 labels:** the agents' read tool cuts JSONL lines at about 768 bytes, and the second dev labeller said it did not re-read cut-off tool results. A labeller that missed support written past that point would label a fail where the judge (full text) passes. That pattern shows up as missed fails, and those are rare (TNR 95–97% on dev), so the effect looks small. The pool-3 labeller was told to read every tool result in full.
