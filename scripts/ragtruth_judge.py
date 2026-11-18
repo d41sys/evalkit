@@ -1,9 +1,11 @@
-"""Run evalkit's pointwise judge on the RAGTruth test split (response-level hallucination).
+"""Run evalkit's pointwise judge on RAGTruth (response-level hallucination).
 
 RAGTruth (Niu et al., ACL 2024, https://github.com/ParticleMedia/RAGTruth, MIT): 2,700 test
 responses from 6 LLMs on QA, data-to-text and summarization, each labelled by two annotators
 (91.8% response-level agreement). A response is hallucinated when it has any labelled span.
-The rubric is the paper's annotation rule (section 3), written once and not tuned on the data.
+The default rubric is the paper's annotation rule (section 3), not tuned (v1); `--rule` takes
+another rule text. `--split train --sources-per-task K --part P` judges a seeded sample of K
+train sources per task (parts are disjoint), for tuning a rule without touching test.
 Prints precision / recall / F1 for the hallucinated class per task, as in the paper's Table 5,
 with a 95% bootstrap interval over sources (6 responses share one source).
 
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import urllib.request
 from pathlib import Path
 
@@ -77,16 +80,31 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--judge", default="claude-sonnet-5-5")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--split", choices=("train", "test"), default="test")
+    ap.add_argument("--sources-per-task", type=int, default=0, help="0: every source")
+    ap.add_argument("--part", type=int, default=0, help="which disjoint sample of sources")
+    ap.add_argument("--rule", help="rubric text file (default: the paper's rule, v1)")
     args = ap.parse_args()
 
     sources = {s["source_id"]: s for s in load("source_info")}
-    rows = [r for r in load("response") if r["split"] == "test"]
+    rows = [r for r in load("response") if r["split"] == args.split]
+    if args.sources_per_task:
+        rng, k, keep = random.Random(0), args.sources_per_task, set()
+        for t in ("QA", "Data2txt", "Summary"):
+            ids = sorted({r["source_id"] for r in rows})
+            ids = [i for i in ids if sources[i]["task_type"] == t]
+            rng.shuffle(ids)
+            keep |= set(ids[args.part * k : (args.part + 1) * k])
+        rows = [r for r in rows if r["source_id"] in keep]
+    rubric = RUBRIC
+    if args.rule:
+        rubric = Rubric(RUBRIC.name, Path(args.rule).read_text(encoding="utf-8"), 0, 1)
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     completer = CachedCompleter(backend, out / "judge-cache.jsonl", model_id=args.judge)
-    judge = Judge(completer, rubric=RUBRIC, max_tokens=4096)
+    judge = Judge(completer, rubric=rubric, max_tokens=4096)
     items = [PointItem(sources[r["source_id"]]["prompt"], r["response"]) for r in rows]
     verdicts = judge.score_many(items)
 
