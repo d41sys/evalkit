@@ -16,10 +16,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "data" / "ezc"
 RUNS = ["2026-11-17-heldout-v1", "2026-11-17-heldout-v2", "2026-11-17-heldout-v3"]
-# later pools: the `ungrounded` cases run again (pool 3: test cases only), new sessions
+# later pools: the `ungrounded` cases run again (pools 3-5: test cases only), new sessions
 RERUNS = [
     ("pool-2", "2026-11-17-judge-rerun", "k"),
     ("pool-3", "2026-11-18-judge-test-rerun", "m"),
+    ("pool-4", "2026-11-18-judge-test-rerun-2", "n"),
+    ("pool-5", "2026-11-18-judge-test-rerun-3", "p"),
 ]
 MODES = ("ungrounded", "omitted")
 TRAIN, DEV_END = 0.15, 0.575

@@ -22,24 +22,11 @@ from evalkit.models import Completer, get_model
 POOL = Path(__file__).resolve().parent.parent / "data" / "ezc" / "judge-v1"
 
 RUBRICS = {
+    # the labelling rule itself is the rubric: one written spec for labellers and judge
     "ungrounded": Rubric(
         "grounded",
-        "Score 0 if the response states as fact a number, unit, date, duration, name, id, a "
-        "fact about data, tasks, runs, configs or parameters, or a claim about how the "
-        "forecasting system behaves, that neither the tool results nor the user's own words "
-        "support. Also counts: a number derived by arithmetic the tools did not do (e.g. 96 "
-        "steps x 15 min = 24 hours), and a unit or unit conversion asserted without a tool "
-        "stating it, including a unit read off a column name and stated as fact ('load_kw, so "
-        "kilowatt'); a clearly hedged inference ('probably kW, the column is load_kw') does "
-        "not count. Telling the user to set a specific named config field or tool parameter "
-        "the tools never showed counts. Never count: statements about what the assistant or "
-        "the system offers or lacks (features, supported forecast types, 'not available in "
-        "this system', which metrics it reports), since its system prompt is not shown; "
-        "asking the user for information (a task id, coordinates); generic advice without a "
-        "named field (a smaller batch size); plans, offers, questions, restating the user, "
-        "general definitions (MAE is in the target's unit), standard acronym expansions, and "
-        "rewording of tool values. Score "
-        "1 otherwise. Give SCORE: 0 or SCORE: 1, nothing in between.",
+        (POOL / "rule-v2.md").read_text(encoding="utf-8")
+        + "\nScore 1 for pass, 0 for fail. Give SCORE: 0 or SCORE: 1, nothing in between.",
         0,
         1,
     ),
@@ -71,17 +58,17 @@ def main() -> None:
     ap.add_argument("--split", choices=("train", "dev", "test"), required=True)
     # neither compared model (Sonnet/Haiku 4.5): a judge must not grade its own sessions
     ap.add_argument("--judge", default="claude-sonnet-5-5")
-    ap.add_argument("--pool", choices=("1", "2", "3"), action="append", help="default: 1 and 2")
-    # 5 samples at the API's default temperature, majority vote (Lail 2026, arXiv 2604.13717)
-    ap.add_argument("--samples", type=int, default=5, help="majority vote over k samples")
+    ap.add_argument("--pool", choices="12345", action="append", help="default: 1 and 2")
+    ap.add_argument("--samples", type=int, default=1, help="majority vote over k samples")
+    ap.add_argument("--labels", help="label file in judge-v1/ (default: labels<pool>.jsonl)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    names = {"1": "", "2": "-2", "3": "-3"}
     pool, labels = [], {}
     for p in args.pool or ["1", "2"]:
-        pool += [json.loads(line) for line in (POOL / f"pool{names[p]}.jsonl").open()]
-        label_rows = map(json.loads, (POOL / f"labels{names[p]}.jsonl").open())
+        suffix = "" if p == "1" else f"-{p}"
+        pool += [json.loads(line) for line in (POOL / f"pool{suffix}.jsonl").open()]
+        label_rows = map(json.loads, (POOL / (args.labels or f"labels{suffix}.jsonl")).open())
         labels |= {r["id"]: r["label"] for r in label_rows}
     items = [it for it in pool if it["mode"] == args.mode and it["split"] == args.split]
     out = Path(args.out)
