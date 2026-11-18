@@ -4,6 +4,8 @@ A judge for `ungrounded_claim`, the text failure mode from #3 that the code chec
 - **Not judged:** `question_not_panel` and `unasked_change` are tool-state checks and stay in code. `omitted_fact` occurs 2 times in 196 sessions, too rarely to validate a judge or to need one.
 - **Deviation from #5:** the labels are Claude-subagent labels, on the owner's instruction, not labels from a domain expert. The labellers and the judge are both Claude, so their agreement can be inflated.
 
+**Current result (frozen judge, `fd57bb8`, one run on pool 3):** on 76 new test sessions (24 fail / 52 pass) the judge passes 92.3% [80.8, 100] of the good answers and catches 91.7% [80.0, 100] of the ungrounded ones. The intervals come from a bootstrap over cases. Two labellers agree with each other on 97.4% of dev items and the judge agrees with either on about 93%. Every remaining test error is a boundary case of the rule; see [Round 2](#round-2-research-and-final-test).
+
 ## Pools and split
 
 - [`pool.jsonl`](pool.jsonl) (frozen in `37c7df8` before any label), built by [`scripts/ezc_judge_pool.py`](../../../scripts/ezc_judge_pool.py) (seed 5): every kept heldout-v1..v3 session, both models, whose case targets `ungrounded` (180) or `omitted` (196). Each item holds the user prompt, every tool result, and all assistant text of the turn (not only the final message; see heldout-v3 w063).
@@ -11,6 +13,7 @@ A judge for `ungrounded_claim`, the text failure mode from #3 that the code chec
 - [`pool-2.jsonl`](pool-2.jsonl): the 90 `ungrounded` cases run once more ([`../2026-11-17-judge-rerun/`](../2026-11-17-judge-rerun/README.md)), 180 new sessions, each case keeping its pool-1 split.
   - The new answers are not copies: their median similarity to the same case and model in pool 1 is 0.27.
   - 5 are ≥ 0.8 similar. Removing the one in test (k022) moves test TPR from 88.2% to 88.0% and leaves TNR at 96.0%.
+- [`pool-3.jsonl`](pool-3.jsonl): the 38 test cases run a third time ([`../2026-11-18-judge-test-rerun/`](../2026-11-18-judge-test-rerun/README.md)), 76 new sessions, committed with the frozen judge in `fd57bb8` before they were labelled. The highest similarity to the same case and model in pools 1–2 has median 0.33; 2 answers are ≥ 0.8.
 
 ## Labels
 
@@ -75,3 +78,40 @@ One test reply had no parsable score (k049). It counts as a fail; its label is p
 | p | 0.23 |
 | MDE | 0.212 |
 | Verdict | unresolved |
+
+## Round 2: research and final test
+
+**Label-noise ceiling.** A second agent, given the same rule text, labelled the 152 dev items independently. The two labellers agree on 148 of 152 (97.4%, Cohen's κ 0.93) and split only on borderline items: hedged probability wording, "suggereert/blijkt" hedges, and a suggested parameter. A judge cannot be measured above that agreement.
+
+**Variants on dev**, 152 items (113 pass / 39 fail), all on `claude-sonnet-5-5` unless noted:
+
+| variant | TPR | TNR | errors vs labeller 1 / 2 / consensus (148) |
+|---|---|---|---|
+| r4, 1 sample | 92.0% | 94.9% | 11 / 11 / 9 |
+| r4, 5 samples, majority ([Lail 2026](https://arxiv.org/abs/2604.13717): ensembling gave the largest gain on RewardBench 2) | 92.9% | 97.4% | 9 / 9 / 7 |
+| r4 on `claude-opus-5-5`, 1 sample | 93.8% | 94.9% | 9 / 9 / 7 |
+| claim-by-claim prompt (list each claim, quote support or NONE; the RAGAS / FActScore decomposition) | 91.2% | 82.1% | 17 / 17 / 15 |
+| labellers' rule text verbatim, 5 samples | 94.7% | 84.6% | 12 / 10 / 9 |
+
+- **Decomposition:** listing claims one by one made the judge find "support" too generously, so it caught fewer ungrounded answers.
+- **Labellers' rule verbatim:** the same happened. The r4 rubric's explicit cases (derived arithmetic, units read off column names) do the work.
+- **Choice:** r4 with a 5-sample majority vote. It ties Opus on errors and has the best TNR. It was frozen in `fd57bb8`, before the pool-3 labels existed.
+
+**Final test, pool 3**, run once ([`final-p3/`](final-p3/)). Labels by a fresh agent told to read every tool result in full; the read tool truncates long lines, which earlier labellers had flagged.
+
+| | case-bootstrap 95% CI | Wilson 95% |
+|---|---|---|
+| TPR, 48 / 52 (29 cases) | 92.3% [80.8, 100] | [81.8, 97.0] |
+| TNR, 22 / 24 (15 cases) | 91.7% [80.0, 100] | [74.2, 97.7] |
+| Sonnet 4.5 answers | TPR 92.9%, TNR 100% (10 fails) | |
+| Haiku 4.5 answers | TPR 91.7%, TNR 85.7% (14 fails) | |
+
+- **The 5-sample vote added nothing on test.** 97% of items got 5 identical votes, and the first vote alone scores TPR 94.2% and TNR 91.7%. One sample costs a fifth as much and is as good.
+- **Compared with the r4 one-sample result on pool 2** (88.2% / 96.0%), the difference is inside the intervals. No variant tested here measurably beats r4.
+- **All 6 test errors are rule-boundary cases:**
+  - 3 hedged guesses at a failure's cause ("possible causes…", "typically happens before…") that the judge fails and the labeller passes;
+  - Gouda's "approximately 52.0° N, 4.7° E" and a timezone, offered as defaults to confirm: the judge passes them as hedged world knowledge, while the rule lists coordinates;
+  - a conditional "lat/long or timezone are common blockers";
+  - "600 s = 10 min".
+
+  Narrowing the error further needs a decision on those boundaries, not a better prompt.

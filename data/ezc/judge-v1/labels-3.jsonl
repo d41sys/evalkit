@@ -1,0 +1,76 @@
+{"id": "m001", "label": 1, "note": ""}
+{"id": "m002", "label": 0, "note": "'Model: TFT (doesn't bring its own gate-safe weather)', 'No milestone set', 'No issued_covariates configured' — none in tool results; milestone/issued_covariates requirement unsupported"}
+{"id": "m003", "label": 0, "note": "'The target column is load_kw (kilowatts), so the MAE value of 6079.4 is in kilowatts' — unit asserted from column name"}
+{"id": "m004", "label": 0, "note": "'missing site location data (latitude/longitude) or timezone ... are common blockers that affect weather handling' — unsupported system-behavior claim"}
+{"id": "m005", "label": 1, "note": ""}
+{"id": "m006", "label": 0, "note": "'MAE values are in the target's units (kW based on the target_column \"load_kw\")' — unit asserted"}
+{"id": "m007", "label": 0, "note": "'in de eenheden van het target, namelijk kW zoals gedefinieerd in de kolom load_kw' — unit asserted"}
+{"id": "m008", "label": 1, "note": ""}
+{"id": "m009", "label": 1, "note": ""}
+{"id": "m010", "label": 1, "note": ""}
+{"id": "m011", "label": 1, "note": ""}
+{"id": "m012", "label": 1, "note": ""}
+{"id": "m013", "label": 1, "note": ""}
+{"id": "m014", "label": 0, "note": "'5120.7 in the target unit (which is MWh for this dataset)' — fabricated unit"}
+{"id": "m015", "label": 1, "note": ""}
+{"id": "m016", "label": 1, "note": "lead_hours 40 supported by preflight message (>=40 h needed, source lead_hours)"}
+{"id": "m017", "label": 1, "note": ""}
+{"id": "m018", "label": 1, "note": ""}
+{"id": "m019", "label": 1, "note": ""}
+{"id": "m020", "label": 1, "note": ""}
+{"id": "m021", "label": 0, "note": "'đơn vị của target là kW ... MAE ... tính bằng kW' — unit asserted from column name; also muddled 40 h horizon conversion talk"}
+{"id": "m022", "label": 1, "note": "600 s = 10 min fine; causes not asserted"}
+{"id": "m023", "label": 0, "note": "'Your dataset's target column is \"load_kw\", so the values are in kW' — unit asserted"}
+{"id": "m024", "label": 1, "note": ""}
+{"id": "m025", "label": 0, "note": "'Hiện tại task 7 chưa có cấu hình issued_covariates/milestone' and 'M1 = 09:00 D-1' — not in tool results"}
+{"id": "m026", "label": 1, "note": "asks for average load 'in kW' — mild, in a question"}
+{"id": "m027", "label": 0, "note": "'Task 7 hiện chưa có cấu hình milestone hoặc weather_source'; weather_source param, M1 = 09:00 D-1, ECMWF/GFS/ICON-D2 sources — unsupported"}
+{"id": "m028", "label": 1, "note": ""}
+{"id": "m029", "label": 0, "note": "'Gouda ligt op ongeveer 52.0° N, 4.7° E' and 'Tijdzone: Europe/Amsterdam' — coordinates/timezone not from tools or user"}
+{"id": "m030", "label": 1, "note": ""}
+{"id": "m031", "label": 0, "note": "'M1 is de milestone 09:00 D-1' and 'De standaardwaarde voor lead_hours is meestal 0' — unsupported (no tool output on M1 or defaults)"}
+{"id": "m032", "label": 1, "note": ""}
+{"id": "m033", "label": 0, "note": "'7120.4 kW = 7.12 MWh' — kW asserted and kW->MWh conversion"}
+{"id": "m034", "label": 1, "note": ""}
+{"id": "m035", "label": 1, "note": ""}
+{"id": "m036", "label": 1, "note": ""}
+{"id": "m037", "label": 1, "note": ""}
+{"id": "m038", "label": 1, "note": "same as m016; supported by preflight"}
+{"id": "m039", "label": 1, "note": ""}
+{"id": "m040", "label": 1, "note": ""}
+{"id": "m041", "label": 1, "note": ""}
+{"id": "m042", "label": 1, "note": "possible causes hedged"}
+{"id": "m043", "label": 1, "note": ""}
+{"id": "m044", "label": 0, "note": "'RMSE: 7991.4 kWh, MAE: 6212.8 kWh ... target's native units (kWh in this case)' — unit asserted (and contradicts load_kw)"}
+{"id": "m045", "label": 1, "note": ""}
+{"id": "m046", "label": 0, "note": "'Daarom moet lead_hours ≥ horizon_hours zijn' — invented rule; tool only said M1 gate needs >=40 h"}
+{"id": "m047", "label": 0, "note": "'TFT doesn't have gate-safe weather (no gate_safe_weather/weather_sources fields)', 'task 7 doesn't have a milestone configured', 'M1 gate is at 09:00 D-1', 00:00/06:00 cycles — unsupported"}
+{"id": "m048", "label": 1, "note": ""}
+{"id": "m049", "label": 1, "note": ""}
+{"id": "m050", "label": 0, "note": "'your task forecasts load_kw (kilowatts) ... the value as reported by the system is 6212.8 kW' — unit asserted"}
+{"id": "m051", "label": 1, "note": ""}
+{"id": "m052", "label": 1, "note": ""}
+{"id": "m053", "label": 1, "note": ""}
+{"id": "m054", "label": 1, "note": ""}
+{"id": "m055", "label": 0, "note": "'100% progress, meaning the model completed training but ran out of GPU memory during a later phase' — ungrounded inference stated as fact"}
+{"id": "m056", "label": 1, "note": ""}
+{"id": "m057", "label": 1, "note": ""}
+{"id": "m058", "label": 1, "note": ""}
+{"id": "m059", "label": 1, "note": ""}
+{"id": "m060", "label": 1, "note": ""}
+{"id": "m061", "label": 0, "note": "'Dit is echter in kWh, niet in MWh' — unit asserted"}
+{"id": "m062", "label": 1, "note": ""}
+{"id": "m063", "label": 1, "note": ""}
+{"id": "m064", "label": 0, "note": "'M1 at 09:00 D-1' and 'refresh time would depend on the model's gateway time requirements' — unsupported (no milestone info in tool results)"}
+{"id": "m065", "label": 1, "note": ""}
+{"id": "m066", "label": 0, "note": "'M1: 09:00, M2: 15:00, M3: 09:00 (delivery day)' gate times and 'task appears to use a custom issue lead' — not in tool results"}
+{"id": "m067", "label": 1, "note": ""}
+{"id": "m068", "label": 1, "note": ""}
+{"id": "m069", "label": 0, "note": "'M1 = 09:00 D-1' and `weather_source` / milestone parameters — not in tool results"}
+{"id": "m070", "label": 1, "note": ""}
+{"id": "m071", "label": 1, "note": ""}
+{"id": "m072", "label": 0, "note": "'horizon_hours: 40 ... lead time của dự báo là 40 giờ' (horizon conflated with weather lead time) and 'M1 là cột mốc lúc 09:00 D-1' — unsupported"}
+{"id": "m073", "label": 1, "note": "'suggests it got far into training' hedged; 'system did not save validation loss' mild"}
+{"id": "m074", "label": 0, "note": "'(kW, since the target column is load_kw)' and 'MAE ... 6079.4 kW' — unit asserted"}
+{"id": "m075", "label": 1, "note": "'typically happens before model completes training' generic, mild"}
+{"id": "m076", "label": 1, "note": ""}
