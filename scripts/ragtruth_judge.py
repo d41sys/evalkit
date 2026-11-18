@@ -92,9 +92,15 @@ def main() -> None:
 
     with (out / "judgments.jsonl").open("w") as f:
         for r, v in zip(rows, verdicts, strict=True):
-            row = {"id": r["id"], "source_id": r["source_id"], "model": r["model"],
-                   "task": sources[r["source_id"]]["task_type"], "gold": int(bool(r["labels"])),
-                   "score": v.score, "text": v.text}
+            row = {
+                "id": r["id"],
+                "source_id": r["source_id"],
+                "model": r["model"],
+                "task": sources[r["source_id"]]["task_type"],
+                "gold": int(bool(r["labels"])),
+                "score": v.score,
+                "text": v.text,
+            }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     # positive = hallucinated; an unparsable reply counts as "hallucinated" (score 0)
     pred = np.array([(v.score or 0) == 0 for v in verdicts])
