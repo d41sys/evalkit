@@ -48,7 +48,16 @@ ROC-AUC uses 1 − score as the unfaithfulness score (many ties at 0 and 1). Bal
 | valid (316, check) | 0.836 | 0.879 | +0.042 [0.024, 0.062] | 79.9 / 80.6 |
 | **test (645, once)** | 0.851 | **0.865** [0.837, 0.893] | **+0.015 [0.003, 0.026]** | 77.9 / 79.3 |
 
-Test, both cut at 0.5: F1 71.0 → 72.7 [67.7, 77.2], accuracy 77.2 → 79.4. Against the paper (Table 7 ROC-AUC 0.766 for its Claude-3.5 judge, 0.795 for its best method), v2's lower bound 0.837 is above both. Verdicts: [`sonnet-5-5-v2-test.jsonl`](sonnet-5-5-v2-test.jsonl).
+**The gain is in ranking only.** At a fixed cut v2 is level with v1 as it was run (flag only score = 0):
+
+| test, fixed cut | F1 | balanced acc. | accuracy |
+|---|---|---|---|
+| v1, flag score = 0 (as run) | 73.2 | 79.3 | 82.2 |
+| v1, flag < 0.5 | 71.0 | 77.9 | 77.2 |
+| v2, flag < 0.5 | 72.7 | 79.3 | 79.4 |
+| v2, flag < 0.15 (cut with the best balanced accuracy on train sample + valid) | 73.5 | 79.6 | 82.3 |
+
+On train + valid, balanced accuracy is flat from cut 0.15 to 0.5 (80.9-81.5), so the 0.15 choice is noise-level. Against the paper (Table 7 ROC-AUC 0.766 for its Claude-3.5 judge, 0.795 for its best method), v2's lower bound 0.837 is above both. Verdicts: [`sonnet-5-5-v2-test.jsonl`](sonnet-5-5-v2-test.jsonl).
 
 ### Why v2 is better
 
@@ -61,7 +70,7 @@ Test, both cut at 0.5: F1 71.0 → 72.7 [67.7, 77.2], accuracy 77.2 → 79.4. Ag
 
    The arithmetic clause adds 0.003 on valid and nothing on test.
 2. **Mechanism: it breaks v1's ties.** v1 put 61% of test answers at exactly 0 or 1 (21 score levels); v2 put none there (39 levels). Inside v1's "clearly faithful" group (186 answers, 6% hallucinated), v2 ranks the hallucinated ones higher (ROC-AUC 0.748 within the group, where v1 has no ranking at all, 0.5). Inside v1's "clearly unfaithful" group (205, 77% hallucinated) it is 0.616. Among answers v1 already scored in between, nothing changes (0.641 vs 0.642).
-3. **At the 0.5 cut the gain is fewer false alarms:** 19 answers v1 wrongly flagged are now passed, 0 new hallucinations are caught, and 5 answers got worse (2 new false alarms, 3 new misses). 18 of the 19 fixes are on questions other than "how many", so the arithmetic clause is not what moved the cut either.
+3. **At the 0.5 cut v2 mostly removes false alarms compared with v1 at 0.5:** 19 answers v1 wrongly flagged are now passed, 0 new hallucinations are caught, and 5 answers got worse (2 new false alarms, 3 new misses). 18 of the 19 fixes are on questions other than "how many", so the arithmetic clause is not what moved the cut either. v1's as-run rule (score = 0) already passed most of those answers, which is why the fixed-cut numbers end level.
 4. **Unchanged weak spots:** articles over 5K characters (ROC-AUC 0.775 → 0.791) and answers written by Claude (0.778 → 0.782).
 
 The test gain (+0.015) is a third of the valid gain (+0.042): part of the valid result did not carry over. Single run, one judge model; the ablation covers about half the test set because the API credit ran out.
