@@ -93,7 +93,7 @@ Rule v2 flags 27% of test responses the annotators passed. To see how much of th
 
 ## Five votes per response: no gain, not run on test
 
-One 0/1 call gives no threshold to trade precision for recall, so rule v2 was asked 5 times per response on train parts 0/1 (`--samples 5`; default sampling temperature, one cache file per sample; no reply text matched sample 0's). A response is flagged when at least *m* of the 5 replies fail it.
+One 0/1 call gives no threshold to trade precision for recall, so rule v2 was asked 5 times per response on train parts 0/1 (`--samples 5`; default sampling temperature, one cache file per sample; on part 0, none of sample 1's 303 reply texts matched sample 0's). A response is flagged when at least *m* of the 5 replies fail it.
 - **The judge barely varies:** 579 of 612 responses get 5 identical votes. Only 33 split (16 QA, 14 summary, 3 data-to-text), so no cutoff can move more than about 5% of the items.
 - **Balanced accuracy, parts 0+1 pooled:** one call 84.9, majority of 5 85.1.
 
