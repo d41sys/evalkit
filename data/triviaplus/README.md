@@ -33,4 +33,35 @@ ROC-AUC uses 1 − score as the unfaithfulness score (many ties at 0 and 1). Bal
 - **Ahead of every method in the paper on ROC-AUC:** 0.851 [0.820, 0.879] vs 0.766 for the paper's Claude-3.5 judge and 0.795 for its best method, with no threshold involved; our lower bound is above both (the paper gives no intervals). On F1 and accuracy it is level or ahead under either cut, without the paper's test-tuned threshold.
 - **Long contexts are the weak spot:** F1 55.1 above 5K characters, below the paper's judge there (62.1), while it is ahead on short and medium contexts.
 - **Answers written by Claude separate worst** (ROC-AUC 0.778 vs 0.863). The main difference is recall: the judge catches 64% of Claude's unfaithful answers vs 84% for the other two, while its false-positive rate is similar (27% vs 23%). Claude's low F1 (50.0) is mostly its low hallucination rate (22%), which pulls precision down. Missed items read include short arithmetic answers on DROP that the judge accepts as "direct inference". Lower recall on Claude text fits self-preference but is not proof of it; harder items or label noise were not ruled out.
-- One model, one sample, no tuning; train (2,263) and valid (316) are unused so far.
+- One model, one sample, no tuning (v1). Rule v2 below uses train and valid.
+
+## Rule v2: graded probability, tuned on train
+
+[`rule-v2.md`](rule-v2.md) keeps v1's guideline and adds two things: (a) the score is the judge's probability, 0 to 1, that the annotators labelled the answer faithful, using the whole range; (b) arithmetic the article supports up to rounding, and spans counted inclusively or exclusively, count as supported.
+- **Data:** errors read on a seeded sample of 300 train answers (`--split train --sample 300`); checked on all 316 valid answers; frozen in `b4b622c`; run once on test. Train, valid and test share no article (7 of 456 test questions also appear in train).
+- **Discarded on train:** a version that forced 0/1 and called non-answers unfaithful. ROC-AUC on train fell from 0.883 to 0.784: forcing 0/1 removed the ranking signal, and the non-answer clause made 23 wrong new flags for 8 right ones.
+- **Leak found and removed before freezing:** one rounding example ("about 1,100 for 1,123") came from a test item read while writing up v1. It was replaced by a made-up one and train/valid were rerun. The other examples are train items, so the train numbers are optimistic; the valid numbers are the check.
+
+| split | v1 ROC-AUC | v2 ROC-AUC | paired difference [95% CI] | v1 / v2 balanced acc. |
+|---|---|---|---|---|
+| train sample (300, tuning) | 0.883 | 0.901 | | 79.1 / 82.0 |
+| valid (316, check) | 0.836 | 0.879 | +0.042 [0.024, 0.062] | 79.9 / 80.6 |
+| **test (645, once)** | 0.851 | **0.865** [0.837, 0.893] | **+0.015 [0.003, 0.026]** | 77.9 / 79.3 |
+
+Test, both cut at 0.5: F1 71.0 → 72.7 [67.7, 77.2], accuracy 77.2 → 79.4. Against the paper (Table 7 ROC-AUC 0.766 for its Claude-3.5 judge, 0.795 for its best method), v2's lower bound 0.837 is above both. Verdicts: [`sonnet-5-5-v2-test.jsonl`](sonnet-5-5-v2-test.jsonl).
+
+### Why v2 is better
+
+1. **The graded probability does almost all of it.** An ablation, v1 plus only the probability instruction ([`ablation-v1-graded.md`](ablation-v1-graded.md)), ran on the items the API credit covered:
+
+   | items (paired) | v1 | v1 + probability only | v2 |
+   |---|---|---|---|
+   | valid, 297 of 316 | 0.853 | 0.883 | 0.886 |
+   | test, 322 of 645 | 0.853 | 0.872 | 0.866 |
+
+   The arithmetic clause adds 0.003 on valid and nothing on test.
+2. **Mechanism: it breaks v1's ties.** v1 put 61% of test answers at exactly 0 or 1 (21 score levels); v2 put none there (39 levels). Inside v1's "clearly faithful" group (186 answers, 6% hallucinated), v2 ranks the hallucinated ones higher (ROC-AUC 0.748 within the group, where v1 has no ranking at all, 0.5). Inside v1's "clearly unfaithful" group (205, 77% hallucinated) it is 0.616. Among answers v1 already scored in between, nothing changes (0.641 vs 0.642).
+3. **At the 0.5 cut the gain is fewer false alarms:** 19 answers v1 wrongly flagged are now passed, 0 new hallucinations are caught, and 5 answers got worse (2 new false alarms, 3 new misses). 18 of the 19 fixes are on questions other than "how many", so the arithmetic clause is not what moved the cut either.
+4. **Unchanged weak spots:** articles over 5K characters (ROC-AUC 0.775 → 0.791) and answers written by Claude (0.778 → 0.782).
+
+The test gain (+0.015) is a third of the valid gain (+0.042): part of the valid result did not carry over. Single run, one judge model; the ablation covers about half the test set because the API credit ran out.
