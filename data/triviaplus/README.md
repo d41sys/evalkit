@@ -3,6 +3,7 @@
 [`scripts/triviaplus_judge.py`](../../scripts/triviaplus_judge.py) runs evalkit's pointwise `Judge` on the [TRIVIA+](https://github.com/amazon-science/hallucination-benchmark-trivialplus) test split (Chen et al., [ACL 2026](https://aclanthology.org/2026.acl-long.680/); commit `c133bbf`, CC BY-NC-ND 4.0): 645 answers by Mixtral 8x7B, Gemma 7B and Claude to questions over articles of 71 to 95,213 characters (median 1,699). Each answer sentence was labelled by 2-6 annotators. An answer is unfaithful when any sentence is "contradicts" or "not-mentioned"; gold is `response_level_label_binary` (not the noisy or LLM-made label columns).
 - **Setup:** `claude-sonnet-5-5`, 1 sample, zero-shot. The rubric is the annotators' guideline (paper appendix A.5), written before the run and not tuned (v1).
 - **Cut:** the rubric did not say "0 or 1 only", and 254 of 645 replies gave an in-between score (0.1, 0.9, ...). A score below 0.5, the scale's midpoint, counts as unfaithful. This cut was fixed after seeing the score values but not tuned on accuracy. (The RAGTruth runs had no in-between scores.)
+- **Interval:** 95% bootstrap over articles.
 - **Licence:** NoDerivatives, so only our verdicts are committed: [`sonnet-5-5-v1-test.jsonl`](sonnet-5-5-v1-test.jsonl) (`id` = the parquet's `__index_level_0__`, `score` = the judge's raw 0-1 score). Gold labels and texts come from the parquet.
 
 | method (unfaithful = positive) | F1 | precision | recall | accuracy |
