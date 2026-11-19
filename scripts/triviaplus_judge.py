@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import urllib.request
 from pathlib import Path
 
@@ -50,18 +51,30 @@ RUBRIC = Rubric(
 )
 
 
+def auc(score: np.ndarray, gold: np.ndarray) -> float:
+    """ROC-AUC by Mann-Whitney: ties count half; nan when a class is missing."""
+    pos, neg = score[gold], score[~gold]
+    if not len(pos) or not len(neg):
+        return float("nan")
+    diff = pos[:, None] - neg[None, :]
+    return float((diff > 0).mean() + 0.5 * (diff == 0).mean())
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--judge", default="claude-sonnet-5-5")
     ap.add_argument("--out", required=True)
     ap.add_argument("--split", choices=("train", "valid", "test"), default="test")
     ap.add_argument("--rule", help="rubric text file (default: the annotation guideline, v1)")
+    ap.add_argument("--sample", type=int, default=0, help="seeded random rows; 0: all")
     args = ap.parse_args()
 
     if not DATA.exists():
         DATA.parent.mkdir(parents=True, exist_ok=True)
         urllib.request.urlretrieve(URL, DATA)
     rows = [r for r in pq.read_table(DATA).to_pylist() if r["split"] == args.split]
+    if args.sample:
+        rows = random.Random(0).sample(rows, args.sample)
     rubric = RUBRIC
     if args.rule:
         rubric = Rubric(RUBRIC.name, Path(args.rule).read_text(encoding="utf-8"), 0, 1)
@@ -93,13 +106,14 @@ def main() -> None:
     gold = np.array([r["response_level_label_binary"] == 1 for r in rows])
     art = np.array([r["article"] for r in rows])
     n = np.array([len(r["article"]) for r in rows])
+    unf = np.array([1 - (v.score if v.score is not None else 0) for v in verdicts])
     groups = {"all": np.ones_like(gold)}
     for key in ("model", "source"):
         for val in sorted({r[key].replace("ms_marco", "msmarco") for r in rows}):
             groups[val] = np.array([r[key].replace("ms_marco", "msmarco") == val for r in rows])
     groups |= {"<1K": n < 1000, "1K-5K": (n >= 1000) & (n <= 5000), ">5K": n > 5000}
     print(len(rows), "responses,", sum(v.score is None for v in verdicts), "unparsable")
-    print("group         n    P      R      F1    [95% CI]          Acc    BAcc")
+    print("group         n    P      R      F1    [95% CI]          Acc    BAcc   AUC")
     for name, m in groups.items():
         p, r, f1 = prf(pred[m], gold[m])
         lo, hi = f1_ci(pred[m], gold[m], art[m])
@@ -107,7 +121,7 @@ def main() -> None:
         ba = bacc(pred[m], gold[m])
         print(
             f"{name:12} {m.sum():4} {p:6.1%} {r:6.1%} {f1:6.1%} [{lo:6.1%}, {hi:6.1%}] "
-            f"{acc:6.1%} {ba:6.1%}"
+            f"{acc:6.1%} {ba:6.1%} {auc(unf[m], gold[m]):.3f}"
         )
 
 
