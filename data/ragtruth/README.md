@@ -70,6 +70,38 @@ Train has more hallucinated responses than test (45% in part 1 vs 35% in test), 
 - **Where the gain comes from:** recall drops slightly (99.2% → 96.0%). Clean responses flagged fall from 1,084 to 467 of 1,757 (62% → 27%).
 - **Against the fine-tuned Llama-2-13B:** overall F1 78.2 vs 78.7, inside our interval, so a tie. QA is lower (63.3 vs 68.2), data-to-text is equal (88.2 vs 88.1) and summary is higher (67.1 vs 59.1). The paper reports no intervals, so the per-task gaps are not tested.
 - **Below the forecast:** test F1 came in 2.6 points under the 80.8 forecast from part 1, which suggests some fit to the two train samples or plain sampling noise (306 responses); this was not separated.
-- **Caveats:** one model (`claude-sonnet-5-5`), one sample, one rule revision. The remaining false positives were not checked against the sources, so some may be annotation misses (see above).
+- **Caveats:** one model (`claude-sonnet-5-5`), one sample, one rule revision. The remaining false positives are checked on train below, not on test.
 
 Rule v2 test verdicts: [`rule-v2-test.jsonl`](rule-v2-test.jsonl), same format.
+
+## Label check: are the remaining false positives real errors?
+
+Rule v2 flags 27% of test responses the annotators passed. To see how much of that is the judge and how much is the labels, 40 of the 77 rule-v2 false positives on train parts 0/1 were re-read **blind**, plus 10 controls the judge passed (seeded sample, shuffled; 27 summary, 14 QA, 9 data-to-text). Two Claude subagents saw only the source and the response, applied rule v2's definition, and had to quote the span; they did not see the judge's reason or the label. Calls and evidence: [`blind-check.jsonl`](blind-check.jsonl).
+
+| judge | blind reader | n |
+|---|---|---|
+| flagged | error, high confidence | 15 |
+| flagged | error, low confidence | 15 |
+| flagged | clean | 10 |
+| passed (control) | clean | 10 of 10 |
+
+- **Most of the remaining false positives look like annotation misses.** 30 of 40 have a span the blind reader can quote, 15 with high confidence. Examples: the wrong case listed among "the three other cases" (b14), tags put on the *surviving* students when the source says the dead students' bodies (b43), a student's criticism credited to the protesters (b47). These are evident conflicts under RAGTruth's own taxonomy.
+- **The blind reader is not just strict:** it passed all 10 controls.
+- **Estimate [inference]:** if 10–25 of every 40 test false positives are real judge mistakes, rule v2's balanced accuracy against corrected labels would be roughly 90–95, not 84.7. This extrapolates 40 train items to test, and the 38 test misses were not re-read (labels can be wrong that way too).
+- **Limits:** the blind readers are the same model family as the judge and used its rule, so a shared bias can remain; the controls only rule out blanket strictness.
+- **Consequence:** tuning further against these labels would partly teach the judge to pass real errors. The judge's own mistakes in the sample are borderline calls flagged anyway ("I lean toward flagging", 4 of 10), over-strict summary readings, and one reply whose reason finds nothing but scores 0.
+
+## Five votes per response: no gain, not run on test
+
+One 0/1 call gives no threshold to trade precision for recall, so rule v2 was asked 5 times per response on train parts 0/1 (`--samples 5`; default sampling temperature, one cache file per sample; no reply text matched sample 0's). A response is flagged when at least *m* of the 5 replies fail it.
+- **The judge barely varies:** 579 of 612 responses get 5 identical votes. Only 33 split (16 QA, 14 summary, 3 data-to-text), so no cutoff can move more than about 5% of the items.
+- **Balanced accuracy, parts 0+1 pooled:** one call 84.9, majority of 5 85.1.
+
+  | task | m=1 | m=2 | m=3 | m=4 | m=5 |
+  |---|---|---|---|---|---|
+  | QA | 84.6 | 82.7 | 82.3 | 82.3 | 83.7 |
+  | data-to-text | 79.7 | 81.7 | 82.7 | 82.7 | 82.7 |
+  | summary | 82.6 | 84.1 | 84.2 | 84.9 | 85.7 |
+
+  The best per-task cutoffs beat the majority by at most 3 points on about 200 responses per task, are not monotone for QA, and would be picked in-sample, so they are noise-level. The test run (~$100) was skipped.
+- **Reading:** the remaining false positives are stable judgements, not sampling noise; together with the label check above, they are mostly a rule-vs-annotator difference or annotation misses, which voting cannot fix.

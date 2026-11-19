@@ -6,6 +6,8 @@ responses from 6 LLMs on QA, data-to-text and summarization, each labelled by tw
 The default rubric is the paper's annotation rule (section 3), not tuned (v1); `--rule` takes
 another rule text. `--split train --sources-per-task K --part P` judges a seeded sample of K
 train sources per task (parts are disjoint), for tuning a rule without touching test.
+`--samples K` asks the judge K times (temperature default) and flags a response when at least
+`--min-fails` of the K replies fail it (per task; default a majority).
 Prints precision / recall / F1 for the hallucinated class per task, as in the paper's Table 5,
 with a 95% bootstrap interval over sources (6 responses share one source).
 
@@ -66,6 +68,11 @@ def prf(pred: np.ndarray, gold: np.ndarray) -> tuple[float, float, float]:
     return p, r, 2 * p * r / max(p + r, 1e-12)
 
 
+def bacc(pred: np.ndarray, gold: np.ndarray) -> float:
+    tnr = float((~pred & ~gold).sum() / max((~gold).sum(), 1))
+    return (prf(pred, gold)[1] + tnr) / 2
+
+
 def f1_ci(pred: np.ndarray, gold: np.ndarray, src: np.ndarray, n: int = 2000) -> tuple:
     rng = np.random.default_rng(0)
     groups = [np.flatnonzero(src == s) for s in np.unique(src)]
@@ -84,7 +91,13 @@ def main() -> None:
     ap.add_argument("--sources-per-task", type=int, default=0, help="0: every source")
     ap.add_argument("--part", type=int, default=0, help="which disjoint sample of sources")
     ap.add_argument("--rule", help="rubric text file (default: the paper's rule, v1)")
+    ap.add_argument("--samples", type=int, default=1, help="judge calls per response")
+    ap.add_argument("--min-fails", default="", help="fail votes to flag, e.g. QA=3,Summary=2")
     args = ap.parse_args()
+    need = {t: args.samples // 2 + 1 for t in ("QA", "Data2txt", "Summary")}
+    for kv in filter(None, args.min_fails.split(",")):
+        t, n = kv.split("=")
+        need[t] = int(n)
 
     sources = {s["source_id"]: s for s in load("source_info")}
     rows = [r for r in load("response") if r["split"] == args.split]
@@ -103,13 +116,18 @@ def main() -> None:
     assert isinstance(backend, Completer)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    completer = CachedCompleter(backend, out / "judge-cache.jsonl", model_id=args.judge)
-    judge = Judge(completer, rubric=rubric, max_tokens=4096)
     items = [PointItem(sources[r["source_id"]]["prompt"], r["response"]) for r in rows]
-    verdicts = judge.score_many(items)
+    samples = []
+    for s in range(args.samples):
+        cache = out / ("judge-cache.jsonl" if s == 0 else f"judge-cache-{s}.jsonl")
+        completer = CachedCompleter(backend, cache, model_id=args.judge)
+        samples.append(Judge(completer, rubric=rubric, max_tokens=4096).score_many(items))
+    verdicts = samples[0]
+    # an unparsable reply counts as a fail vote ("hallucinated")
+    fails = np.array([sum((v.score or 0) == 0 for v in vs) for vs in zip(*samples, strict=True)])
 
     with (out / "judgments.jsonl").open("w") as f:
-        for r, v in zip(rows, verdicts, strict=True):
+        for r, v, n in zip(rows, verdicts, fails, strict=True):
             row = {
                 "id": r["id"],
                 "source_id": r["source_id"],
@@ -117,22 +135,31 @@ def main() -> None:
                 "task": sources[r["source_id"]]["task_type"],
                 "gold": int(bool(r["labels"])),
                 "score": v.score,
+                "fails": int(n),
                 "text": v.text,
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    # positive = hallucinated; an unparsable reply counts as "hallucinated" (score 0)
-    pred = np.array([(v.score or 0) == 0 for v in verdicts])
+    # positive = hallucinated
     gold = np.array([bool(r["labels"]) for r in rows])
     task = np.array([sources[r["source_id"]]["task_type"] for r in rows])
+    pred = fails >= np.array([need[t] for t in task])
     src = np.array([r["source_id"] for r in rows])
-    print(len(rows), "responses,", sum(v.score is None for v in verdicts), "unparsable")
+    bad = sum(v.score is None for vs in samples for v in vs)
+    print(len(rows), "responses,", args.samples, "samples,", bad, "unparsable; min fails", need)
     print("task       n    P     R     F1   [95% CI]        BAcc")
     for t in ("QA", "Data2txt", "Summary", "all"):
         m = np.ones_like(gold) if t == "all" else task == t
         p, r, f1 = prf(pred[m], gold[m])
         lo, hi = f1_ci(pred[m], gold[m], src[m])
-        bacc = (r + float((~pred[m] & ~gold[m]).sum() / max((~gold[m]).sum(), 1))) / 2
-        print(f"{t:9} {m.sum():4} {p:5.1%} {r:5.1%} {f1:5.1%} [{lo:5.1%}, {hi:5.1%}] {bacc:5.1%}")
+        ba = bacc(pred[m], gold[m])
+        print(f"{t:9} {m.sum():4} {p:5.1%} {r:5.1%} {f1:5.1%} [{lo:5.1%}, {hi:5.1%}] {ba:5.1%}")
+    if args.samples > 1:
+        ks = range(1, args.samples + 1)
+        print("BAcc / F1 by min fail votes:", *ks)
+        for t in ("QA", "Data2txt", "Summary"):
+            m = task == t
+            cells = [(bacc(fails[m] >= k, gold[m]), prf(fails[m] >= k, gold[m])[2]) for k in ks]
+            print(f"{t:9}", "  ".join(f"{b:5.1%}/{f:5.1%}" for b, f in cells))
 
 
 if __name__ == "__main__":
