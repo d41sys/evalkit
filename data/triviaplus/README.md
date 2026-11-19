@@ -12,7 +12,7 @@
 | few-shot judge (paper) | 0.764 | 69.2 | 58.5 | 84.8 | 73.8 |
 | SelfCheckGPT, Claude (paper) | 0.795 | 67.5 | 62.9 | 72.8 | 75.7 |
 | fine-tuned detector (paper) | 0.777 | 66.3 | 58.1 | 77.2 | 72.7 |
-| **evalkit judge, Sonnet 5.5, rule v1**, flag score = 0 (as run) | **0.851** | 73.2 [68.0, 77.7] | 76.6 | 70.1 | 82.2 |
+| **evalkit judge, Sonnet 5.5, rule v1**, flag score = 0 (as run) | **0.851** [0.820, 0.879] | 73.2 [68.0, 77.7] | 76.6 | 70.1 | 82.2 |
 | same verdicts, flag score < 0.5 | 0.851 | 71.0 [66.0, 75.6] | 63.6 | 80.4 | 77.2 |
 
 ROC-AUC uses 1 − score as the unfaithfulness score (many ties at 0 and 1). Balanced accuracy is 79.3% (score = 0) and 77.9% (< 0.5). The paper picks each method's threshold to maximise F1 on the test set; ours are fixed, so the F1 and accuracy columns favour the paper's rows. The breakdowns below use the < 0.5 cut.
@@ -30,7 +30,7 @@ ROC-AUC uses 1 − score as the unfaithfulness score (many ties at 0 and 1). Bal
 | Claude | 188 | 22% | 0.778 | 64.3 | 26.7 | 68.8 |
 
 **Reading.**
-- **Ahead of every method in the paper on ROC-AUC:** 0.851 vs 0.766 for the paper's Claude-3.5 judge and 0.795 for its best method, with no threshold involved. On F1 and accuracy it is level or ahead under either cut, without the paper's test-tuned threshold.
+- **Ahead of every method in the paper on ROC-AUC:** 0.851 [0.820, 0.879] vs 0.766 for the paper's Claude-3.5 judge and 0.795 for its best method, with no threshold involved; our lower bound is above both (the paper gives no intervals). On F1 and accuracy it is level or ahead under either cut, without the paper's test-tuned threshold.
 - **Long contexts are the weak spot:** F1 55.1 above 5K characters, below the paper's judge there (62.1), while it is ahead on short and medium contexts.
 - **Answers written by Claude separate worst** (ROC-AUC 0.778 vs 0.863). The main difference is recall: the judge catches 64% of Claude's unfaithful answers vs 84% for the other two, while its false-positive rate is similar (27% vs 23%). Claude's low F1 (50.0) is mostly its low hallucination rate (22%), which pulls precision down. Missed items read include short arithmetic answers on DROP that the judge accepts as "direct inference". Lower recall on Claude text fits self-preference but is not proof of it; harder items or label noise were not ruled out.
 - One model, one sample, no tuning; train (2,263) and valid (316) are unused so far.
