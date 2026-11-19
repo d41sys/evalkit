@@ -61,16 +61,16 @@ On train + valid, balanced accuracy is flat from cut 0.15 to 0.5 (80.9-81.5), so
 
 ### Why v2 is better
 
-1. **The graded probability does almost all of it.** An ablation, v1 plus only the probability instruction ([`ablation-v1-graded.md`](ablation-v1-graded.md)), ran on the items the API credit covered:
+1. **The graded probability does all of it.** An ablation, v1 plus only the probability instruction ([`ablation-v1-graded.md`](ablation-v1-graded.md)), on the full splits. Paired differences with 95% article-bootstrap intervals:
 
-   | items (paired) | v1 | v1 + probability only | v2 |
-   |---|---|---|---|
-   | valid, 297 of 316 | 0.853 | 0.883 | 0.886 |
-   | test, 322 of 645 | 0.853 | 0.872 | 0.866 |
+   | split | v1 | v1 + probability only | v2 | probability only − v1 | v2 − probability only |
+   |---|---|---|---|---|---|
+   | valid (316) | 0.836 | 0.878 | 0.879 | +0.041 [0.024, 0.059] | +0.001 [−0.009, 0.011] |
+   | test (645) | 0.851 | 0.869 | 0.865 | +0.019 [0.008, 0.030] | −0.004 [−0.012, 0.004] |
 
-   The arithmetic clause adds 0.003 on valid and nothing on test.
+   The arithmetic clause adds nothing on either split. The API credit ran out after about half the ablation items; the remaining 19 valid and 323 test calls went through omp's `smol` completion, which serves the same model (`anthropic/claude-sonnet-5-5`) with the identical evalkit prompt (cache records tagged `omp:anthropic/claude-sonnet-5-5`). On 60 valid answers judged both ways with rule v2, the two routes correlate at 0.971 (ROC-AUC 0.893 omp vs 0.912 API). Test verdicts: [`sonnet-5-5-ablation-test.jsonl`](sonnet-5-5-ablation-test.jsonl).
 2. **Mechanism: it breaks v1's ties.** v1 put 61% of test answers at exactly 0 or 1 (21 score levels); v2 put none there (39 levels). Inside v1's "clearly faithful" group (186 answers, 6% hallucinated), v2 ranks the hallucinated ones higher (ROC-AUC 0.748 within the group, where v1 has no ranking at all, 0.5). Inside v1's "clearly unfaithful" group (205, 77% hallucinated) it is 0.616. Among answers v1 already scored in between, nothing changes (0.641 vs 0.642).
 3. **At the 0.5 cut v2 mostly removes false alarms compared with v1 at 0.5:** 19 answers v1 wrongly flagged are now passed, 0 new hallucinations are caught, and 5 answers got worse (2 new false alarms, 3 new misses). 18 of the 19 fixes are on questions other than "how many", so the arithmetic clause is not what moved the cut either. v1's as-run rule (score = 0) already passed most of those answers, which is why the fixed-cut numbers end level.
 4. **Unchanged weak spots:** articles over 5K characters (ROC-AUC 0.775 → 0.791) and answers written by Claude (0.778 → 0.782).
 
-The test gain (+0.015) is a third of the valid gain (+0.042): part of the valid result did not carry over. Single run, one judge model; the ablation covers about half the test set because the API credit ran out.
+The test gain (+0.015) is a third of the valid gain (+0.042): part of the valid result did not carry over. Single run, one judge model.
