@@ -107,11 +107,11 @@ A rule with no model, "PASS if the answer is a word-for-word substring of the pa
 | string check only | **97.5** | 17.8 | 49.8 | 45.6 | 96.2 | 50.0 | 59.5 |
 | best published | 88.4 | 85.6 | 88.9 | 86.4 | 97.7 | 90.4 | 87.4 |
 
-On HaluEval and CovidQA the PASS answers are spans copied from the passage and the FAIL answers are rewritten ones, so those two sources mostly measure whether an answer was copied. On HaluEval the string check is above every judge in this file and every published row we found.
+On HaluEval and CovidQA nearly all PASS answers are spans copied from the passage (4,758 of 4,990 and 500 of 500) and nearly all FAIL answers are not (4,987 of 5,010 and 462 of 500), so those two sources mostly measure whether an answer was copied. On HaluEval the string check is above every judge in this file and every published row we found.
 
 ### Fresh CovidQA tuning data
 
-[`PatronusAI/lynx-train-v0.1`](https://huggingface.co/datasets/PatronusAI/lynx-train-v0.1) (revision `eeef166`, no licence stated, nothing from it is committed) holds 800 items whose question is in COVID-QA (`deepset/covid_qa_deepset`, revision `be51d91`): 600 train and 200 validation, half PASS. 370 remain after dropping every question that appears in HaluBench (185 PASS, 185 FAIL); 347 of them share a passage with a HaluBench item, with a different question. The frozen Opus rule v3 configuration scores 97.3% on these 370: 7 word-for-word fragments flagged as incomplete, and 3 one-word rewordings passed.
+[`PatronusAI/lynx-train-v0.1`](https://huggingface.co/datasets/PatronusAI/lynx-train-v0.1) (revision `eeef166`, no licence stated, nothing from it is committed) holds 800 items whose question is in COVID-QA (`deepset/covid_qa_deepset`, revision `be51d91`): 600 train and 200 validation, half PASS. 370 remain after dropping every question that appears in HaluBench (185 PASS, 185 FAIL). 347 of them share a passage with a HaluBench item, 267 with a holdout item, each time with a different question. The frozen Opus rule v3 configuration scores 97.3% on these 370: 7 word-for-word fragments flagged as incomplete, and 3 one-word rewordings passed.
 
 The same comparison shows an overlap between that training release and the HaluBench test set: 433 of the 1,000 CovidQA test questions also appear in it with a different answer string, as do 103 DROP questions (19 with the same answer and label) and 96 RAGTruth questions (17 with the same answer and label). The dataset card does not say whether v0.1 is the set that trained the paper's LYNX.
 
@@ -129,10 +129,11 @@ The same comparison shows an overlap between that training release and the HaluB
 | PubMedQA (734) | 90.4 | 91.7 | **95.0** [93.5, 96.5] | +3.3 [1.5, 5.0] |
 | **mean of sources** | 87.4 | 92.2 | **93.2** [92.5, 93.9] | +1.1 [0.5, 1.6] |
 
-Rule v4 on Opus is above the best published accuracy on all six sources and on the mean. The mean of sources by balanced accuracy is 91.8% (rule v3 on Opus: 90.8%). What the table does not show:
+Rule v4 on Opus is above the best published accuracy on all six sources and on the mean; for CovidQA the first three points below weaken that. The mean of sources by balanced accuracy is 91.8% (rule v3 on Opus: 90.8%). What the table does not show:
 - **The CovidQA result depends on the refusal fallback.** Opus refused 19 holdout items (12 PubMedQA, 7 CovidQA; 13 are PASS answers). The Sonnet verdict is right on 18 of them. Counting refusals as FAIL, as in rule v3, gives CovidQA 97.6% (below 97.7%), PubMedQA 93.9% and a mean of 93.0%. The fallback was added after the rule v3 run showed that refusals cost 7 CovidQA holdout items. The dev evidence for it is thin and has no CovidQA item: under rule v3 Opus gave no verdict on 8 dev items (7 refusals; 6 HaluEval, 2 PubMedQA), where the Sonnet verdict is right on 8 and counting them as FAIL is right on 5; under rule v4 it gave none on 3 dev items (all PubMedQA), where Sonnet is right on 3 and FAIL on 2. The "8 of 8" in the freeze commit message is the rule v3 count.
+- **The CovidQA holdout shares passages with the tuning data.** The dev split keeps HaluBench passages apart, but the 370 fresh tuning items do not: 669 of the 785 CovidQA holdout items have a passage that also occurs among them. On the 116 that do not, rule v4 is right on 113 (97.4%, below 97.7%) and rule v3 on 112 (96.6%); on the 669 the figures are 98.2% and 96.0%. This subset was examined after the run.
 - **The CovidQA margin is not separated from the published figure.** The interval [97.1, 98.9] contains 97.7, and our 785 holdout items are not the 1,000 the published rows use.
 - **On CovidQA and HaluEval the gain is copy detection.** Rule v4 hands the judge the string check, which alone scores 96.2% and 97.5% there. On HaluEval the string check still beats the judge (97.5% against 93.7%).
-- **This is the fourth use of the holdout.**
+- **This is the fourth judge run on the holdout.** The string check, defined on dev, was also scored on it.
 - **RAGTruth did not improve.** Recall of its hallucinated answers is 67.3% and balanced accuracy 80.6%, against 82.4% for rule v2 on Sonnet.
 - **For four sources the v4 − v3 difference mixes two changes.** Rule v3 ran DROP, FinanceBench, RAGTruth and PubMedQA at default effort; rule v4 ran everything at high effort. The fresh-data tuning set and the string-check and overlap analyses were run in a notebook session and are not reproduced by the script.
