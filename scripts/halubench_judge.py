@@ -53,6 +53,8 @@ Your output should be in JSON FORMAT with the keys "REASONING" and "SCORE":
 """  # noqa: E501
 MAX_TOKENS = 1024
 SCORE = re.compile(r'"?SCORE"?\s*:\s*"?(PASS|FAIL)', re.IGNORECASE)
+P_FAIL = re.compile(r'"?P_FAIL"?\s*:\s*"?([01](?:\.\d+)?|\.\d+)')
+LONG_WORDS = 30
 
 
 def load() -> list[dict]:
@@ -90,6 +92,8 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--rule", help="text file appended to the paper's instructions")
     ap.add_argument("--split", choices=("all", "dev", "held"), default="all")
+    ap.add_argument("--cut", type=float, help="flag P_FAIL >= cut instead of SCORE (rule v3)")
+    ap.add_argument("--cut-long", type=float, help=f"cut for answers over {LONG_WORDS} words")
     args = ap.parse_args()
 
     rows = [r for r in load() if args.split == "all" or is_dev(r) == (args.split == "dev")]
@@ -108,6 +112,12 @@ def main() -> None:
             )
         )
     found = [verdict(t) for t in texts]
+    if args.cut is not None:
+        # a reply without P_FAIL (or a refusal) counts as FAIL, like one without a SCORE
+        p_fail = [float(m[-1]) if (m := P_FAIL.findall(t)) else None for t in texts]
+        long_cut = args.cut if args.cut_long is None else args.cut_long
+        cuts = [long_cut if len(r["answer"].split()) > LONG_WORDS else args.cut for r in rows]
+        found = [None if p is None else "FAIL" if p >= c else "PASS" for p, c in zip(p_fail, cuts)]
     # an unparsable reply counts as FAIL (hallucination flagged)
     pred = np.array([v != "PASS" for v in found])
     with (out / "verdicts.jsonl").open("w") as f:
