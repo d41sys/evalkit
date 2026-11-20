@@ -29,12 +29,12 @@ Pooled over all 14,900 items, accuracy is 87.6%. HaluEval contributes 10,000 of 
 | CovidQA | 9 / 500 | 24 / 500 |
 | HaluEval | 222 / 4,990 | 869 / 5,010 |
 
-Why, checked on the data:
-1. **PubMedQA:** a PASS answer is the abstract's own conclusion, and the passage given to the judge is the abstract without it. In none of the 500 PASS answers do the first 60 characters after "Yes." / "No." appear in the passage. A judge told that "the ANSWER must not offer new information beyond the DOCUMENT" therefore sees new claims, and flags 44% of them.
-2. **DROP:** 379 of 500 PASS answers are comma lists such as "3, 1" or "66, 66, 66" (DROP's multi-span answer format). The judge flags 33.8% of those against 10.7% of single answers, objecting that the extra values have no basis in the passage.
-3. **RAGTruth:** this subset is 82% PASS, and the judge flags 31% of the PASS answers. Balanced accuracy is 79.7% against 73.0% accuracy. Our RAGTruth check found that 30 of 40 train-split false positives contained a quotable error the annotators missed ([`../ragtruth/README.md`](../ragtruth/README.md)), so part of this gap is likely the same annotation misses [INFERENCE: not re-checked on these items].
-4. **HaluEval:** here the errors are misses (869). Its hallucinated answers are short, plausible entity answers, and the judge accepts 17% of them.
+Why:
+1. **PubMedQA (hypothesis, not separated by the data):** a PASS answer is the abstract's own conclusion, and the passage given to the judge is the abstract without it. In none of the 500 PASS answers do the first 60 characters after "Yes." / "No." appear in the passage. A judge told that "the ANSWER must not offer new information beyond the DOCUMENT" may read such a conclusion as new claims. This check does not explain why 222 were flagged and 278 passed, since all 500 are equally absent from the passage [INFERENCE].
+2. **DROP (checked):** 379 of 500 PASS answers are comma lists such as "3, 1" or "1, 1" (DROP's multi-span answer format). The judge flags 33.8% of those against 10.7% of single answers.
+3. **RAGTruth:** this subset is 82% PASS, and the judge flags 31% of the PASS answers. Balanced accuracy is 79.7% against 73.0% accuracy. Our RAGTruth check found that 30 of 40 train-split false positives contained a quotable error the annotators missed ([`../ragtruth/README.md`](../ragtruth/README.md)), so part of this gap may be the same annotation misses [INFERENCE: not re-checked on these items].
+4. **HaluEval:** here the errors are misses: the judge accepts 869 of 5,010 hallucinated answers (17%). Not analysed further.
 
-Points 1 and 2 are format effects of how HaluBench builds PASS answers, not faithfulness errors by the judge. A rule that allowed them would be tuned on the test set, because HaluBench has no other split, so we did not write one.
+Point 2 is a format effect of how HaluBench builds PASS answers; point 1 may be one. A rule that allowed them would be tuned on the test set, because HaluBench has no other split, so we did not write one.
 
 Single run, one judge model, provider-default temperature (not 0 as in the paper), and the Claude-3 rows of the paper's table are internally inconsistent.
