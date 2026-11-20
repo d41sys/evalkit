@@ -14,6 +14,7 @@ samples share passages with their originals.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import urllib.request
@@ -63,8 +64,17 @@ def load() -> list[dict]:
     return pq.read_table(DATA).to_pylist()
 
 
-def prompt(r: dict) -> str:
-    return PROMPT.format(question=r["question"], context=r["passage"], answer=r["answer"])
+def prompt(r: dict, rule: str = "") -> str:
+    """The paper's prompt; a rule's text, if any, goes right after "Show your reasoning."."""
+    text = PROMPT.format(question=r["question"], context=r["passage"], answer=r["answer"])
+    anchor = "Show your reasoning.\n"
+    return text.replace(anchor, f"{anchor}\n{rule.strip()}\n", 1) if rule else text
+
+
+def is_dev(r: dict) -> bool:
+    """Seeded 30% tuning split, grouped by passage so a passage never sits on both sides."""
+    digest = hashlib.sha256(("hb-dev|" + r["passage"]).encode()).hexdigest()
+    return int(digest, 16) % 10 < 3
 
 
 def verdict(text: str) -> str | None:
@@ -78,9 +88,12 @@ def main() -> None:
     ap.add_argument("--judge", default="claude-sonnet-5-5")
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--rule", help="text file appended to the paper's instructions")
+    ap.add_argument("--split", choices=("all", "dev", "held"), default="all")
     args = ap.parse_args()
 
-    rows = load()
+    rows = [r for r in load() if args.split == "all" or is_dev(r) == (args.split == "dev")]
+    rule = Path(args.rule).read_text(encoding="utf-8") if args.rule else ""
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
     out = Path(args.out)
@@ -90,7 +103,9 @@ def main() -> None:
     )
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         texts = list(
-            pool.map(lambda r: completer.complete(prompt(r), max_tokens=MAX_TOKENS).text, rows)
+            pool.map(
+                lambda r: completer.complete(prompt(r, rule), max_tokens=MAX_TOKENS).text, rows
+            )
         )
     found = [verdict(t) for t in texts]
     # an unparsable reply counts as FAIL (hallucination flagged)

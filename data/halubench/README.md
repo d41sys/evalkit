@@ -35,6 +35,32 @@ Why:
 3. **RAGTruth:** this subset is 82% PASS, and the judge flags 31% of the PASS answers. Balanced accuracy is 79.7% against 73.0% accuracy. Our RAGTruth check found that 30 of 40 train-split false positives contained a quotable error the annotators missed ([`../ragtruth/README.md`](../ragtruth/README.md)), so part of this gap may be the same annotation misses [INFERENCE: not re-checked on these items].
 4. **HaluEval:** here the errors are misses: the judge accepts 869 of 5,010 hallucinated answers (17%). Not analysed further.
 
-Point 2 is a format effect of how HaluBench builds PASS answers; point 1 may be one. A rule that allowed them would be tuned on the test set, because HaluBench has no other split, so we did not write one.
+Point 2 is a format effect of how HaluBench builds PASS answers; point 1 may be one.
 
 Single run, one judge model, provider-default temperature (not 0 as in the paper), and the Claude-3 rows of the paper's table are internally inconsistent.
+
+## Rule v2: four bullets added to the paper's prompt
+
+HaluBench has no train split, so we made one: `--split dev` is a seeded 30% of each source, grouped by passage (4,383 items), and `--split held` is the other 70% (10,517). [`rule-v2.md`](rule-v2.md) is four bullets inserted after the prompt's "Show your reasoning.":
+1. conclusions and hedged implications drawn from the document's findings are faithful, new facts are not;
+2. the answer must answer the question with what the document says, not give a different related statement;
+3. a comma list that repeats a value (`14, 14`) is one answer, so judge the values, not the format;
+4. do not fail an answer for dropping a qualifier, slightly stronger or weaker wording, combining facts from different parts of the document, or a fair summary.
+
+The bullets came from reading the judge's reasoning on dev errors: hedged conclusions flagged on PubMedQA, repeated lists flagged on DROP, small rewordings flagged on RAGTruth, and related-but-not-answering answers passed on HaluEval. Three drafts were scored on dev only and the best by mean of sources was committed ([`6cb174b`](https://github.com/d41sys/evalkit/commit/6cb174b)) before the held-out run, which ran once. Verdicts: [`sonnet-5-5-rule-v2-held.jsonl`](sonnet-5-5-rule-v2-held.jsonl).
+
+| held-out 70% (10,517) | paper prompt | rule v2 | paired difference [95% CI] | false alarms | misses |
+|---|---|---|---|---|---|
+| HaluEval (6,953) | 89.3 | 92.2 | +2.9 [2.4, 3.4] | 152 → 131 | 592 → 413 |
+| RAGTruth (636) | 72.6 | 78.6 | +6.0 [3.0, 8.8] | 164 → 123 | 10 → 13 |
+| FinanceBench (734) | 91.4 | 92.6 | +1.2 [0.0, 2.4] | 44 → 34 | 19 → 20 |
+| DROP (675) | 83.0 | 89.0 | +6.1 [4.0, 8.2] | 98 → 57 | 17 → 17 |
+| CovidQA (785) | 96.4 | 95.5 | −0.9 [−1.7, −0.1] | 8 → 10 | 20 → 25 |
+| PubMedQA (734) | 76.0 | 85.7 | +9.7 [7.4, 11.9] | 171 → 96 | 5 → 9 |
+| **mean of sources** | 84.8 | **89.0** [87.9, 89.9] | **+4.2 [3.4, 4.9]** | | |
+
+Pooled over the held-out items, accuracy goes from 87.6% to 91.0%; RAGTruth balanced accuracy goes from 79.9% to 82.4%. Rule v2's held-out mean (89.0) is above every row in the paper's table, including LYNX 70B (87.4), and its interval excludes 87.4. Two limits apply to that comparison:
+- **Not the same items.** The paper's rows are on all 14,900 items, ours on the 70% holdout. With the paper prompt the holdout scores 84.8 against 85.1 on the full set, so the holdout is not easier.
+- **Not an untouched test set.** Before the split, the analysis above already looked at all 500 PubMedQA PASS answers and measured the DROP list effect on the full DROP set, and those findings shaped bullets 1 and 3. The holdout compares frozen prompts fairly, but it is a retrospective holdout, not independent confirmation on unseen data.
+
+Rule v2 also adapts the judge to HaluBench's own conventions (DROP's comma lists, PubMedQA's conclusions as answers). CovidQA is the one source that got worse (5 more misses); which bullet caused it was not tested. LYNX was fine-tuned on 2,400 examples from the train splits of RAGTruth, DROP, CovidQA and PubMedQA (paper section 3.3), so a prompt tuned on a dev split is closer to LYNX's setup than to the zero-shot rows. Calls went through omp's `smol` route as above.
