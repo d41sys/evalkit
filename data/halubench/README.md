@@ -95,3 +95,44 @@ What the table does not show:
 - **The holdout has now been used three times** (rule v2, rule v3 on Sonnet, rule v3 on Opus), on top of the limits listed for rule v2. Each further configuration picked by its holdout score would be fitted to it.
 - **The Opus run mixes two effort settings.** omp's `default` alias served Opus 5.5 for 3,360 of the 10,508 distinct holdout prompts (all of DROP, FinanceBench, RAGTruth and PubMedQA, and 590 HaluEval items) and then began serving a different model. Nothing from that model was kept. The other 7,148 prompts (all of CovidQA and 6,363 HaluEval items) went to the `slow` alias, which is Opus 5.5 at high effort. On 240 dev items judged both ways, `P_FAIL` correlates at 0.996 and the verdicts at the frozen cuts agree on 99.6%. Cache records carry the route in `model_returned`.
 - **Opus refused 16 holdout items** (8 CovidQA, 8 PubMedQA; 7 of 4,383 on dev). A refusal counts as FAIL, as fixed before the run. 12 of the 16 are PASS answers, so refusals cost 7 CovidQA items; on the 777 CovidQA items Opus answered, accuracy is 96.9%.
+
+## Rule v4: an extract check in the prompt, on Opus 5.5
+
+### What a string check alone scores
+
+A rule with no model, "PASS if the answer is a word-for-word substring of the passage, else FAIL", was defined on the dev split and then scored on all 14,900 items:
+
+| | HaluEval | RAGTruth | FinanceBench | DROP | CovidQA | PubMedQA | mean of sources |
+|---|---|---|---|---|---|---|---|
+| string check only | **97.5** | 17.8 | 49.8 | 45.6 | 96.2 | 50.0 | 59.5 |
+| best published | 88.4 | 85.6 | 88.9 | 86.4 | 97.7 | 90.4 | 87.4 |
+
+On HaluEval and CovidQA the PASS answers are spans copied from the passage and the FAIL answers are rewritten ones, so those two sources mostly measure whether an answer was copied. On HaluEval the string check is above every judge in this file and every published row we found.
+
+### Fresh CovidQA tuning data
+
+[`PatronusAI/lynx-train-v0.1`](https://huggingface.co/datasets/PatronusAI/lynx-train-v0.1) (revision `eeef166`, no licence stated, nothing from it is committed) holds 800 items whose question is in COVID-QA (`deepset/covid_qa_deepset`, revision `be51d91`): 600 train and 200 validation, half PASS. 370 remain after dropping every question that appears in HaluBench (185 PASS, 185 FAIL); 347 of them share a passage with a HaluBench item, with a different question. The frozen Opus rule v3 configuration scores 97.3% on these 370: 7 word-for-word fragments flagged as incomplete, and 3 one-word rewordings passed.
+
+The same comparison shows an overlap between that training release and the HaluBench test set: 433 of the 1,000 CovidQA test questions also appear in it with a different answer string, as do 103 DROP questions (19 with the same answer and label) and 96 RAGTruth questions (17 with the same answer and label). The dataset card does not say whether v0.1 is the set that trained the paper's LYNX.
+
+### Rule and result
+
+[`rule-v4.md`](rule-v4.md) puts the string check's result into the prompt (`{extract_check}`, filled by the script) and adds two bullets: a short word-for-word extract is faithful even as a fragment unless the document clearly gives a different value for what is asked, and a short answer that closely follows a document phrase without matching it is judged on the difference, however small. One draft was written. On the tuning data (dev plus the 370 fresh items) the mean of sources goes from 92.5% (rule v3) to 93.3% with the cuts unchanged. The configuration was committed before the holdout run ([`ac379c0`](https://github.com/d41sys/evalkit/commit/ac379c0)): Opus 5.5 at high effort for every item (omp's `slow` alias), cuts 0.5 / 0.8 as before, and `--fallback` to the Sonnet rule v3 verdict where Opus refuses. Verdicts: [`opus-5-5-rule-v4-held.jsonl`](opus-5-5-rule-v4-held.jsonl).
+
+| held-out 70% (10,517), accuracy | best published | rule v3, Opus | rule v4, Opus | v4 − v3, paired [95% CI] |
+|---|---|---|---|---|
+| HaluEval (6,953) | 88.4 | 92.7 | **93.7** [93.1, 94.3] | +1.0 [0.7, 1.3] |
+| RAGTruth (636) | 85.6 | **90.1** | 89.3 [86.8, 91.7] | −0.8 [−1.6, 0.0] |
+| FinanceBench (734) | 88.9 | **93.1** | 92.9 [91.1, 94.8] | −0.1 [−1.3, 1.0] |
+| DROP (675) | 86.4 | 89.5 | **90.4** [87.9, 92.6] | +0.9 [−0.1, 2.0] |
+| CovidQA (785) | 97.7 | 96.1 | **98.1** [97.1, 98.9] | +2.0 [0.7, 3.9] |
+| PubMedQA (734) | 90.4 | 91.7 | **95.0** [93.5, 96.5] | +3.3 [1.5, 5.0] |
+| **mean of sources** | 87.4 | 92.2 | **93.2** [92.5, 93.9] | +1.1 [0.5, 1.6] |
+
+Rule v4 on Opus is above the best published accuracy on all six sources and on the mean. The mean of sources by balanced accuracy is 91.8% (rule v3 on Opus: 90.8%). What the table does not show:
+- **The CovidQA result depends on the refusal fallback.** Opus refused 19 holdout items (12 PubMedQA, 7 CovidQA; 13 are PASS answers). The Sonnet verdict is right on 18 of them. Counting refusals as FAIL, as in rule v3, gives CovidQA 97.6% (below 97.7%), PubMedQA 93.9% and a mean of 93.0%. The fallback was added after the rule v3 run showed that refusals cost 7 CovidQA holdout items; on dev it is right on 8 of 8 refused items against 5 of 8.
+- **The CovidQA margin is not separated from the published figure.** The interval [97.1, 98.9] contains 97.7, and our 785 holdout items are not the 1,000 the published rows use.
+- **On CovidQA and HaluEval the gain is copy detection.** Rule v4 hands the judge the string check, which alone scores 96.2% and 97.5% there. On HaluEval the string check still beats the judge (97.5% against 93.7%).
+- **This is the fourth use of the holdout.**
+- **RAGTruth did not improve.** Recall of its hallucinated answers is 67.3% and balanced accuracy 80.6%, against 82.4% for rule v2 on Sonnet.
+- **For four sources the v4 − v3 difference mixes two changes.** Rule v3 ran DROP, FinanceBench, RAGTruth and PubMedQA at default effort; rule v4 ran everything at high effort. The fresh-data tuning set and the string-check and overlap analyses were run in a notebook session and are not reproduced by the script.
