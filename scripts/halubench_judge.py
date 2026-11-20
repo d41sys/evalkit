@@ -117,7 +117,8 @@ def main() -> None:
         p_fail = [float(m[-1]) if (m := P_FAIL.findall(t)) else None for t in texts]
         long_cut = args.cut if args.cut_long is None else args.cut_long
         cuts = [long_cut if len(r["answer"].split()) > LONG_WORDS else args.cut for r in rows]
-        found = [None if p is None else "FAIL" if p >= c else "PASS" for p, c in zip(p_fail, cuts)]
+        pairs = zip(p_fail, cuts, strict=True)
+        found = [None if p is None else "FAIL" if p >= c else "PASS" for p, c in pairs]
     # an unparsable reply counts as FAIL (hallucination flagged)
     pred = np.array([v != "PASS" for v in found])
     with (out / "verdicts.jsonl").open("w") as f:
