@@ -64,3 +64,34 @@ Pooled over the held-out items, accuracy goes from 87.6% to 91.0%; RAGTruth bala
 - **Not an untouched test set.** Before the split, the analysis above already looked at all 500 PubMedQA PASS answers and measured the DROP list effect on the full DROP set, and those findings shaped bullets 1 and 3. The holdout compares frozen prompts fairly, but it is a retrospective holdout, not independent confirmation on unseen data.
 
 Rule v2 also adapts the judge to HaluBench's own conventions (DROP's comma lists, PubMedQA's conclusions as answers). CovidQA is the one source that got worse (5 more misses); which bullet caused it was not tested. LYNX was fine-tuned on 2,400 examples from the train splits of RAGTruth, DROP, CovidQA and PubMedQA (paper section 3.3), so a prompt tuned on a dev split is closer to LYNX's setup than to the zero-shot rows. Calls went through omp's `smol` route as above.
+
+## Rule v3: a graded probability and a cut, on Sonnet 5.5 and Opus 5.5
+
+[`rule-v3.md`](rule-v3.md) changes three things, all chosen on the dev split:
+1. Bullet 1 tells the judge to check a study-style conclusion by its stated findings (direction, significance, population, outcomes) and to allow the implications authors add. Bullet 2 says that "the document does not answer this" and accurate off-topic content are not unfaithful.
+2. A new bullet: a short answer copied from the document must match it (term, number, name, scope, full definition). The leniency bullet now applies to longer, explanatory answers only.
+3. The judge also returns `P_FAIL`, its probability that annotators labelled the answer unfaithful. `--cut` flags `P_FAIL >= cut` instead of the PASS/FAIL verdict.
+
+On dev, Sonnet's PASS/FAIL verdict under rule v3 scores the same as rule v2 (89.2% mean of sources). Cutting `P_FAIL` at 0.65 scores 91.0%, so the gain comes from the cut, not from the new bullets. Opus 5.5 with the same rule scores 91.4% on dev at one cut (0.7) and 92.6% with two cuts: 0.5 for answers of up to 30 words and 0.8 for longer ones (`--cut 0.5 --cut-long 0.8`). Both configurations were committed before their holdout runs ([`7e02d53`](https://github.com/d41sys/evalkit/commit/7e02d53), [`a3eb4b9`](https://github.com/d41sys/evalkit/commit/a3eb4b9)), and each ran once. Verdicts: [`sonnet-5-5-rule-v3-held.jsonl`](sonnet-5-5-rule-v3-held.jsonl), [`opus-5-5-rule-v3-held.jsonl`](opus-5-5-rule-v3-held.jsonl).
+
+| held-out 70% (10,517), accuracy | best published | paper prompt, Sonnet | rule v2, Sonnet | rule v3, Sonnet | rule v3, Opus 5.5 |
+|---|---|---|---|---|---|
+| HaluEval (6,953) | 88.4 (LYNX 70B) | 89.3 | 92.2 | 90.5 [89.8, 91.2] | **92.7** [92.1, 93.2] |
+| RAGTruth (636) | 85.6 (HHEM) | 72.6 | 78.6 | 84.4 [81.0, 87.6] | **90.1** [87.9, 92.3] |
+| FinanceBench (734) | 88.9 (o4-mini) | 91.4 | 92.6 | 91.4 [89.5, 93.3] | **93.1** [91.2, 94.7] |
+| DROP (675) | 86.4 (LYNX 70B) | 83.0 | 89.0 | 88.3 [85.8, 90.7] | **89.5** [87.0, 92.0] |
+| CovidQA (785) | **97.7** (Lynx 8B) | 96.4 | 95.5 | 95.4 [93.9, 96.8] | 96.1 [93.9, 97.6] |
+| PubMedQA (734) | 90.4 (LYNX 70B) | 76.0 | 85.7 | **92.8** [90.7, 94.7] | 91.7 [89.6, 93.6] |
+| **mean of sources** | 87.4 (LYNX 70B) | 84.8 | 89.0 | 90.5 [89.6, 91.4] | **92.2** [91.4, 92.9] |
+
+"Best published" is the highest accuracy per source in two papers: the Lynx paper's Table 3 and Liu et al., [arXiv 2601.09734](https://arxiv.org/abs/2601.09734), Tables 7 and 8 (HHEM, o4-mini and Lynx 8B come from the second). Both score the full HaluBench test set, not our holdout. Later work was not searched beyond these two.
+
+Paired on the same holdout items (95% passage bootstrap): rule v3 minus rule v2 on Sonnet is +1.5 [0.8, 2.3] on the mean, with RAGTruth +5.8 [2.8, 9.1] and PubMedQA +7.1 [4.9, 9.4] against HaluEval −1.7 [−2.1, −1.3]. Opus minus Sonnet under rule v3 is +1.7 [1.0, 2.4] on the mean, with RAGTruth +5.7 [3.1, 8.2] and HaluEval +2.1 [1.7, 2.6].
+
+What the table does not show:
+- **CovidQA is still below the best published result.** Opus scores 96.1% against 97.5% (LYNX 70B) and 97.7% (Lynx 8B). On dev the same configuration scored 98.6% on 215 items, so the dev figure was optimistic.
+- **The RAGTruth gain is accuracy, not detection.** The holdout RAGTruth items are 82.7% PASS, so a judge that passes everything scores 82.7%. Recall of the hallucinated answers falls from 90.9% (paper prompt) to 70.9% (Sonnet, rule v3) and 69.1% (Opus). RAGTruth balanced accuracy is 79.9% (paper prompt), 82.4% (rule v2), 79.1% (Sonnet, rule v3) and 81.8% (Opus).
+- **By balanced accuracy, rule v3 does not beat rule v2 on Sonnet.** The mean of sources is 89.6% for both. Opus under rule v3 reaches 90.8%; the paper prompt is 86.1%.
+- **The holdout has now been used three times** (rule v2, rule v3 on Sonnet, rule v3 on Opus), on top of the limits listed for rule v2. Each further configuration picked by its holdout score would be fitted to it.
+- **The Opus run mixes two effort settings.** omp's `default` alias served Opus 5.5 for 3,360 of the 10,508 distinct holdout prompts (all of DROP, FinanceBench, RAGTruth and PubMedQA, and 590 HaluEval items) and then began serving a different model. Nothing from that model was kept. The other 7,148 prompts (all of CovidQA and 6,363 HaluEval items) went to the `slow` alias, which is Opus 5.5 at high effort. On 240 dev items judged both ways, `P_FAIL` correlates at 0.996 and the verdicts at the frozen cuts agree on 99.6%. Cache records carry the route in `model_returned`.
+- **Opus refused 16 holdout items** (8 CovidQA, 8 PubMedQA; 7 of 4,383 on dev). A refusal counts as FAIL, as fixed before the run. 12 of the 16 are PASS answers, so refusals cost 7 CovidQA items; on the 777 CovidQA items Opus answered, accuracy is 96.9%.
