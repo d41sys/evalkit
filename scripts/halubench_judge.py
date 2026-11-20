@@ -67,8 +67,14 @@ def load() -> list[dict]:
 
 
 def prompt(r: dict, rule: str = "") -> str:
-    """The paper's prompt; a rule's text, if any, goes right after "Show your reasoning."."""
+    """The paper's prompt; a rule's text, if any, goes right after "Show your reasoning.".
+
+    `{extract_check}` in a rule (rule v4) becomes whether the answer is, whitespace aside, a
+    word-for-word substring of the passage.
+    """
     text = PROMPT.format(question=r["question"], context=r["passage"], answer=r["answer"])
+    extract = " ".join(r["answer"].split()) in " ".join(r["passage"].split())
+    rule = rule.replace("{extract_check}", "appears" if extract else "does not appear")
     anchor = "Show your reasoning.\n"
     return text.replace(anchor, f"{anchor}\n{rule.strip()}\n", 1) if rule else text
 
@@ -94,6 +100,7 @@ def main() -> None:
     ap.add_argument("--split", choices=("all", "dev", "held"), default="all")
     ap.add_argument("--cut", type=float, help="flag P_FAIL >= cut instead of SCORE (rule v3)")
     ap.add_argument("--cut-long", type=float, help=f"cut for answers over {LONG_WORDS} words")
+    ap.add_argument("--fallback", help="another run's verdicts.jsonl, used where this one has none")
     args = ap.parse_args()
 
     rows = [r for r in load() if args.split == "all" or is_dev(r) == (args.split == "dev")]
@@ -119,6 +126,11 @@ def main() -> None:
         cuts = [long_cut if len(r["answer"].split()) > LONG_WORDS else args.cut for r in rows]
         pairs = zip(p_fail, cuts, strict=True)
         found = [None if p is None else "FAIL" if p >= c else "PASS" for p, c in pairs]
+    missing = sum(v is None for v in found)
+    if args.fallback:
+        with open(args.fallback) as f:
+            other = {row["id"]: row["verdict"] for row in map(json.loads, f)}
+        found = [other[r["id"]] if v is None else v for r, v in zip(rows, found, strict=True)]
     # an unparsable reply counts as FAIL (hallucination flagged)
     pred = np.array([v != "PASS" for v in found])
     with (out / "verdicts.jsonl").open("w") as f:
@@ -131,7 +143,7 @@ def main() -> None:
     names = sorted(set(src))
     rng = np.random.default_rng(0)
     boots = np.zeros((len(names), 1000))
-    print(len(rows), "items,", sum(v is None for v in found), "replies without a SCORE")
+    print(len(rows), "items,", missing, "replies without a verdict (before any fallback)")
     print("source             n    Acc  [95% CI]        BAcc")
     for k, name in enumerate(names):
         m = np.flatnonzero(src == name)
