@@ -120,12 +120,13 @@ def main() -> None:
         )
     found = [verdict(t) for t in texts]
     if args.cut is not None:
-        # a reply without P_FAIL (or a refusal) counts as FAIL, like one without a SCORE
+        # a reply without P_FAIL keeps its own SCORE (Haiku often omits the key); one with
+        # neither, or a refusal, has no verdict
         p_fail = [float(m[-1]) if (m := P_FAIL.findall(t)) else None for t in texts]
         long_cut = args.cut if args.cut_long is None else args.cut_long
         cuts = [long_cut if len(r["answer"].split()) > LONG_WORDS else args.cut for r in rows]
-        pairs = zip(p_fail, cuts, strict=True)
-        found = [None if p is None else "FAIL" if p >= c else "PASS" for p, c in pairs]
+        trio = zip(found, p_fail, cuts, strict=True)
+        found = [s if p is None else "FAIL" if p >= c else "PASS" for s, p, c in trio]
     missing = sum(v is None for v in found)
     if args.fallback:
         with open(args.fallback) as f:
