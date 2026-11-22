@@ -236,3 +236,19 @@ Rule v2 was frozen in `1b2a127`. That commit came before any pool-4/5 label exis
   - Labels come from agents, and the boundary decisions are the maintainer's.
   - The labellers read rule v3, and so does the judge.
   - Cost: about 5.3M input and 0.6M output judge tokens for the Round 4 runs, plus $1.48 for the heldout-v4 sessions.
+
+## Owner decisions on the Round 4 clusters (2026-11-22)
+
+The owner decided two of the three clusters; [`rule-v4.md`](rule-v4.md) is rule v3 plus these decisions.
+
+| cluster | decision | effect on the heldout-v4 gold |
+|---|---|---|
+| 2. design rationale or system behaviour stated as fact | **fail** (rule 3 as written) | q009, q025, q031, q046, r036 change from pass to fail ([`labels-67-owner.jsonl`](labels-67-owner.jsonl)) |
+| 3. "would be in kW, based on load_kw" | **pass**, it is a hedge | r003 stays pass; the judge's fail is an error |
+| 1. day count read off two dates or a row count | open | q062, q078, r078 stay fail; the judge passes them |
+
+With the 5 labels changed, the frozen rule-v3 judgments ([`final-v4/`](final-v4/)) have 4 errors instead of 9: TPR 90/91 (98.9%), TNR 66/69 (95.7%). No judge was rerun.
+
+- **This is not a held-out result.** Only the 5 items where judge and labellers disagreed were relabelled. Other items of the same kind, where both passed the answer, were not searched for, so the new figures favour the judge.
+- **Rule v4 has not been run.** It should fix r003. Whether it changes any other verdict is unknown until a judge reads it on new sessions.
+- **The labellers applied rule 3 more loosely than its text.** The owner's decision restores the text, so earlier pass labels in pools 1–5 that rest on the same reading may also be wrong.

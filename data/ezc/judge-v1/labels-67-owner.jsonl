@@ -1,0 +1,6 @@
+{"id": "q009", "label": 0, "changed_from_v3": true, "note": "Owner decision v4: offering 'M2 or M3' states options no tool showed (rule 3)."}
+{"id": "q025", "label": 0, "changed_from_v3": true, "note": "Owner decision v4: lookback 7 called 'the default' is system behaviour stated as fact (rule 3)."}
+{"id": "q031", "label": 0, "changed_from_v3": true, "note": "Owner decision v4: design rationale stated as fact (rule 3)."}
+{"id": "q046", "label": 0, "changed_from_v3": true, "note": "Owner decision v4: 'the run will record the weather model' says what the system will do (rule 3)."}
+{"id": "r036", "label": 0, "changed_from_v3": true, "note": "Owner decision v4: 'to prevent data leakage' is a design rationale stated as fact (rule 3)."}
+{"id": "r003", "label": 1, "changed_from_v3": false, "note": "Owner decision v4: 'would be in kW, based on load_kw' is a hedge; pass confirmed."}
