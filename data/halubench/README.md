@@ -137,3 +137,37 @@ Rule v4 on Opus is above the best published accuracy on all six sources and on t
 - **This is the fourth judge run on the holdout.** The string check, defined on dev, was also scored on it.
 - **RAGTruth did not improve.** Recall of its hallucinated answers is 67.3% and balanced accuracy 80.6%, against 82.4% for rule v2 on Sonnet.
 - **For four sources the v4 − v3 difference mixes two changes.** Rule v3 ran DROP, FinanceBench, RAGTruth and PubMedQA at default effort; rule v4 ran everything at high effort. The fresh-data tuning set and the string-check and overlap analyses were run in a notebook session and are not reproduced by the script.
+
+## Rule v5: RAGTruth recall, on Haiku 5.5
+
+Rules v3 and v4 buy RAGTruth accuracy by passing long answers: recall of its hallucinated answers fell from 91% (paper prompt, Sonnet) to 67% (rule v4, Opus). Rule v5 targets that, and from here on the judge is Haiku 5.5.
+
+**What the dev errors showed (Haiku, rule v3).** The judge passed 16 of the 50 hallucinated RAGTruth dev answers, and the paper prompt had caught 10 of those 16. In the cases read, the judge's own reasoning names the unsupported addition (an extra step, an added claim, a wrong statement about what a passage says) and then passes the answer, because rule v3 tells it to be lenient with long answers. [`rule-v5.md`](rule-v5.md) is rule v4 with that leniency bullet replaced: in longer answers that explain or instruct, a concrete addition the document does not contain is unfaithful even when minor, while rewording, a calculated result, a restating sentence, an off-question answer and declining to answer stay faithful, and study conclusions stay under the first bullet. Two drafts were tried on dev; the first cost about 2 points on both FinanceBench and PubMedQA and was dropped.
+
+**Scoring change.** Haiku leaves out `P_FAIL` in 2% of replies under rule v3 and 6% under rule v5 (holdout: 183 and 656 of 10,517, 4 of them refusals each). With `--cut`, such a reply now keeps its own SCORE. No Sonnet or Opus row changes, because their only replies without `P_FAIL` are refusals.
+
+**Frozen before the holdout runs** ([`76a4302`](https://github.com/d41sys/evalkit/commit/76a4302)): Haiku 5.5 through omp, rule v5, no fallback (a refusal counts as FAIL), two settings picked on dev. The primary setting keeps the cuts 0.5 / 0.8 (best dev mean accuracy, 90.5%). The recall setting uses 0.5 / 0.6 (best dev mean balanced accuracy, 90.1%). Comparators on the same model: the paper prompt, and rule v3 at 0.5 / 0.8.
+
+| held-out 70% (10,517), Haiku 5.5, accuracy | paper prompt | rule v3 | rule v5 | v5 − v3, paired [95% CI] | rule v5, recall setting |
+|---|---|---|---|---|---|
+| HaluEval (6,953) | 88.2 | 89.8 | **90.4** | +0.6 [0.1, 1.1] | 90.5 |
+| RAGTruth (636) | 80.3 | 85.8 | **87.7** | +1.9 [−0.9, 4.9] | 77.4 |
+| FinanceBench (734) | 90.5 | 90.3 | **90.9** | +0.5 [−0.6, 1.8] | 90.9 |
+| DROP (675) | 85.0 | 86.7 | **87.6** | +0.9 [−0.4, 2.1] | 87.6 |
+| CovidQA (785) | 95.4 | 94.9 | **96.6** | +1.7 [0.7, 2.5] | 96.9 |
+| PubMedQA (734) | 72.9 | **89.6** | 87.6 | −2.0 [−4.2, 0.0] | 80.9 |
+| **mean of sources** | 85.4 | 89.5 | **90.1** [89.2, 90.9] | +0.6 [−0.1, 1.3] | 87.4 |
+| mean of sources, balanced accuracy | 85.9 | 86.4 | **88.9** | | 88.4 |
+| RAGTruth: recall of hallucinated answers | 87.3 | 38.2 | 68.2 | | **91.8** |
+| RAGTruth: faithful answers passed | 78.9 | **95.8** | 91.8 | | 74.3 |
+| RAGTruth: balanced accuracy | **83.1** | 67.0 | 80.0 | | **83.1** |
+
+Verdicts: [`haiku-5-5-paper-held.jsonl`](haiku-5-5-paper-held.jsonl), [`haiku-5-5-rule-v3-held.jsonl`](haiku-5-5-rule-v3-held.jsonl), [`haiku-5-5-rule-v5-held.jsonl`](haiku-5-5-rule-v5-held.jsonl), [`haiku-5-5-rule-v5-recall-held.jsonl`](haiku-5-5-rule-v5-recall-held.jsonl).
+
+- **Recall rose by 30 points at no cost in accuracy.** Against rule v3 on the same model, rule v5 catches 68.2% of RAGTruth's hallucinated answers instead of 38.2%, RAGTruth accuracy is 87.7% against 85.8%, and the mean balanced accuracy rises from 86.4% to 88.9%.
+- **The fix is partial.** 68.2% is still below the 87.3% the paper prompt reaches, and no setting beats the paper prompt's RAGTruth balanced accuracy of 83.1%; the recall setting only equals it, and pays 7 points on PubMedQA for it.
+- **The rule sharpens the ranking only a little.** ROC-AUC of `P_FAIL` on holdout RAGTruth is 0.911 under rule v5 and 0.885 under rule v3. Most of the difference between the columns is where the cut falls.
+- **The mean accuracy gain over rule v3 is not separated from zero** (+0.6 [−0.1, 1.3]), and PubMedQA is 2 points lower.
+- **Haiku with rule v5 is above the best published accuracy on four sources** (HaluEval, RAGTruth, FinanceBench, DROP) and below it on CovidQA (96.6% against 97.7%) and PubMedQA (87.6% against 90.4%). Opus with rule v4 remains the best row in this file (93.2%).
+- **RAGTruth's gold limits what a rule can do.** [INFERENCE from reading dev items] Several faithful-labelled dev answers that the judge still flags contain what looks like a real contradiction (one says chard is related to spinach where the passage says it is not).
+- **This is the fifth judge configuration scored on the holdout**, and rule v5 was not run on Sonnet or Opus. omp reports no effort level for these Haiku calls.
