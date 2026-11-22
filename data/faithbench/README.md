@@ -31,7 +31,7 @@ Intervals bootstrap over the 72 articles. Published rows are from Tamber et al. 
 
 - **The judge misses most hallucinations.** It catches 37.2% of the Unwanted summaries and passes 95.4% of the Consistent ones. [INFERENCE, replies not read] FaithBench's annotated spans are often a single changed or added word, which a judge told to tolerate rewording would pass.
 - **Rule v5 adds 2.3 points over the paper prompt**, well inside both intervals; the paired difference was not computed.
-- **The HaluBench cut does not transfer.** The 0.5 / 0.8 setting, which gives the best accuracy on HaluBench, scores 60.1% here. On a set where hallucinations are subtle, the lenient cut for long answers lets them through.
+- **The HaluBench cut does not transfer.** The 0.5 / 0.8 setting, which gives the best accuracy on HaluBench, scores 60.1% here: it flags 22.7% of the Unwanted summaries, against 37.2% at 0.5 / 0.6.
 - **FaithJudge is far ahead** (84.0%) because it shows the judge annotated summaries of the same article. That is a different method, not a better prompt.
 
 ## Limits
