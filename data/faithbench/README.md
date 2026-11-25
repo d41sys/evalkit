@@ -40,3 +40,24 @@ Intervals bootstrap over the 72 articles. Published rows are from Tamber et al. 
 - **One run, one model.** Sonnet and Opus were not run.
 - **Haiku judges summaries written by a Claude model** for 72 of the 720 items (Claude 3.5 Sonnet). It flags 6 of that model's 33 Unwanted summaries. Self-preference was not tested.
 - **The label is a majority over 2 to 5 annotators**, and the FaithBench authors report imperfect agreement.
+
+## Rule s1: a rule written for summaries (2026-11-25)
+
+The first runs above pass most hallucinated summaries. To fix that, the 72 articles were split by a seeded hash into 19 tuning articles (190 summaries) and 53 held articles (530 summaries, 417 scored); `--split dev|held` selects them. [`rule-s1.md`](rule-s1.md) was written from 14 tuning-article misses of rule v5: it tells the judge to check phrase by phrase and to count any changed or added detail, however small. A second draft did not help on the tuning articles and was dropped. Rule s1 with one cut (P_FAIL >= 0.5) was frozen in `765f7d7`, then the held articles were run once.
+
+```
+uv run --extra llm python scripts/faithbench_judge.py --rule data/faithbench/rule-s1.md --cut 0.5 --split held --out runs/faithbench/haiku-s1-held
+```
+
+| Held articles, Unwanted vs Consistent (n = 417) | balanced accuracy [95% CI] | macro F1 [95% CI] | hallucinated caught | consistent passed |
+|---|---|---|---|---|
+| **Haiku 5.5, rule s1, cut 0.5** | **77.7** [72.8, 81.7] | **77.5** [72.7, 81.6] | 86.0 | 69.4 |
+| Haiku 5.5, rule v5, cuts 0.5 / 0.6 | 66.3 [62.7, 69.7] | 53.1 [46.0, 59.6] | 34.1 | 98.4 |
+| Haiku 5.5, paper prompt | 65.9 [61.9, 69.8] | 52.6 [45.5, 59.5] | 33.4 | 98.4 |
+
+Rule s1 minus rule v5, paired over held articles: +11.4 points of balanced accuracy [6.3, 16.6]. On the tuning articles the same step was 69.0 to 73.2. Verdicts: [`haiku-5-5-rule-s1-held.jsonl`](haiku-5-5-rule-s1-held.jsonl).
+
+- **Above the published zero-shot rows** (best: o3-mini-high 68.8 / 60.7), below FaithJudge (84.0 / 82.1). The published rows are on 599 summaries, ours on 417 from 53 articles, so the comparison is indicative.
+- **The cost is false alarms.** Rule s1 flags 30.6% of the Consistent summaries (rule v5: 1.6%), 66.7% of the Benign ones and 70.5% of the Questionable ones. In the 12 tuning-article false alarms that were read, several point at a real mismatch the annotators did not mark and several at a dropped hedge; the share of each was not counted.
+- **The split was made after the full-set scores above were known**, so it was not planned in advance. No held summary and no held reply was read before the run.
+- **Rule s1 is not zero-shot in the strict sense**: it was tuned on 19 FaithBench articles. It was not tried on HaluBench or RAGTruth and is likely too strict for them.

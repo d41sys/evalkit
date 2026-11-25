@@ -171,3 +171,7 @@ Verdicts: [`haiku-5-5-paper-held.jsonl`](haiku-5-5-paper-held.jsonl), [`haiku-5-
 - **Haiku with rule v5 is above the best published accuracy on four sources** (HaluEval, RAGTruth, FinanceBench, DROP) and below it on CovidQA (96.6% against 97.7%) and PubMedQA (87.6% against 90.4%). Opus with rule v4 remains the best row in this file (93.2%).
 - **RAGTruth's gold limits what a rule can do.** [INFERENCE from reading dev items] Several faithful-labelled dev answers that the judge still flags contain what looks like a real contradiction (one says chard is related to spinach where the passage says it is not).
 - **This is the fifth judge configuration scored on the holdout**, and rule v5 was not run on Sonnet or Opus. omp reports no effort level for these Haiku calls.
+
+## Rule v6 draft: dropped on the tuning split (2026-11-25)
+
+Tried on Haiku 5.5: rule v5 plus a `TYPE` key (conclusion, explanation, short) with one cut per type, to get the recall setting's RAGTruth recall without its PubMedQA cost. On the three long-answer sources of the tuning split (794 items) every cut combination scored below rule v5: best RAGTruth balanced accuracy 83.8 (rule v5: 86.6 at cuts 0.5 / 0.6), PubMedQA 87.2 (89.5), FinanceBench 92.5 (94.0), and replies without `P_FAIL` rose to 107 of 794. The draft was not frozen and the holdout was not run. Rule v5 stays the Haiku result.

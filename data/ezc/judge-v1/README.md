@@ -252,3 +252,21 @@ With the 5 labels changed, the frozen rule-v3 judgments ([`final-v4/`](final-v4/
 - **This is not a held-out result.** Only the 5 items where judge and labellers disagreed were relabelled. Other items of the same kind, where both passed the answer, were not searched for, so the new figures favour the judge.
 - **Rule v4 has not been run.** It should fix r003. Whether it changes any other verdict is unknown until a judge reads it on new sessions.
 - **The labellers applied rule 3 more loosely than its text.** The owner's decision restores the text, so earlier pass labels in pools 1–5 that rest on the same reading may also be wrong.
+
+## Haiku 5.5 as judge on pools 6 and 7 (2026-11-25)
+
+Same script, 160 items, one sample, `--judge claude-haiku-5-5` with `--rule rule-v3.md` and `--rule rule-v4.md` ([`haiku-v3-p67/`](haiku-v3-p67/), [`haiku-v4-p67/`](haiku-v4-p67/)). Positive = pass.
+
+| Judge, rule | labels | TPR | TNR | errors of 160 |
+|---|---|---|---|---|
+| Sonnet 5.5, rule v3 (Round 4, frozen) | v3 | 90/96 | 61/64 | 9 |
+| Haiku 5.5, rule v3 | v3 | 89/96 | 54/64 | 17 |
+| Haiku 5.5, rule v4 | v3 | 86/96 | 60/64 | 14 |
+| Sonnet 5.5, rule v3 | owner | 90/91 | 66/69 | 4 |
+| Haiku 5.5, rule v3 | owner | 85/91 | 55/69 | 20 |
+| Haiku 5.5, rule v4 | owner | 85/91 | 64/69 | 11 |
+
+- **Haiku is the weaker judge here**; Sonnet 5.5 with rule v3 stays the judge. Rule v4 cuts Haiku's false passes (TNR 54/64 to 60/64 on the v3 labels).
+- **Pools 6 and 7 are not held out for rule v4**: it was written from the judge's errors on them, and the owner labels changed six of them. The rule v4 rows favour the rule.
+- **Haiku 4.5 wrote half of the graded sessions**; Haiku 5.5 judging them was not tested for self-preference.
+- **The blind recheck of the owner labels was not done.** It was planned with codex (`gpt-6-luna`), which hit its usage limit until 2026-11-27. The owner-label rows keep the bias stated in the section above.

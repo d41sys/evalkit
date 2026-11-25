@@ -20,16 +20,11 @@ from evalkit.llmcache import CachedCompleter
 from evalkit.models import Completer, get_model
 
 POOL = Path(__file__).resolve().parent.parent / "data" / "ezc" / "judge-v1"
+SCORE_LINE = "\nScore 1 for pass, 0 for fail. Give SCORE: 0 or SCORE: 1, nothing in between."
 
 RUBRICS = {
     # the labelling rule itself is the rubric: one written spec for labellers and judge
-    "ungrounded": Rubric(
-        "grounded",
-        (POOL / "rule-v3.md").read_text(encoding="utf-8")
-        + "\nScore 1 for pass, 0 for fail. Give SCORE: 0 or SCORE: 1, nothing in between.",
-        0,
-        1,
-    ),
+    "ungrounded": Rubric("grounded", (POOL / "rule-v3.md").read_text("utf-8") + SCORE_LINE, 0, 1),
     "omitted": Rubric(
         "complete",
         "Score 0 if the response leaves out a fact from the tool results that the user needs "
@@ -61,6 +56,7 @@ def main() -> None:
     ap.add_argument("--pool", choices="1234567", action="append", help="default: 1 and 2")
     ap.add_argument("--samples", type=int, default=1, help="majority vote over k samples")
     ap.add_argument("--labels", help="label file in judge-v1/ (default: labels<pool>.jsonl)")
+    ap.add_argument("--rule", help="rule file in judge-v1/ for the ungrounded mode (rule-v3.md)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -76,6 +72,8 @@ def main() -> None:
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
     rubric = RUBRICS[args.mode]
+    if args.rule:
+        rubric = Rubric("grounded", (POOL / args.rule).read_text("utf-8") + SCORE_LINE, 0, 1)
     samples = []  # per sample: one PointVerdict (score, text) per item
     for s in range(args.samples):
         cache = out / ("judge-cache.jsonl" if s == 0 else f"judge-cache-{s}.jsonl")
