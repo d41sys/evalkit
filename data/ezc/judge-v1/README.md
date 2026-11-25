@@ -271,3 +271,17 @@ Same script, 160 items, one sample, `--judge claude-haiku-5-5` with `--rule rule
 - **Haiku 4.5 wrote half of the graded sessions**; Haiku 5.5 judging them was not tested for self-preference.
 - **Blind recheck of the owner labels, with Haiku 5.5** (codex `gpt-6-luna` hit its usage limit): three samples of the rule v4 judge on all 160 items, which never see a label or another judge's output ([`haiku-v4-p67-x3/`](haiku-v4-p67-x3/)). Of the six owner changes, four are confirmed 3 to 0 (q009, q031, q046, r036 fail); q025 gets 1 fail vote of 3 (owner: fail) and r003 gets 1 pass vote of 3 (owner: pass). On the other 154 items the majority disagrees with the label on 10 (7 of them 3 to 0: q026, r019, r026, r051 labelled pass; q051, r037, r070 labelled fail). No label was changed on this evidence.
 - **This recheck is weak evidence.** Haiku is the weaker judge in the table above, it is one model family, and rule v4 itself states the owner decisions, so agreement on the six partly restates the rule. The two split items and the seven 3 to 0 disagreements are the ones a human should read.
+
+The seven 3 to 0 disagreements were then read against rule v4 (by the assistant, not the owner; no label changed):
+
+| Item | Label | Haiku | Reading | Deciding phrase |
+|---|---|---|---|---|
+| r051 | pass | fail | label wrong under v4 | "or another milestone such as M2 or M3": the v4 example, same as q009 |
+| r026 | pass | fail | label likely wrong under v4 | "a specific milestone (M1, M2, or M3)" inside a conditional offer; no tool named a milestone |
+| q026 | pass | fail | judge wrong | "imbalance price is usually based on …" is a hedged general remark; Haiku also failed it for bad advice, which is out of scope |
+| r019 | pass | fail | judge wrong | "if TFT is unavailable or has a missing-covariate issue" repeats the tool's either/or message |
+| q051 | fail | pass | judge wrong | "these are available in the full task configuration" says where an unseen value is stored (rule 2) |
+| r070 | fail | pass | judge wrong | says details are set through `issued_covariates` or `weather_source` and that TFT brings "gate-safe weather"; no tool showed either |
+| r037 | fail | pass | unclear | "the maximum horizon the model can produce": system behaviour (rule 3) or a capability statement (never a fail) |
+
+If r051 becomes fail, the Sonnet rule-v3 row on owner labels becomes TPR 89/90, TNR 66/70, 5 errors (Sonnet passed r051). If r026 follows, TPR 88/89, TNR 66/71, 6 errors.
