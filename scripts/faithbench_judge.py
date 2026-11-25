@@ -13,6 +13,7 @@ metrics are balanced accuracy and macro F1. Intervals bootstrap over articles.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -66,6 +67,12 @@ def scores(pred: np.ndarray, gold: np.ndarray) -> tuple[float, float]:
     return float(bacc), float(f1)
 
 
+def is_dev(r: dict) -> bool:
+    """Seeded 30% tuning split by article (19 of 72), made after the first full-set runs."""
+    digest = hashlib.sha256(("fb-dev|" + r["article"]).encode()).hexdigest()
+    return int(digest, 16) % 10 < 3
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--judge", default="claude-haiku-5-5")
@@ -74,9 +81,10 @@ def main() -> None:
     ap.add_argument("--rule", help="text file added to the prompt, as in halubench_judge.py")
     ap.add_argument("--cut", type=float, help="flag P_FAIL >= cut instead of SCORE")
     ap.add_argument("--cut-long", type=float, help=f"cut for summaries over {LONG_WORDS} words")
+    ap.add_argument("--split", choices=("all", "dev", "held"), default="all")
     args = ap.parse_args()
 
-    rows = load()
+    rows = [r for r in load() if args.split == "all" or is_dev(r) == (args.split == "dev")]
     rule = Path(args.rule).read_text(encoding="utf-8") if args.rule else ""
     backend = get_model(f"anthropic:{args.judge}")
     assert isinstance(backend, Completer)
