@@ -285,3 +285,5 @@ The seven 3 to 0 disagreements were then read against rule v4 (by the assistant,
 | r037 | fail | pass | unclear | "the maximum horizon the model can produce": system behaviour (rule 3) or a capability statement (never a fail) |
 
 If r051 becomes fail, the Sonnet rule-v3 row on owner labels becomes TPR 89/90, TNR 66/70, 5 errors (Sonnet passed r051). If r026 follows, TPR 88/89, TNR 66/71, 6 errors.
+
+**Owner decision (2026-11-25): r051 keeps its pass label.** The reported rows stand (Sonnet 5.5, rule v3, owner labels: 4 errors). This leaves r051 (pass) and q009 (fail) labelled differently for a similar "M2 or M3" phrase; rule v4 was not reworded. r026 and r037 were not decided.
