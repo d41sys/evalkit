@@ -1,4 +1,4 @@
-# evalkit
+# evalkit: full report
 
 Evaluation runner and benchmark harness built from first principles. It supplies the paired statistics for the ezcross-ems agent evals (#1).
 
