@@ -90,6 +90,7 @@ class HFModel:
         name: str | None = None,
         batch_size: int = 1,
         thinking: bool = False,
+        sample: tuple[float, float, int, float] | None = None,
         *,
         tokenizer: Any = None,
         model: Any = None,
@@ -104,6 +105,9 @@ class HFModel:
         # thinking=True lets Qwen3+ templates open a reasoning block; only the text after its
         # closing tag is the answer. Off by default so every chat template is used as shipped.
         self.thinking = thinking
+        # sample=(temperature, top_p, top_k, presence_penalty) samples instead of greedy
+        # decoding (Qwen3.5 recommends sampling in thinking mode; greedy loops).
+        self.sample = sample
         self._lock = threading.Lock()  # one model instance; torch/MPS calls are serialised
 
         self.revision: str | None = None  # commit hash of the snapshot actually loaded
@@ -132,7 +136,14 @@ class HFModel:
         self.tokenizer = tokenizer
         self.model = model
         short = f"@{revision[:8]}" if revision else ""
-        self.name = name or f"hf:{model_id}{short}" + ("+think" if thinking else "")
+        suffix = ("+think" if thinking else "") + (
+            "+sample(" + ",".join(f"{v:g}" for v in sample) + ")" if sample else ""
+        )
+        self.name = name or f"hf:{model_id}{short}{suffix}"
+        if sample:
+            import torch
+
+            torch.manual_seed(0)  # shortcut: one stream per process; a resumed run draws anew
 
     # -- prompt construction -------------------------------------------------------------
 
@@ -166,7 +177,8 @@ class HFModel:
     def _generate_ids(
         self, prompt_ids: list[int], max_new_tokens: int
     ) -> tuple[list[int], list[float]]:
-        """Greedy decode. Returns new token ids and the raw-logit log-prob of each."""
+        """Decode (greedy unless ``sample``). Returns new token ids and the raw-logit log-prob
+        of each."""
         import torch
 
         input_ids = torch.tensor([prompt_ids], device=self.device)
@@ -177,34 +189,63 @@ class HFModel:
     def _decode(
         self, ids: Any, mask: Any, max_new_tokens: int
     ) -> list[tuple[list[int], list[float]]]:
-        """Greedy decode; per row, the new token ids and the raw-logit log-prob of each.
+        """Decode; per row, the new token ids and the raw-logit log-prob of each.
 
-        The log-prob of the greedy choice is recorded at each step (the max of the log-softmax)
+        Each step's log-softmax is kept only until the next step reveals the chosen token,
         instead of keeping every step's logits: those are vocab x steps floats per row, about
         4 GB for one 4096-token reply of a 248k-vocab model.
         """
         import torch
 
         steps: list[Any] = []
+        prev: list[Any] = []  # last step's log-softmax over the raw logits
 
-        def record(_input_ids: Any, scores: Any) -> Any:
-            steps.append(torch.log_softmax(scores.float(), dim=-1).max(dim=-1).values)
+        def record(input_ids: Any, scores: Any) -> Any:
+            if prev:
+                steps.append(prev.pop().gather(1, input_ids[:, -1:])[:, 0])
+            prev.append(torch.log_softmax(scores.float(), dim=-1))
             return scores
+
+        width = ids.shape[1]
+        processors: list[Any] = [record]
+        knobs: dict[str, Any] = {
+            "do_sample": False,
+            "temperature": None,
+            "top_p": None,
+            "top_k": None,
+        }
+        if self.sample:
+            from transformers import TemperatureLogitsWarper, TopKLogitsWarper, TopPLogitsWarper
+
+            temperature, top_p, top_k, presence_penalty = self.sample
+
+            def presence(input_ids: Any, scores: Any) -> Any:
+                # vLLM-style presence penalty: a flat cut for every token already generated
+                seen = torch.zeros_like(scores).scatter_(1, input_ids[:, width:], 1.0)
+                return scores - presence_penalty * seen
+
+            processors += [
+                presence,
+                TemperatureLogitsWarper(temperature),
+                TopKLogitsWarper(int(top_k)),
+                TopPLogitsWarper(top_p),
+            ]
+            # neutral values so generate() adds no warpers of its own ahead of ``record``
+            knobs = {"do_sample": True, "temperature": 1.0, "top_p": 1.0, "top_k": 0}
 
         pad = getattr(self.tokenizer, "pad_token_id", None)
         out = self.model.generate(
             input_ids=ids,
             attention_mask=mask,
-            do_sample=False,
             max_new_tokens=max_new_tokens,
-            temperature=None,
-            top_p=None,
-            top_k=None,
             repetition_penalty=1.0,
-            logits_processor=[record],
+            logits_processor=processors,
             pad_token_id=int(pad) if pad is not None else 0,
+            **knobs,
         )
-        new = out[:, ids.shape[1] :].tolist()
+        if prev:
+            steps.append(prev.pop().gather(1, out[:, -1:])[:, 0])
+        new = out[:, width:].tolist()
         lps = torch.stack(steps, dim=1).tolist() if steps else [[] for _ in new]
         return [
             ([int(t) for t in toks], [float(v) for v in row[: len(toks)]])

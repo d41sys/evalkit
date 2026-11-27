@@ -132,16 +132,31 @@ def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
 
 
 def parse_models(
-    models_str: str, hf_batch_size: int = 1, hf_thinking: bool = False, hf_max_new_tokens: int = 0
+    models_str: str,
+    hf_batch_size: int = 1,
+    hf_thinking: bool = False,
+    hf_max_new_tokens: int = 0,
+    hf_sample: tuple[float, float, int, float] | None = None,
 ) -> list[Model]:
     model_names = [m.strip() for m in models_str.split(",") if m.strip()]
     hf_kwargs: dict[str, Any] = {"batch_size": hf_batch_size, "thinking": hf_thinking}
     if hf_max_new_tokens:
         hf_kwargs["max_new_tokens"] = {"reasoning": hf_max_new_tokens}
+    if hf_sample:
+        hf_kwargs["sample"] = hf_sample
     return [
         get_model(name, **hf_kwargs) if name.startswith("hf:") else get_model(name)
         for name in model_names
     ]
+
+
+def _sample_spec(text: str) -> tuple[float, float, int, float]:
+    """``T,TOP_P,TOP_K,PRESENCE`` for ``--hf-sample``."""
+    try:
+        t, p, k, pp = text.split(",")
+        return float(t), float(p), int(k), float(pp)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected T,TOP_P,TOP_K,PRESENCE, got {text!r}") from exc
 
 
 def _ece_binning(metric_mode: str) -> EceBinning:
@@ -156,7 +171,13 @@ def _helm_metrics(names: Sequence[str]) -> list[str]:
 def run_command(args: argparse.Namespace) -> int:
     tasks_path = Path(args.tasks)
     specs = find_task_specs(tasks_path)
-    models = parse_models(args.models, args.hf_batch_size, args.hf_thinking, args.hf_max_new_tokens)
+    models = parse_models(
+        args.models,
+        args.hf_batch_size,
+        args.hf_thinking,
+        args.hf_max_new_tokens,
+        args.hf_sample,
+    )
     out_dir = Path(args.out)
 
     print(f"Loaded {len(specs)} task specs from {tasks_path}")
@@ -1107,6 +1128,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         default=0,
         help="hf: token cap for reasoning tasks (default 256; thinking needs far more)",
+    )
+    run_parser.add_argument(
+        "--hf-sample",
+        type=_sample_spec,
+        default=None,
+        metavar="T,TOP_P,TOP_K,PRESENCE",
+        help="hf: sample instead of greedy decoding, e.g. 1.0,0.95,20,1.5 (Qwen3.5 thinking); "
+        "seeded once per process, so a resumed run draws new numbers",
     )
     run_parser.add_argument(
         "--samples",
