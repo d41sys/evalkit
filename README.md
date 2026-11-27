@@ -40,19 +40,33 @@ The last command answers "is model A better than model B?" for every pair, with 
 | Does evalkit reproduce HELM Lite? | Exactly, from HELM's per-item data (91 models) | [REPORT.md](REPORT.md#comparison-with-sota) |
 | Is HELM Lite's ranking supported? | Only 41 of 90 adjacent rank gaps are resolved; 16 of those go the other way | [docs/sota-review.md](docs/sota-review.md) |
 
-### LLM judge for hallucination (public benchmarks)
+### LLM judge on public benchmarks
 
-Each rule was tuned on a training or dev split, frozen in a commit, then run once on held-out data.
+Each rule was tuned on a training or dev split, frozen in a commit, then run once on held-out data. For MT-Bench the protocol was committed before the single test run.
 
 | Benchmark | evalkit judge | Best published | Details |
 |---|---|---|---|
-| MT-Bench, agreement with experts | 86.0% (Sonnet 5.5) | humans with each other 84.2%, GPT-4 85.4% | [REPORT.md](REPORT.md#does-it-agree-with-humans-mt-bench-validation) |
+| MT-Bench, agreement with experts | 86.0% (Sonnet 5.5) | GPT-4 85.4%; experts with each other 84.2%\* | [REPORT.md](REPORT.md#does-it-agree-with-humans-mt-bench-validation) |
 | RAGTruth, F1 | 78.2 (Sonnet 5.5, rule v2) | 78.7, fine-tuned Llama-2-13B | [data/ragtruth](data/ragtruth/README.md) |
-| TRIVIA+, ROC-AUC | 0.865 (Sonnet 5.5, rule v2) | 0.795 | [data/triviaplus](data/triviaplus/README.md) |
-| HaluBench, mean accuracy | 93.2 (Opus 5.5, rule v4)\*; 90.1 (Haiku 5.5, rule v5) | 87.4, fine-tuned LYNX 70B | [data/halubench](data/halubench/README.md) |
-| FaithBench, balanced accuracy | 77.7 (Haiku 5.5, rule s1) | 68.8 zero-shot; 84.0 FaithJudge (few-shot) | [data/faithbench](data/faithbench/README.md) |
+| TRIVIA+, ROC-AUC | 0.865 (Sonnet 5.5, rule v2) | 0.795, SC-GPT | [data/triviaplus](data/triviaplus/README.md) |
+| HaluBench, mean accuracy | 93.2 (Opus 5.5, rule v4)\*\*; 90.1 (Haiku 5.5, rule v5) | 87.4, fine-tuned LYNX 70B | [data/halubench](data/halubench/README.md) |
+| FaithBench, balanced accuracy | 77.7 (Haiku 5.5, rule s1) | 68.8 zero-shot (o3-mini-high); 84.0 FaithJudge (few-shot) | [data/faithbench](data/faithbench/README.md) |
 
-\* Rule v4's tuning data shared passages with part of the HaluBench holdout; on the clean part it scores 97.4% on CovidQA. FaithBench is on 417 summaries from 53 articles, the published rows on 599.
+\* Computed by us on the same 1,000 test items from the verdicts Zheng et al. released, not a number printed in their paper.
+\*\* Rule v4's tuning data shared passages with part of the HaluBench holdout; on the clean part it scores 97.4% on CovidQA. FaithBench is on 417 summaries from 53 articles, the published rows on 599.
+
+Where the published numbers come from (each checked against the paper's PDF on 2026-11-27):
+
+| Benchmark | Source | Table |
+|---|---|---|
+| MT-Bench | Zheng et al. 2023, [arXiv 2306.05685](https://arxiv.org/abs/2306.05685); data [lmsys/mt_bench_human_judgments](https://huggingface.co/datasets/lmsys/mt_bench_human_judgments) | released GPT-4 and expert verdicts |
+| RAGTruth | Niu et al., ACL 2024, [arXiv 2401.00396](https://arxiv.org/abs/2401.00396) | Table 5, overall response-level F1 |
+| TRIVIA+ | ACL 2026, [2026.acl-long.680](https://aclanthology.org/2026.acl-long.680/) | Table 7, ROC-AUC (SC-GPT 0.795, LLM judge 0.766) |
+| HaluBench | Lynx paper, Ravi et al. 2024, [arXiv 2407.08488](https://arxiv.org/abs/2407.08488) | Table 3 (LYNX 70B, 87.4 overall) |
+| HaluBench, per source | the Lynx paper plus Liu et al. 2025, [arXiv 2601.09734](https://arxiv.org/abs/2601.09734) | Tables 7 and 8; the highest accuracy per source, from different models |
+| FaithBench | Tamber et al. 2025, [arXiv 2505.04847](https://arxiv.org/abs/2505.04847) | Tables 1 and 2 |
+
+"Best published" means the best number found in these papers only; no wider literature search was done.
 
 ### ezcross-ems agent evals
 
