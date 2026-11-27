@@ -295,7 +295,7 @@ One codex session labelled all 160 items of pools 6 and 7 from rule v4 alone, wi
 - **Agreement:** 145 of 160 with the owner labels, 142 with the v3 labels.
 - **The six owner changes:** five confirmed (q025, q031, q046, r036 fail; r003 pass). q009 is not: codex passes it, Haiku failed it 3 to 0.
 - **Fifteen disagreements:** codex fails 13 items labelled pass (q012, q026, q030, q033, q035, q079, r021, r026, r043, r049, r068, r073, r075) and passes 2 labelled fail (q009, q016). Nine of the 13 cite rule 3 for a general remark on model or system behaviour.
-- **Both rechecks against the label:** q026, r026 and r073 (r073 is the open day-count case). On the other 12, the Haiku majority sides with the label.
+- **Both rechecks against the label:** q026, r026 and r073. Codex filed r073 under the open day-count case, wrongly: its "30 days" is the returned `validation_days: 30` ("support anywhere counts"), so the pass label holds whichever way that case is decided. On the other 12, the Haiku majority sides with the label.
 - **Quote quality:** of 80 fail quotes, 68 are verbatim, 6 differ only in formatting or an elision, 5 are not in the answer (translated or paraphrased), and 1 (r026) belongs to another item (q046). The r026 fail from codex is therefore not usable evidence.
 
 No label was changed. Taken with the Haiku recheck, three of the six owner changes are confirmed by both blind readers (q031, q046, r036); the other three each have one reader against (q009: codex; q025 and r003: the Haiku majority). The owner-label scores above remain "not held out".
