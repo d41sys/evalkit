@@ -156,9 +156,7 @@ def _helm_metrics(names: Sequence[str]) -> list[str]:
 def run_command(args: argparse.Namespace) -> int:
     tasks_path = Path(args.tasks)
     specs = find_task_specs(tasks_path)
-    models = parse_models(
-        args.models, args.hf_batch_size, args.hf_thinking, args.hf_max_new_tokens
-    )
+    models = parse_models(args.models, args.hf_batch_size, args.hf_thinking, args.hf_max_new_tokens)
     out_dir = Path(args.out)
 
     print(f"Loaded {len(specs)} task specs from {tasks_path}")
