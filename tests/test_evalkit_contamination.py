@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import math
@@ -362,7 +363,8 @@ def test_score_from_fixture_cache_without_key_or_network(
         c = CachedCompleter(backend, tmp_path / f"cache-{model}.jsonl", model_id=model)
         for r in items:
             c.complete(build_prompt(r["question"]), max_tokens=mod.MAX_TOKENS)
-    assert mod.score(None) == 0  # type: ignore[arg-type]
+    args = argparse.Namespace(models=list(models), stem="contamination-gsm")
+    assert mod.score(args) == 0
     payload = json.loads((tmp_path / "results" / "contamination-gsm.json").read_text())
     r0 = payload["results"]["numeric"][models[0]]
     r1 = payload["results"]["numeric"][models[1]]
