@@ -89,6 +89,7 @@ class HFModel:
         max_new_tokens: dict[str, int] | None = None,
         name: str | None = None,
         batch_size: int = 1,
+        thinking: bool = False,
         *,
         tokenizer: Any = None,
         model: Any = None,
@@ -100,6 +101,9 @@ class HFModel:
         # How many free-generation prompts the runner may decode together (``predict_batch``).
         self.batch_size = batch_size
         self.max_new_tokens = {**DEFAULT_MAX_NEW_TOKENS, **(max_new_tokens or {})}
+        # thinking=True lets Qwen3+ templates open a reasoning block; only the text after its
+        # closing tag is the answer. Off by default so every chat template is used as shipped.
+        self.thinking = thinking
         self._lock = threading.Lock()  # one model instance; torch/MPS calls are serialised
 
         self.revision: str | None = None  # commit hash of the snapshot actually loaded
@@ -128,17 +132,17 @@ class HFModel:
         self.tokenizer = tokenizer
         self.model = model
         short = f"@{revision[:8]}" if revision else ""
-        self.name = name or f"hf:{model_id}{short}"
+        self.name = name or f"hf:{model_id}{short}" + ("+think" if thinking else "")
 
     # -- prompt construction -------------------------------------------------------------
 
     def render_chat(self, prompt: str, task_type: str, choices: Sequence[str] | None) -> str:
         """Chat-template text ending at the start of the assistant turn."""
         messages = [{"role": "user", "content": build_user_message(prompt, task_type, choices)}]
-        # enable_thinking=False: Qwen3+ templates would otherwise open a reasoning block;
+        # enable_thinking: Qwen3+ templates open a reasoning block unless it is False;
         # templates that do not use the variable ignore it (Qwen2.5 output is unchanged)
         text = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=self.thinking
         )
         return str(text)
 
@@ -251,6 +255,9 @@ class HFModel:
             new_ids.pop()
             logps.pop()
         text = str(self.tokenizer.decode(new_ids, skip_special_tokens=True)).strip()
+        if self.thinking:  # a reply cut off before </think> has no answer
+            _, closed, answer = text.rpartition("</think>")
+            text = answer.strip() if closed else ""
         return text, logps
 
     def _generate(self, prompt: str, task_type: str) -> tuple[str, list[float]]:

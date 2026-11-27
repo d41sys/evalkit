@@ -7,6 +7,7 @@ import sys
 import time
 from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -130,10 +131,15 @@ def find_task_specs(tasks_dir: Path) -> list[TaskSpec]:
     return specs
 
 
-def parse_models(models_str: str, hf_batch_size: int = 1) -> list[Model]:
+def parse_models(
+    models_str: str, hf_batch_size: int = 1, hf_thinking: bool = False, hf_max_new_tokens: int = 0
+) -> list[Model]:
     model_names = [m.strip() for m in models_str.split(",") if m.strip()]
+    hf_kwargs: dict[str, Any] = {"batch_size": hf_batch_size, "thinking": hf_thinking}
+    if hf_max_new_tokens:
+        hf_kwargs["max_new_tokens"] = {"reasoning": hf_max_new_tokens}
     return [
-        get_model(name, batch_size=hf_batch_size) if name.startswith("hf:") else get_model(name)
+        get_model(name, **hf_kwargs) if name.startswith("hf:") else get_model(name)
         for name in model_names
     ]
 
@@ -150,7 +156,9 @@ def _helm_metrics(names: Sequence[str]) -> list[str]:
 def run_command(args: argparse.Namespace) -> int:
     tasks_path = Path(args.tasks)
     specs = find_task_specs(tasks_path)
-    models = parse_models(args.models, args.hf_batch_size)
+    models = parse_models(
+        args.models, args.hf_batch_size, args.hf_thinking, args.hf_max_new_tokens
+    )
     out_dir = Path(args.out)
 
     print(f"Loaded {len(specs)} task specs from {tasks_path}")
@@ -1090,6 +1098,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         default=1,
         help="hf: models decode up to this many free-generation prompts together (default 1)",
+    )
+    run_parser.add_argument(
+        "--hf-thinking",
+        action="store_true",
+        help="hf: let Qwen3+ chat templates think first; the model name gets '+think'",
+    )
+    run_parser.add_argument(
+        "--hf-max-new-tokens",
+        type=int,
+        default=0,
+        help="hf: token cap for reasoning tasks (default 256; thinking needs far more)",
     )
     run_parser.add_argument(
         "--samples",

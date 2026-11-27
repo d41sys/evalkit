@@ -143,6 +143,14 @@ def test_generation_uses_chat_template_strips_eos_and_reports_logprobs() -> None
     assert m.seen_limits == [48]
 
 
+def test_thinking_scores_only_the_answer_and_a_cut_off_reply_answers_nothing() -> None:
+    m = ScriptedHF(reply="12 + 30 = 42, so maybe 41?</think>\nThe answer is 42")
+    m.thinking = True
+    assert m.predict("Q?", "reasoning").text == "The answer is 42"
+    m.reply = "12 + 30 = 42, still thinking"  # hit the token cap inside the reasoning block
+    assert m.predict("Q?", "reasoning").text == ""
+
+
 def test_code_task_gets_longer_budget_and_keeps_fence_for_extraction() -> None:
     reply = "```python\ndef add(a, b):\n    return a + b\n```"
     m = ScriptedHF(reply=reply)
