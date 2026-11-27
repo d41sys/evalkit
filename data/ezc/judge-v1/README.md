@@ -298,4 +298,4 @@ One codex session labelled all 160 items of pools 6 and 7 from rule v4 alone, wi
 - **Both rechecks against the label:** q026, r026 and r073 (r073 is the open day-count case). On the other 12, the Haiku majority sides with the label.
 - **Quote quality:** of 80 fail quotes, 68 are verbatim, 6 differ only in formatting or an elision, 5 are not in the answer (translated or paraphrased), and 1 (r026) belongs to another item (q046). The r026 fail from codex is therefore not usable evidence.
 
-No label was changed. Taken with the Haiku recheck, five of the six owner changes hold under two blind readers each or one reader plus a split; q009 and q025 each have one reader against. The owner-label scores above remain "not held out".
+No label was changed. Taken with the Haiku recheck, three of the six owner changes are confirmed by both blind readers (q031, q046, r036); the other three each have one reader against (q009: codex; q025 and r003: the Haiku majority). The owner-label scores above remain "not held out".
