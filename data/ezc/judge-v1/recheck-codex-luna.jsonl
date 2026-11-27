@@ -1,0 +1,160 @@
+{"id":"q001","label":1,"open":false,"rule":"","quote":""}
+{"id":"q002","label":0,"open":false,"rule":"v3 field-storage boundary; rule 2","quote":"This information would typically be configured in the `issued_covariates` field when the task was created for milestone runs"}
+{"id":"q003","label":1,"open":false,"rule":"","quote":""}
+{"id":"q004","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"which equals 1,440 minutes or 24 hours"}
+{"id":"q005","label":0,"open":true,"rule":"rule 4; v4 Open day-count arithmetic (7 days minus 3 days)","quote":"The dataset is **96 hours short**"}
+{"id":"q006","label":1,"open":false,"rule":"","quote":""}
+{"id":"q007","label":1,"open":false,"rule":"","quote":""}
+{"id":"q008","label":1,"open":false,"rule":"","quote":""}
+{"id":"q009","label":1,"open":false,"rule":"","quote":""}
+{"id":"q010","label":1,"open":false,"rule":"","quote":""}
+{"id":"q011","label":1,"open":false,"rule":"","quote":""}
+{"id":"q012","label":0,"open":false,"rule":"rule 3; v4 system behavior claim unsupported by results","quote":"Chỉ có thể giữ `temp` nếu muốn chạy được."}
+{"id":"q013","label":1,"open":false,"rule":"","quote":""}
+{"id":"q014","label":1,"open":false,"rule":"","quote":""}
+{"id":"q015","label":0,"open":false,"rule":"rule 5: unsupported unit inferred from target column","quote":"Here are the metrics for the Emmen load forecast in megawatt-hours:"}
+{"id":"q016","label":1,"open":false,"rule":"","quote":""}
+{"id":"q017","label":1,"open":false,"rule":"","quote":""}
+{"id":"q018","label":0,"open":false,"rule":"rule 3: invented milestone/system behavior","quote":"**M2 gate clock time: 15:00 (3:00 PM) on day D-1**"}
+{"id":"q019","label":1,"open":false,"rule":"","quote":""}
+{"id":"q020","label":0,"open":false,"rule":"rule 3: invented milestone/system behavior","quote":"**M2 gate: 15:00 on day D (3 PM on the day itself)**"}
+{"id":"q021","label":0,"open":false,"rule":"rule 3: unsupported milestone/system behavior","quote":"The M1 milestone is defined as 09:00 D-1 in the **site's local timezone**."}
+{"id":"q022","label":1,"open":false,"rule":"","quote":""}
+{"id":"q023","label":1,"open":false,"rule":"","quote":""}
+{"id":"q024","label":0,"open":false,"rule":"rule 3; v4 system behavior claim unsupported by results","quote":"The auto tournament (when `model_id` is set to \"auto\") would choose among candidate models at task creation time"}
+{"id":"q025","label":0,"open":false,"rule":"rule 3; v4 calling returned value the default","quote":"Lookback mặc định: **7 ngày**"}
+{"id":"q026","label":0,"open":false,"rule":"rule 2: unsupported fact about data/field","quote":"imbalance price thường tính dựa trên sai lệch giữa nomination và actual"}
+{"id":"q027","label":1,"open":false,"rule":"","quote":""}
+{"id":"q028","label":1,"open":false,"rule":"","quote":""}
+{"id":"q029","label":1,"open":false,"rule":"","quote":""}
+{"id":"q030","label":0,"open":false,"rule":"rule 2: unsupported fact about user's tasks/runs","quote":"Beide taken hebben dezelfde laatste run (experiment 812)."}
+{"id":"q031","label":0,"open":false,"rule":"rule 3; v4 unsupported design rationale","quote":"Dit is een principe in het systeem om te voorkomen dat het model toegang heeft tot informatie die in de praktijk niet beschikbaar zou zijn op het moment van voorspellen."}
+{"id":"q032","label":1,"open":false,"rule":"","quote":""}
+{"id":"q033","label":0,"open":false,"rule":"rule 3: unsupported claim about model behavior/performance","quote":"The actual accuracy TFT achieves will depend on:"}
+{"id":"q034","label":0,"open":false,"rule":"rule 5: unit read from column name and stated as fact","quote":"Target column is \"load_kw\", nên giá trị ở đơn vị kW (không phải MWh)."}
+{"id":"q035","label":0,"open":false,"rule":"rule 3: unsupported system capability/behavior","quote":"Dit betekent dat het model theoretisch voorspellingen kan doen voor alle 72 uur vooruit."}
+{"id":"q036","label":1,"open":false,"rule":"","quote":""}
+{"id":"q037","label":1,"open":false,"rule":"","quote":""}
+{"id":"q038","label":1,"open":false,"rule":"","quote":""}
+{"id":"q039","label":1,"open":false,"rule":"","quote":""}
+{"id":"q040","label":0,"open":true,"rule":"rule 4; v4 Open row-count to day-count calculation","quote":"**Difference:** The dataset has 358 days MORE than needed"}
+{"id":"q041","label":1,"open":false,"rule":"","quote":""}
+{"id":"q042","label":1,"open":false,"rule":"","quote":""}
+{"id":"q043","label":0,"open":false,"rule":"rule 4: unsupported arithmetic/conversion; rule 5 unit claim","quote":"95% betrouwbaarheidsinterval: -8,0 tot -1,9 kWh"}
+{"id":"q044","label":1,"open":false,"rule":"","quote":""}
+{"id":"q045","label":0,"open":false,"rule":"rule 4: arithmetic and unit conversions","quote":"192 × 15 = 2,880 minutes = 48 hours"}
+{"id":"q046","label":0,"open":false,"rule":"rule 3; v4 unsupported future system behavior","quote":"Once it runs, the system will record:"}
+{"id":"q047","label":1,"open":false,"rule":"","quote":""}
+{"id":"q048","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates","quote":"that covers **364 days**"}
+{"id":"q049","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"The M1 milestone gate is defined as **09:00 D-1 in local time**"}
+{"id":"q050","label":0,"open":false,"rule":"rule 3; v4 unsupported system behavior","quote":"When a task is configured with `model_id: \"auto\"`, it runs a validation tournament that tries multiple models and picks the best one."}
+{"id":"q051","label":0,"open":false,"rule":"rule 2; v3 field-storage boundary","quote":"Deze gegevens zijn beschikbaar in de volledige taakconfiguratie"}
+{"id":"q052","label":0,"open":false,"rule":"rule 3; v4 unsupported system behavior and default claim","quote":"Lookback minimaal cho phép cũng là **7 ngày**"}
+{"id":"q053","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"**M3 gate = 15:00 on day D-1**"}
+{"id":"q054","label":1,"open":false,"rule":"","quote":""}
+{"id":"q055","label":1,"open":false,"rule":"","quote":""}
+{"id":"q056","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"96 steps at 15-minute resolution = 24 hours"}
+{"id":"q057","label":1,"open":false,"rule":"","quote":""}
+{"id":"q058","label":0,"open":false,"rule":"rule 2; v3 field-storage boundary; hedge does not rescue field claim","quote":"the `issued_covariates` field is not shown (likely empty or null)"}
+{"id":"q059","label":1,"open":false,"rule":"","quote":""}
+{"id":"q060","label":0,"open":false,"rule":"rule 4: unsupported arithmetic","quote":"15 hours = 55 hours total lead time - 40 hours minimum"}
+{"id":"q061","label":1,"open":false,"rule":"","quote":""}
+{"id":"q062","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates/row count","quote":"dataset chỉ có dữ liệu 2 ngày"}
+{"id":"q063","label":1,"open":false,"rule":"","quote":""}
+{"id":"q064","label":1,"open":false,"rule":"","quote":""}
+{"id":"q065","label":0,"open":false,"rule":"rule 2: unsupported claim about user's task configuration","quote":"De Emmen-taak (ID 33) heeft geen breedte- en lengtegraad ingesteld."}
+{"id":"q066","label":1,"open":false,"rule":"","quote":""}
+{"id":"q067","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates/row count","quote":"wat neerkomt op **2 dagen**"}
+{"id":"q068","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates","quote":"that spans **364 days**"}
+{"id":"q069","label":1,"open":false,"rule":"","quote":""}
+{"id":"q070","label":1,"open":false,"rule":"","quote":""}
+{"id":"q071","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"**M3 is defined as 15:00 (3 PM) on day D**"}
+{"id":"q072","label":1,"open":false,"rule":"","quote":""}
+{"id":"q073","label":0,"open":false,"rule":"rule 3; v4 unsupported system behavior","quote":"The pre-flight should now run again without the blocking issue."}
+{"id":"q074","label":0,"open":true,"rule":"rule 4; v4 Open row-count to day-count calculation","quote":"35040 rows at 15-minute resolution equals exactly 365 days"}
+{"id":"q075","label":1,"open":false,"rule":"","quote":""}
+{"id":"q076","label":0,"open":false,"rule":"rule 5: unit inferred from column name/reference and asserted as fact","quote":"The value is **6212.8 kWh**."}
+{"id":"q077","label":1,"open":false,"rule":"","quote":""}
+{"id":"q078","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates/row count","quote":"loopt over **2 dagen**"}
+{"id":"q079","label":0,"open":false,"rule":"rule 3: unsupported model performance behavior","quote":"Deze metrieken laten zien hoe de voorspellingsfout (MAE) toeneemt naarmate je verder in de horizon kijkt."}
+{"id":"q080","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"192 × 15 minutes = 2,880 minutes = 48 hours"}
+{"id":"r001","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"The dataset is **96 hours short** (4 days × 24 hours/day)"}
+{"id":"r002","label":0,"open":false,"rule":"rule 5: unit read from column name and stated as fact","quote":"(đơn vị target - kW theo dataset)"}
+{"id":"r003","label":1,"open":false,"rule":"","quote":""}
+{"id":"r004","label":1,"open":false,"rule":"","quote":""}
+{"id":"r005","label":1,"open":false,"rule":"","quote":""}
+{"id":"r006","label":1,"open":false,"rule":"","quote":""}
+{"id":"r007","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"192 steps × 15 minutes = 2,880 minutes = 48 hours"}
+{"id":"r008","label":0,"open":false,"rule":"rule 5: unit inferred from column name and asserted as fact","quote":"the data were in kWh based on the baseline column name"}
+{"id":"r009","label":1,"open":false,"rule":"","quote":""}
+{"id":"r010","label":0,"open":false,"rule":"rule 3: unsupported inference about system/model behavior","quote":"This means there is no temperature forecast to check for lead hours"}
+{"id":"r011","label":1,"open":false,"rule":"","quote":""}
+{"id":"r012","label":0,"open":false,"rule":"rule 3: unsupported milestone/system behavior","quote":"The M3 milestone is defined as a specific local clock time at a site, but that depends on the site's timezone."}
+{"id":"r013","label":0,"open":false,"rule":"rule 3; v4 calling returned value the default","quote":"Catalog chỉ hiển thị giá trị lookback mặc định (7 ngày)"}
+{"id":"r014","label":0,"open":false,"rule":"rule 5: unit read from column name and stated as fact","quote":"the baseline-kolom heet \"Nominatie [kWh]\", dus de waarden zijn in kilowattuur"}
+{"id":"r015","label":1,"open":false,"rule":"","quote":""}
+{"id":"r016","label":1,"open":false,"rule":"","quote":""}
+{"id":"r017","label":1,"open":false,"rule":"","quote":""}
+{"id":"r018","label":1,"open":false,"rule":"","quote":""}
+{"id":"r019","label":1,"open":false,"rule":"","quote":""}
+{"id":"r020","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"**M3 gate time: 21:00 (9:00 PM) on day D-1**"}
+{"id":"r021","label":0,"open":false,"rule":"rule 2: unsupported claim about task configuration/action values","quote":"Ik neem aan dat Middelburg in Nederland ligt (timezone Europe/Amsterdam) en stel de horizon in op 40 uur."}
+{"id":"r022","label":1,"open":false,"rule":"","quote":""}
+{"id":"r023","label":1,"open":false,"rule":"","quote":""}
+{"id":"r024","label":0,"open":false,"rule":"rule 4: unsupported unit conversion","quote":"Model MAE: 6.0794 MWh"}
+{"id":"r025","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"**M2 gate time: 15:00 on day D-1**"}
+{"id":"r026","label":0,"open":false,"rule":"rule 3; v4 unsupported future system behavior","quote":"Once it runs, the system will record:"}
+{"id":"r027","label":1,"open":false,"rule":"","quote":""}
+{"id":"r028","label":1,"open":false,"rule":"","quote":""}
+{"id":"r029","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates/row count","quote":"loopt over **2 dagen**"}
+{"id":"r030","label":1,"open":false,"rule":"","quote":""}
+{"id":"r031","label":1,"open":false,"rule":"","quote":""}
+{"id":"r032","label":0,"open":false,"rule":"rule 4: arithmetic and unit conversion","quote":"96 × 15 minutes = 1440 minutes = 24 hours"}
+{"id":"r033","label":1,"open":false,"rule":"","quote":""}
+{"id":"r034","label":1,"open":false,"rule":"","quote":""}
+{"id":"r035","label":1,"open":false,"rule":"","quote":""}
+{"id":"r036","label":0,"open":false,"rule":"rule 3; v4 unsupported design rationale","quote":"để ngăn chặn data leakage"}
+{"id":"r037","label":0,"open":false,"rule":"rule 3: unsupported system/model behavior","quote":"Dit betekent dat de voorspelling theoretisch voor de volledige 72 uur geldig is."}
+{"id":"r038","label":1,"open":false,"rule":"","quote":""}
+{"id":"r039","label":0,"open":false,"rule":"rule 2: issue_lead_hours is not support for temperature forecast lead","quote":"The temperature forecast has **15 hours** of lead beyond the 40-hour minimum requirement."}
+{"id":"r040","label":1,"open":false,"rule":"","quote":""}
+{"id":"r041","label":1,"open":false,"rule":"","quote":""}
+{"id":"r042","label":0,"open":false,"rule":"rule 3: unsupported system behavior","quote":"When a specific model is blocked, the run simply fails with the block issue - there's no automatic fallback to other models."}
+{"id":"r043","label":0,"open":false,"rule":"rule 3; v4 unsupported future behavior; also conflicts with forbidden-input rule","quote":"The next time you run a forecast on this task, the pre-flight will re-check and the blocking issue should be cleared."}
+{"id":"r044","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates/row count","quote":"wat neerkomt op **2 dagen**"}
+{"id":"r045","label":1,"open":false,"rule":"","quote":""}
+{"id":"r046","label":1,"open":false,"rule":"","quote":""}
+{"id":"r047","label":1,"open":false,"rule":"","quote":""}
+{"id":"r048","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"192 steps × 15 minutes = 2,880 minutes = **48 hours**"}
+{"id":"r049","label":0,"open":false,"rule":"rule 3: unsupported claim about model behavior","quote":"TFT (Temporal Fusion Transformer) is a deep learning model that typically needs substantial training data to work well."}
+{"id":"r050","label":0,"open":false,"rule":"rule 4: arithmetic and time-unit conversion","quote":"96 steps × 15 minutes = 1,440 minutes = 24 hours native horizon"}
+{"id":"r051","label":1,"open":false,"rule":"","quote":""}
+{"id":"r052","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"The M1 milestone is defined as 09:00 D-1 (day-ahead) in the **site's local timezone**."}
+{"id":"r053","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates","quote":"That is 364 days"}
+{"id":"r054","label":0,"open":false,"rule":"rule 5: unit read from column name and stated as fact","quote":"which is kW based on the target column \"load_kw\""}
+{"id":"r055","label":1,"open":false,"rule":"","quote":""}
+{"id":"r056","label":0,"open":true,"rule":"rule 4; v4 Open row/date-derived day count; unsupported time-unit calculation","quote":"The dataset exceeds the requirement by **8,592 hours** (358 days × 24 hours)."}
+{"id":"r057","label":1,"open":false,"rule":"","quote":""}
+{"id":"r058","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates","quote":"that covers **364 days**"}
+{"id":"r059","label":1,"open":false,"rule":"","quote":""}
+{"id":"r060","label":1,"open":false,"rule":"","quote":""}
+{"id":"r061","label":1,"open":false,"rule":"","quote":""}
+{"id":"r062","label":1,"open":false,"rule":"","quote":""}
+{"id":"r063","label":1,"open":false,"rule":"","quote":""}
+{"id":"r064","label":1,"open":false,"rule":"","quote":""}
+{"id":"r065","label":0,"open":false,"rule":"rule 2; v3 field-storage boundary","quote":"De coördinaten staan in de taakconfiguratie"}
+{"id":"r066","label":0,"open":false,"rule":"rule 5: unit inferred from column name; unsupported conversion","quote":"the target column is in kilowatts (kW), so the MAE values are in kilowatt-hours (kWh)"}
+{"id":"r067","label":1,"open":false,"rule":"","quote":""}
+{"id":"r068","label":0,"open":false,"rule":"rule 3: unsupported claim about system metric behavior","quote":"The accuracy metric would typically be reported as a percentage improvement (or change) compared to a baseline."}
+{"id":"r069","label":0,"open":false,"rule":"rule 3; v4 unsupported model behavior/default claim","quote":"Mô hình TFT có **lookback tối thiểu là 7 ngày**"}
+{"id":"r070","label":0,"open":false,"rule":"rule 2; v3 unsupported field-storage claim","quote":"The weather forecast details would be specified either through: ... the `weather_source` parameter"}
+{"id":"r071","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"- **M2** = 15:00 on day D (delivery day)"}
+{"id":"r072","label":1,"open":false,"rule":"","quote":""}
+{"id":"r073","label":0,"open":true,"rule":"rule 4; v4 Open day count read off two dates","quote":"2025-01-01 đến 2025-01-30 (30 ngày)"}
+{"id":"r074","label":1,"open":false,"rule":"","quote":""}
+{"id":"r075","label":0,"open":false,"rule":"rule 3: unsupported claim about model behavior/performance","quote":"The model's performance depends on:"}
+{"id":"r076","label":0,"open":false,"rule":"rule 5: unsupported unit inference; also rule 4 conversion claim","quote":"**MAE in target unit (kWh):**"}
+{"id":"r077","label":1,"open":false,"rule":"","quote":""}
+{"id":"r078","label":0,"open":true,"rule":"rule 4; v4 Open day count from row count/dates; also unsupported adequacy claim","quote":"(chỉ 192 hàng, tương đương 2 ngày dữ liệu)"}
+{"id":"r079","label":1,"open":false,"rule":"","quote":""}
+{"id":"r080","label":0,"open":false,"rule":"rule 3; v4 unsupported milestone/system behavior","quote":"The M1 milestone gate closes at 09:00 local time on day D-1"}

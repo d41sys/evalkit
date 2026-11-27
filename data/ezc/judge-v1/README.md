@@ -287,3 +287,15 @@ The seven 3 to 0 disagreements were then read against rule v4 (by the assistant,
 If r051 becomes fail, the Sonnet rule-v3 row on owner labels becomes TPR 89/90, TNR 66/70, 5 errors (Sonnet passed r051). If r026 follows, TPR 88/89, TNR 66/71, 6 errors.
 
 **Owner decision (2026-11-25): r051 keeps its pass label.** The reported rows stand (Sonnet 5.5, rule v3, owner labels: 4 errors). This leaves r051 (pass) and q009 (fail) labelled differently for a similar "M2 or M3" phrase; rule v4 was not reworded. r026 and r037 were not decided.
+
+## Blind recheck with codex `gpt-6-luna` (2026-11-27)
+
+One codex session labelled all 160 items of pools 6 and 7 from rule v4 alone, with no label and no judge output in its directory ([`recheck-codex-luna.jsonl`](recheck-codex-luna.jsonl)). It took about four minutes, so full reading of every item is not verified.
+
+- **Agreement:** 145 of 160 with the owner labels, 142 with the v3 labels.
+- **The six owner changes:** five confirmed (q025, q031, q046, r036 fail; r003 pass). q009 is not: codex passes it, Haiku failed it 3 to 0.
+- **Fifteen disagreements:** codex fails 13 items labelled pass (q012, q026, q030, q033, q035, q079, r021, r026, r043, r049, r068, r073, r075) and passes 2 labelled fail (q009, q016). Nine of the 13 cite rule 3 for a general remark on model or system behaviour.
+- **Both rechecks against the label:** q026, r026 and r073 (r073 is the open day-count case). On the other 12, the Haiku majority sides with the label.
+- **Quote quality:** of 80 fail quotes, 68 are verbatim, 6 differ only in formatting or an elision, 5 are not in the answer (translated or paraphrased), and 1 (r026) belongs to another item (q046). The r026 fail from codex is therefore not usable evidence.
+
+No label was changed. Taken with the Haiku recheck, five of the six owner changes hold under two blind readers each or one reader plus a split; q009 and q025 each have one reader against. The owner-label scores above remain "not held out".
