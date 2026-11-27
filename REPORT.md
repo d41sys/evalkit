@@ -358,8 +358,29 @@ Same 240 problems, same command (`--hf-batch-size 16`, 256-token cap), Qwen3.5-0
 
 0.8B vs 2B: −0.113 [−0.183, −0.042], 26 wins / 53 losses, Holm p 0.003, resolved.
 
-- **Qwen3.5-2B scores below Qwen2.5-1.5B (0.617) here.** The 6 misses read (3 per model) end with a well-formed `The answer is N` line, so they are reasoning errors, not parsing failures; 3 of 240 2B replies hit the cap. [INFERENCE] Qwen3.5 small models are built to reason in a thinking block, which this protocol turns off to keep the 256-token cap; with thinking on they would likely score higher, but that needs a larger cap and was not run.
+- **Qwen3.5-2B scores below Qwen2.5-1.5B (0.617) here.** The 6 misses read (3 per model) end with a well-formed `The answer is N` line, so they are reasoning errors, not parsing failures; 3 of 240 2B replies hit the cap. Qwen3.5 small models are built to reason in a thinking block, which this protocol turns off to keep the 256-token cap; the thinking-on run below did not score higher under greedy decoding.
 - **Not a paired comparison with Qwen2.5:** different hardware (CUDA vs MPS) and run, so the Qwen2.5 rows above and these rows are compared by their intervals only.
+
+#### Thinking on (2026-11-27)
+
+Same 240 problems on one RTX 4090 (Korea server), greedy decoding, batch 16. Both settings were rerun in the same environment so the comparison is paired:
+
+```bash
+evalkit run --tasks tasks_hard --hf-batch-size 16 --out runs/gsm8k-q35-fla --models "hf:Qwen/Qwen3.5-2B@15852e8c…"   # thinking off, 256-token cap
+evalkit run --tasks tasks_hard --hf-batch-size 16 --hf-thinking --hf-max-new-tokens 4096 --out runs/gsm8k-q35-think --models "hf:Qwen/Qwen3.5-2B@15852e8c…"
+```
+
+Only the text after `</think>` is scored; a reply that hits the cap before `</think>` counts as no answer.
+
+| Model | Thinking off (256) | Thinking on (4096) | Paired diff (on − off) | Cut off before `</think>` |
+|---|---|---|---|---|
+| Qwen3.5-2B | 0.517 (124/240) [0.454, 0.579] | 0.354 (85/240) [0.296, 0.417] | −0.163 [−0.238, −0.088], 27 wins / 66 losses, sign p 6e-5 | 152 / 240 |
+| Qwen3.5-0.8B | 0.367 (88/240) [0.304, 0.425] | 0.000 (0/240) | −0.367 [−0.429, −0.308], sign p 6e-27 | 240 / 240 |
+
+- **Thinking on scores lower because most replies never finish.** Of the 88 2B replies that closed `</think>`, 85 are correct (97%). They used 609–3,356 tokens. Thinking off scores 0.670 on those same 88 problems, against 0.428 on the 152 the thinking run did not finish.
+- **The cut-off replies loop.** In two raw 0.8B replies, the last 300 characters repeat 32–34 times (for example "check if I need to …"). The [Qwen3.5 model card](https://huggingface.co/Qwen/Qwen3.5-2B) recommends sampling for thinking mode (`temperature=1.0, top_p=0.95, top_k=20, presence_penalty=1.5`). evalkit decodes greedily, so this table measures greedy thinking with a 4,096-token cap, not the model's best thinking-mode accuracy.
+- **The thinking-off rerun moved the numbers:** 2B 0.496 → 0.517, with 11 items changed; 0.8B 0.383 → 0.367, with 16 changed. The rerun had `flash-linear-attention` installed, and batch grouping may differ too [INFERENCE: neither cause was isolated]. Greedy decoding is deterministic only for a fixed kernel and batch layout, so the two thinking-off runs are not interchangeable; the table pairs thinking on with the rerun.
+- Thinking cost: the 2B run took 67 minutes against about 3 minutes with thinking off.
 
 ## Do the statistics hold up? Monte Carlo check (`evalkit stats-check`)
 
