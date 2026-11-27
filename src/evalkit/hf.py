@@ -171,25 +171,45 @@ class HFModel:
 
         input_ids = torch.tensor([prompt_ids], device=self.device)
         with self._lock, torch.inference_mode():
-            out = self.model.generate(
-                input_ids=input_ids,
-                attention_mask=torch.ones_like(input_ids),
-                do_sample=False,
-                max_new_tokens=max_new_tokens,
-                temperature=None,
-                top_p=None,
-                top_k=None,
-                repetition_penalty=1.0,
-                return_dict_in_generate=True,
-                output_logits=True,
-                pad_token_id=getattr(self.tokenizer, "pad_token_id", None),
-            )
-            new_ids = [int(t) for t in out.sequences[0, len(prompt_ids) :].tolist()]
-            logps = [
-                float(torch.log_softmax(logits[0].float(), dim=-1)[tok].item())
-                for logits, tok in zip(out.logits, new_ids, strict=True)
-            ]
+            new_ids, logps = self._decode(input_ids, torch.ones_like(input_ids), max_new_tokens)[0]
         return new_ids, logps
+
+    def _decode(
+        self, ids: Any, mask: Any, max_new_tokens: int
+    ) -> list[tuple[list[int], list[float]]]:
+        """Greedy decode; per row, the new token ids and the raw-logit log-prob of each.
+
+        The log-prob of the greedy choice is recorded at each step (the max of the log-softmax)
+        instead of keeping every step's logits: those are vocab x steps floats per row, about
+        4 GB for one 4096-token reply of a 248k-vocab model.
+        """
+        import torch
+
+        steps: list[Any] = []
+
+        def record(_input_ids: Any, scores: Any) -> Any:
+            steps.append(torch.log_softmax(scores.float(), dim=-1).max(dim=-1).values)
+            return scores
+
+        pad = getattr(self.tokenizer, "pad_token_id", None)
+        out = self.model.generate(
+            input_ids=ids,
+            attention_mask=mask,
+            do_sample=False,
+            max_new_tokens=max_new_tokens,
+            temperature=None,
+            top_p=None,
+            top_k=None,
+            repetition_penalty=1.0,
+            logits_processor=[record],
+            pad_token_id=int(pad) if pad is not None else 0,
+        )
+        new = out[:, ids.shape[1] :].tolist()
+        lps = torch.stack(steps, dim=1).tolist() if steps else [[] for _ in new]
+        return [
+            ([int(t) for t in toks], [float(v) for v in row[: len(toks)]])
+            for toks, row in zip(new, lps, strict=True)
+        ]
 
     def _generate_ids_batch(
         self, prompts_ids: list[list[int]], max_new_tokens: int
@@ -207,33 +227,11 @@ class HFModel:
             [[0] * (width - len(p)) + [1] * len(p) for p in prompts_ids], device=self.device
         )
         with self._lock, torch.inference_mode():
-            out = self.model.generate(
-                input_ids=ids,
-                attention_mask=mask,
-                do_sample=False,
-                max_new_tokens=max_new_tokens,
-                temperature=None,
-                top_p=None,
-                top_k=None,
-                repetition_penalty=1.0,
-                return_dict_in_generate=True,
-                output_logits=True,
-                pad_token_id=pad,
-            )
-            new = out.sequences[:, width:]
-            step_lps = torch.stack(
-                [
-                    torch.log_softmax(logits.float(), dim=-1).gather(1, new[:, i : i + 1])[:, 0]
-                    for i, logits in enumerate(out.logits)
-                ],
-                dim=1,
-            )
-            new_rows = new.tolist()
-            lp_rows = step_lps.tolist()
+            decoded = self._decode(ids, mask, max_new_tokens)
         results: list[tuple[list[int], list[float]]] = []
-        for toks, lps in zip(new_rows, lp_rows, strict=True):
+        for toks, lps in decoded:
             cut = next((i + 1 for i, t in enumerate(toks) if t in eos), len(toks))
-            results.append(([int(t) for t in toks[:cut]], [float(v) for v in lps[:cut]]))
+            results.append((toks[:cut], lps[:cut]))
         return results
 
     def _continuation_logprobs(self, prefix_ids: list[int], cont_ids: list[int]) -> list[float]:
