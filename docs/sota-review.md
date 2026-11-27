@@ -242,7 +242,7 @@ evalkit baseline used for the "Difference" column (checked in `src/evalkit/aggre
 - OpenAI evals: [repo/README][oa-readme]; [commits][oa-commits]; [tags][oa-tags]; [metrics.py][oa-metrics]; [match.py][oa-match]; [record.py][oa-record]; [elsuite/utils.py][oa-utils].
 - promptfoo: [repo/README][pf-readme]; [releases][pf-rel]; [llms.txt][pf-idx]; [command-line docs][pf-cli]; [deterministic metrics docs][pf-det]; greps of [reference](https://www.promptfoo.dev/docs/configuration/reference/), [outputs](https://www.promptfoo.dev/docs/configuration/outputs/), [expected-outputs](https://www.promptfoo.dev/docs/configuration/expected-outputs/), [faq](https://www.promptfoo.dev/docs/faq/).
 - DeepEval: [repo/README][de-readme]; [releases][de-rel]; [metrics intro][de-intro]; [flags and configs][de-flags]; [HumanEval benchmark][de-he]; greps of [evaluation-introduction](https://deepeval.com/docs/evaluation-introduction), [end-to-end evals](https://deepeval.com/docs/evaluation-end-to-end-llm-evals).
-- evalkit (local): [README](../README.md); [aggregate.py][ek-agg]; [statscheck.py][ek-sc]; [runner.py][ek-runner]; [classical.py][ek-cls]; [code_exec.py][ek-pass]; [calibration.py][ek-cal]; [models.py][ek-models].
+- evalkit (local): [REPORT](../REPORT.md); [aggregate.py][ek-agg]; [statscheck.py][ek-sc]; [runner.py][ek-runner]; [classical.py][ek-cls]; [code_exec.py][ek-pass]; [calibration.py][ek-cal]; [models.py][ek-models].
 
 ### Unverifiable or weak spots (matrix)
 
@@ -277,7 +277,7 @@ evalkit baseline used for the "Difference" column (checked in `src/evalkit/aggre
 [ek-rank]: ../src/evalkit/ranking.py
 [ek-cont]: ../src/evalkit/contamination.py
 [ek-mink]: ../src/evalkit/mink.py
-[ek-readme-hf]: ../README.md#L203
+[ek-readme-hf]: ../REPORT.md#L203
 [ek-irt]: ../results/helm-lite-irt-subset.md
 [lm-repo]: https://github.com/EleutherAI/lm-evaluation-harness
 [lm-rel]: https://github.com/EleutherAI/lm-evaluation-harness/releases

@@ -245,7 +245,7 @@ The owner decided two of the three clusters; [`rule-v4.md`](rule-v4.md) is rule 
 |---|---|---|
 | 2. design rationale or system behaviour stated as fact | **fail** (rule 3 as written) | q009, q025, q031, q046, r036 change from pass to fail ([`labels-67-owner.jsonl`](labels-67-owner.jsonl)) |
 | 3. "would be in kW, based on load_kw" | **pass**, it is a hedge | r003 stays pass; the judge's fail is an error |
-| 1. day count read off two dates or a row count | open | q062, q078, r078 stay fail; the judge passes them |
+| 1. day count read off two dates or a row count | **fail** (rule 4), decided 2026-11-27 | q062, q078, r078 stay fail; the judge's passes are errors. `rule-v4.md` still says "Open": its text is left frozen because the recorded judge runs are keyed on it |
 
 With the 5 labels changed, the frozen rule-v3 judgments ([`final-v4/`](final-v4/)) have 4 errors instead of 9: TPR 90/91 (98.9%), TNR 66/69 (95.7%). No judge was rerun.
 

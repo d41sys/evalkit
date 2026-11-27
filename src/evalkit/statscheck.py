@@ -6,7 +6,7 @@ known, runs the *shipped* functions on them (``paired_comparison``,
 ``minimum_detectable_effect``, ``required_sample_size``) and compares the empirical
 behaviour with what the functions promise.
 
-Decision rules (fixed before any scoring run; the README repeats them). Every rate
+Decision rules (fixed before any scoring run; REPORT.md repeats them). Every rate
 carries a Wilson interval at ``MC_LEVEL`` = 99 % over the Monte Carlo replications:
 
 * type-I error at alpha = 0.05: ``anti-conservative`` if the interval lies entirely
@@ -204,7 +204,7 @@ def mde_scenario(kind: str, n: int, tie_rate: float) -> Scenario | None:
 
     Binary: the discordant rate is known (``1 - tie_rate``), so the effect is
     :func:`minimum_detectable_effect_binary` (exact conditional power; the shipped
-    formula was a normal approximation, then Connor's 1987, see the README) at that rate. Continuous
+    formula was a normal approximation, then Connor's 1987, see REPORT.md) at that rate. Continuous
     kinds: effect = MDE(sd(effect), n) with the SD depending on the effect, solved in
     closed form as d^2 = c^2 (1 - t) SIGMA^2 / (n - c^2 t / (1 - t)), with
     c = z_{1-a/2} + z_{power}. Returns None when the formula's promise is unattainable

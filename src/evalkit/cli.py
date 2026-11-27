@@ -622,7 +622,7 @@ def _ci_label(methods: list[str]) -> str:
 
 DIRICHLET_NOTE = (
     "Dirichlet-Jeffreys rows (0/1 scores, n <= 50): a Bayesian credible interval for A - B "
-    '(calibrated coverage, see README "Small samples"), widened to include the observed '
+    '(calibrated coverage, see REPORT.md "Small samples"), widened to include the observed '
     "difference. p-values and the verdict come from the exact tests, which are more "
     "conservative at small n, so an interval can exclude 0 while p > 0.05; trust the verdict.\n"
 )
