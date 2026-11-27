@@ -226,6 +226,19 @@ This table predates the small-n defaults: rerun today, the four per-task rows (n
 - **Rank classification is not free generation**: on sentiment and MCQ the model cannot answer off the label set, which makes those tasks easier than a free-text protocol. Win Rate / Elo are relative to this set of five rows, with oracle and random included.
 - **Reproducibility**: a repeat of the full command into a fresh directory gave a byte-identical `leaderboard.md` and 0 / 575 differing predictions (max confidence difference 0.0), on the same machine and library versions. bfloat16 on MPS is not guaranteed to match other hardware.
 
+### Update 2026-11-27: Qwen3.5 (newest small Qwen models)
+
+Same command and tasks with `hf:Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17` and `hf:Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc` (Feb 2026, Apache-2.0). Run on a shared RTX 4090 (CUDA, bfloat16; Python 3.13.9, torch 2.7.1, transformers 5.24.1), one model at a time. Qwen3.5-4B (9.3 GB) was not downloaded. The adapter now picks CUDA when present and passes `enable_thinking=False` to the chat template, so Qwen3.5 answers without a reasoning block, like Qwen2.5 did; Qwen2.5 prompts are unchanged.
+
+| Rank | Model | Macro mean | 95% CI | Tie group | arithmetic_qa | code_humaneval | sentiment | trivia_mcq |
+|---|---|---|---|---|---|---|---|---|
+| 1 | oracle | 1.000 | [1.000, 1.000] | 1 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 2 | Qwen3.5-2B | 0.979 | [0.957, 1.000] | 1 | 1.000 | 1.000 | 1.000 | 0.914 |
+| 3 | Qwen3.5-0.8B | 0.846 | [0.775, 0.914] | 2 | 0.629 | 0.900 | 1.000 | 0.857 |
+| 4 | random | 0.179 | [0.129, 0.236] | 3 | 0.000 | 0.000 | 0.514 | 0.200 |
+
+0.8B vs 2B: −0.139 [−0.200, −0.078], 0 wins / 16 losses, Holm p 0.0002, resolved. 2B vs oracle: 3 losses in 115, unresolved, as Qwen2.5-1.5B and 3B were. The suite is still too easy to rank the larger model. Results are not committed (`runs/` is gitignored); the pinned revisions and the command reproduce them.
+
 ## Harder task: GSM8K subset (`tasks_hard/gsm8k`)
 
 The bundled `tasks/` leave 1.5B vs 3B unresolved (113 of 115 examples tie). `tasks_hard/gsm8k` is a seeded 240-problem subset of the GSM8K test set (grade-school math word problems, Cobbe et al. 2021, [arXiv 2110.14168](https://arxiv.org/abs/2110.14168)) scored by numeric answer. It lives in its own directory so that `--tasks tasks` still reproduces every number above.
@@ -331,6 +344,22 @@ What "resolved" does and does not say here:
 - **Random is at floor by construction**: it answers a random integer in 0-100 and 162 of the 240 targets lie in that range, so the expected number of hits is 162/101 = 1.6 and 0 observed is unremarkable; oracle returns the target. Neither says anything about GSM8K difficulty.
 - **n = 240 of 1319.** Scoring the whole test set would take about 54 minutes (1319 x 2.45 s, extrapolated from the pilot, not run).
 - The confidence and ECE columns for the Qwen models come from the geometric-mean token probability of a long reasoning chain, a heuristic, and say little about answer-level calibration.
+
+### Update 2026-11-27: Qwen3.5 on the GSM8K subset
+
+Same 240 problems, same command (`--hf-batch-size 16`, 256-token cap), Qwen3.5-0.8B and 2B as above, thinking off.
+
+| Rank | Model | Accuracy | 95% CI | Hit 256-token cap |
+|---|---|---|---|---|
+| 1 | oracle | 1.000 | [1.000, 1.000] | n/a |
+| 2 | Qwen3.5-2B | 0.496 (119/240) | [0.433, 0.558] | 3 |
+| 3 | Qwen3.5-0.8B | 0.383 (92/240) | [0.325, 0.446] | 0 |
+| 4 | random | 0.000 | [0.000, 0.000] | n/a |
+
+0.8B vs 2B: −0.113 [−0.183, −0.042], 26 wins / 53 losses, Holm p 0.003, resolved.
+
+- **Qwen3.5-2B scores below Qwen2.5-1.5B (0.617) here.** The 6 misses read (3 per model) end with a well-formed `The answer is N` line, so they are reasoning errors, not parsing failures; 3 of 240 2B replies hit the cap. [INFERENCE] Qwen3.5 small models are built to reason in a thinking block, which this protocol turns off to keep the 256-token cap; with thinking on they would likely score higher, but that needs a larger cap and was not run.
+- **Not a paired comparison with Qwen2.5:** different hardware (CUDA vs MPS) and run, so the Qwen2.5 rows above and these rows are compared by their intervals only.
 
 ## Do the statistics hold up? Monte Carlo check (`evalkit stats-check`)
 
@@ -928,6 +957,15 @@ Panel majority minus Sonnet: S1 +2.9 pp [+0.4, +5.9] ("superior" by the pre-regi
 
 **No detectable drop for either model**; drops below about 3.5 pp are not excluded, and a null does not prove the absence of contamination. A positive drop could be memorisation or brittleness to new numbers; the probe cannot separate them. Variant golds average about 10% larger than the originals (kept from the numeric range, stated in the protocol). Not comparable with Mirzadeh et al. 2024 (different items, prompts, models). [results](docs/results/contamination-gsm.md)
 
+**Update 2026-11-27, Sonnet 5.5.** The same 140 test problems and 2 variants each, same prompt, with `claude-sonnet-5-5` in place of Sonnet 4.5 (called through omp, which sends no `max_tokens` cap; 420 calls, no dev run). Holm is now over Haiku 5.5 and Sonnet 5.5 (`python scripts/contamination_probe.py score --models claude-haiku-5-5 claude-sonnet-5-5 --stem contamination-gsm-2026-11`):
+
+| Model | original | variants | drop [95% CI] | Holm p |
+|---|---|---|---|---|
+| claude-haiku-5-5 (unchanged) | 96.4% | 94.3% | +2.1 pp [0.0, +4.6] | 0.219 |
+| claude-sonnet-5-5 | 97.1% | 96.8% | +0.4 pp [-0.7, +1.8] | 1.000 |
+
+No detectable drop for Sonnet 5.5 either; its MDE is smaller (1.9 pp at the Holm alpha of .025, against 3.4 for Haiku) because it gets almost every item right. omp records no token counts, so truncation and cost are not measured for the Sonnet 5.5 replies (the results file shows 0 for both); all 420 have an `Answer:` line. [results](docs/results/contamination-gsm-2026-11.md)
+
 ### Min-K% Prob demo (local model + API paraphrases)
 
 `Qwen/Qwen2.5-0.5B` (revision `060db6499f32faf8b98477b0a26969ef7d8b9987`, float32, MPS) scores 132 GSM8K test questions against Claude (haiku-5-5) paraphrases; AUROC of originals vs paraphrases, paired bootstrap over questions. **A method demo, not a contamination audit of Qwen or GSM8K.**
@@ -940,6 +978,8 @@ Panel majority minus Sonnet: S1 +2.9 pp [+0.4, +5.9] ("superior" by the pre-regi
 | zlib ratio | 0.531 [0.475, 0.585] |
 
 Mean log-prob beats Min-K% K=20 by 0.089 [0.051, 0.125], but paraphrases are longer and in a different style (token count alone gives AUROC 0.421), so that separation is not memorisation evidence. Three of four pre-registered predictions were wrong or moot ([mink-demo.md](docs/results/mink-demo.md)). The optional extra stays optional: the core path imports no model library.
+
+**Update 2026-11-27, Qwen3.5-0.8B-Base** (revision `dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68`, Feb 2026, the newest small Qwen base model), same 132 pairs and paraphrases, float32 on an RTX 4090 (`python scripts/mink_demo.py --model qwen3.5-0.8b-base score`, then `report`). Here Min-K% K=20 does separate originals from paraphrases: AUROC 0.645 [0.603, 0.686], 0.707 on length-matched pairs, against 0.535 for Qwen2.5-0.5B. Mean log-prob still scores higher (0.682). [INFERENCE] Qwen3.5 may have seen GSM8K test questions in training, or prefers their wording over Claude's for another reason; this demo cannot tell which. The protocol was written for Qwen2.5-0.5B, so this run is a rerun under it, not pre-registered. [mink-demo-qwen3.5.md](docs/results/mink-demo-qwen3.5.md)
 
 ### Cost and disk
 

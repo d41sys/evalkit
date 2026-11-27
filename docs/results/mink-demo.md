@@ -1,6 +1,6 @@
 # Min-K% Prob demo (Qwen2.5-0.5B, GSM8K test vs Claude paraphrases)
 
-**A DEMO of the Min-K% Prob method on a tiny model. It is not a contamination audit of Qwen2.5-0.5B, of any other model, or of GSM8K.** Protocol: `docs/protocol-mink.md` (committed before scoring). Reproduce: `uv run --offline python scripts/mink_demo.py report` (replays committed caches; no model, key or network).
+**A DEMO of the Min-K% Prob method on a tiny model. It is not a contamination audit of Qwen2.5-0.5B, of any other model, or of GSM8K.** Protocol: `docs/protocol-mink.md` (committed before scoring). Reproduce: `uv run --offline python scripts/mink_demo.py --model qwen2.5-0.5b report` (replays committed caches; no model, key or network).
 
 - Model `Qwen/Qwen2.5-0.5B` revision `060db6499f32faf8b98477b0a26969ef7d8b9987`, float32; log-probs under teacher forcing after a prepended `<|endoftext|>` context token.
 - 150 questions selected (`random.Random(0)`), 132 kept after the number-multiset check; dropped: {'numbers_differ': 18}.

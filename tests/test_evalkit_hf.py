@@ -32,7 +32,11 @@ class FakeTokenizer:
     pad_token_id = EOS
 
     def apply_chat_template(
-        self, messages: list[dict[str, str]], tokenize: bool, add_generation_prompt: bool
+        self,
+        messages: list[dict[str, str]],
+        tokenize: bool,
+        add_generation_prompt: bool,
+        enable_thinking: bool = True,
     ) -> str:
         assert tokenize is False
         assert add_generation_prompt is True

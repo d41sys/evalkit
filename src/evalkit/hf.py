@@ -53,9 +53,11 @@ def build_user_message(prompt: str, task_type: str, choices: Sequence[str] | Non
 
 
 def pick_device() -> str:
-    """mps when available (Apple silicon), otherwise cpu."""
+    """cuda, then mps (Apple silicon), otherwise cpu."""
     import torch
 
+    if torch.cuda.is_available():
+        return "cuda"
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
@@ -133,9 +135,12 @@ class HFModel:
     def render_chat(self, prompt: str, task_type: str, choices: Sequence[str] | None) -> str:
         """Chat-template text ending at the start of the assistant turn."""
         messages = [{"role": "user", "content": build_user_message(prompt, task_type, choices)}]
-        return str(
-            self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        # enable_thinking=False: Qwen3+ templates would otherwise open a reasoning block;
+        # templates that do not use the variable ignore it (Qwen2.5 output is unchanged)
+        text = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
         )
+        return str(text)
 
     def _encode(self, text: str) -> list[int]:
         # The chat template already contains the special tokens as text.

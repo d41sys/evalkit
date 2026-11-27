@@ -61,7 +61,11 @@ MAX_TOKENS = 1024
 CALL_CAP = 900
 MODELS = ("claude-haiku-5-5", "claude-sonnet-4-5-20250929")
 # ASSUMED list prices, USD per million tokens (input, output); not read from the API.
-PRICES = {"claude-haiku-5-5": (1.0, 5.0), "claude-sonnet-4-5-20250929": (3.0, 15.0)}
+PRICES = {
+    "claude-haiku-5-5": (1.0, 5.0),
+    "claude-sonnet-4-5-20250929": (3.0, 15.0),
+    "claude-sonnet-5-5": (3.0, 15.0),  # called through omp: tokens not recorded, cost shows 0
+}
 
 
 def _cache_path(model: str) -> Path:
@@ -333,7 +337,9 @@ def _ledger() -> tuple[list[str], dict[str, Any]]:
     return lines, detail
 
 
-def score(_: argparse.Namespace) -> int:
+def score(args: argparse.Namespace) -> int:
+    global MODELS
+    MODELS = tuple(args.models)  # the report, ledger and Holm family follow this list
     items = [r for r in _rows(OUT / "items.jsonl") if r["split"] == "test"]
     sources = sorted({r["source_id"] for r in items})
     gold = {r["id"]: r["gold"] for r in items}
@@ -364,7 +370,7 @@ def score(_: argparse.Namespace) -> int:
     ledger_lines, ledger = _ledger()
     lines = _report(results, holm, extra, neut, sources, items, ledger_lines, diff)
     RESULTS.mkdir(parents=True, exist_ok=True)
-    (RESULTS / "contamination-gsm.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (RESULTS / f"{args.stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     payload = {
         "protocol": "docs/protocol-contamination.md",
         "prompt_version": PROMPT_VERSION,
@@ -383,7 +389,7 @@ def score(_: argparse.Namespace) -> int:
         "reply_info": extra,
         "ledger": ledger,
     }
-    (RESULTS / "contamination-gsm.json").write_text(
+    (RESULTS / f"{args.stem}.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
     )
     print("\n".join(lines))
@@ -524,7 +530,9 @@ def main(argv: list[str] | None = None) -> int:
     ru.add_argument("--max-tokens", type=int, default=MAX_TOKENS)
     ru.add_argument("--workers", type=int, default=6)
     ru.add_argument("--limit", type=int, default=0, help="first N sources only")
-    sub.add_parser("score")
+    sc = sub.add_parser("score")
+    sc.add_argument("--models", nargs="+", default=list(MODELS))
+    sc.add_argument("--stem", default="contamination-gsm", help="docs/results/<stem>.md/.json")
     args = p.parse_args(argv)
     return {"build": build, "review": review, "run": run, "score": score}[args.cmd](args)
 

@@ -48,6 +48,16 @@ SOURCE = ROOT / "data" / "raw" / "gsm8k_test.jsonl"
 OUT = ROOT / "data" / "mink"
 PAIRS = OUT / "pairs.jsonl"
 CACHE = OUT / "paraphrase-cache.jsonl"
+# --model choice: (HF id, pinned revision, log-prob file, report stem). qwen2.5-0.5b is the
+# original demo; qwen3.5-0.8b-base is the 2026-11 rerun with the newest small base model.
+SCORERS = {
+    "qwen2.5-0.5b": ("Qwen/Qwen2.5-0.5B", "060db6499f32faf8b98477b0a26969ef7d8b9987", "mink-demo"),
+    "qwen3.5-0.8b-base": (
+        "Qwen/Qwen3.5-0.8B-Base",
+        "dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68",
+        "mink-demo-qwen3.5",
+    ),
+}
 LOGPROBS = OUT / "logprobs-qwen2.5-0.5b.jsonl"
 RESULT_MD = ROOT / "docs" / "results" / "mink-demo.md"
 RESULT_JSON = ROOT / "docs" / "results" / "mink-demo.json"
@@ -58,8 +68,8 @@ PARAPHRASER = "claude-haiku-5-5"
 MAX_CALLS = 200
 # ASSUMED list prices in USD per million tokens (not read from the API).
 ASSUMED_PRICE = {"input": 1.00, "output": 5.00}
-MODEL_ID = "Qwen/Qwen2.5-0.5B"
-MODEL_REVISION = "060db6499f32faf8b98477b0a26969ef7d8b9987"
+SCORER = "qwen2.5-0.5b"
+MODEL_ID, MODEL_REVISION, _ = SCORERS[SCORER]
 MAX_TOKENS = 512
 KS = (10, 20, 30, 50)
 PRIMARY_K = 20
@@ -141,6 +151,7 @@ def cmd_score(args: argparse.Namespace) -> None:
 
     pairs = [p for p in _read_jsonl(PAIRS) if p["status"] == "kept"]
     device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else device
     tok = AutoTokenizer.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32, use_safetensors=True
@@ -195,7 +206,8 @@ def _ci(samples: np.ndarray) -> list[float]:
     return [round(lo, 4), round(hi, 4)]
 
 
-def compute(pairs_path: Path = PAIRS, logprobs_path: Path = LOGPROBS) -> dict[str, Any]:
+def compute(pairs_path: Path | None = None, logprobs_path: Path | None = None) -> dict[str, Any]:
+    pairs_path, logprobs_path = pairs_path or PAIRS, logprobs_path or LOGPROBS
     pairs = _read_jsonl(pairs_path)
     status: dict[str, int] = {}
     for p in pairs:
@@ -356,12 +368,13 @@ def render(res: dict[str, Any], led: dict[str, Any]) -> str:
     label["mean_logprob"] = "mean log-prob (baseline)"
     label["zlib_ratio"] = "zlib ratio (baseline)"
     lines = [
-        "# Min-K% Prob demo (Qwen2.5-0.5B, GSM8K test vs Claude paraphrases)",
+        f"# Min-K% Prob demo ({MODEL_ID.split('/')[-1]}, GSM8K test vs Claude paraphrases)",
         "",
         "**A DEMO of the Min-K% Prob method on a tiny model. It is not a contamination audit of "
-        "Qwen2.5-0.5B, of any other model, or of GSM8K.** Protocol: `docs/protocol-mink.md` "
+        f"{MODEL_ID.split('/')[-1]}, of any other model, or of GSM8K.** Protocol: "
+        "`docs/protocol-mink.md` "
         "(committed before scoring). Reproduce: `uv run --offline python scripts/mink_demo.py "
-        "report` (replays committed caches; no model, key or network).",
+        f"--model {SCORER} report` (replays committed caches; no model, key or network).",
         "",
         f"- Model `{res['model']}` revision `{res['revision']}`, float32; log-probs under teacher "
         "forcing after a prepended `<|endoftext|>` context token.",
@@ -448,8 +461,19 @@ def cmd_report(_args: argparse.Namespace) -> None:
     print(f"wrote {RESULT_MD} and {RESULT_JSON}", file=sys.stderr)
 
 
+def _use(key: str) -> None:
+    """Point the score and report steps at one scoring model's files."""
+    global SCORER, MODEL_ID, MODEL_REVISION, LOGPROBS, RESULT_MD, RESULT_JSON
+    SCORER = key
+    MODEL_ID, MODEL_REVISION, stem = SCORERS[key]
+    LOGPROBS = OUT / f"logprobs-{MODEL_ID.split('/')[-1].lower()}.jsonl"
+    RESULT_MD = ROOT / "docs" / "results" / f"{stem}.md"
+    RESULT_JSON = ROOT / "docs" / "results" / f"{stem}.json"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--model", choices=sorted(SCORERS), default=SCORER, help="scoring model")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("paraphrase")
     p.add_argument("--limit", type=int, help="pilot: only the first N questions")
@@ -458,6 +482,7 @@ def main() -> None:
     sub.add_parser("score").set_defaults(fn=cmd_score)
     sub.add_parser("report").set_defaults(fn=cmd_report)
     args = ap.parse_args()
+    _use(args.model)
     if args.cmd == "paraphrase" and not args.cache_only and "ANTHROPIC_API_KEY" not in os.environ:
         print("ANTHROPIC_API_KEY not set; only cached requests will succeed", file=sys.stderr)
     args.fn(args)
