@@ -392,6 +392,30 @@ Paired differences (bootstrap 95% CI, exact sign test):
 - **The thinking-off rerun moved the numbers:** 2B 0.496 → 0.517, with 11 items changed; 0.8B 0.383 → 0.367, with 16 changed. The rerun had `flash-linear-attention` installed, and batch grouping may differ too [INFERENCE: neither cause was isolated]. Greedy decoding is deterministic only for a fixed kernel and batch layout, so the two thinking-off runs are not interchangeable; the tables pair thinking on with the rerun.
 - **Cost:** thinking off takes about 3 minutes per model. Thinking on took 67 minutes (2B greedy), 64 minutes (2B sampled) and 46 minutes (0.8B sampled).
 
+#### Thinking on, 8,192-token cap (2026-11-28, Qwen3.5-2B only)
+
+Same command as the sampled run above with `--hf-max-new-tokens 8192`, output `runs/gsm8k-q35-sample8k`. One run, no crash or resume, 71 minutes.
+
+| Qwen3.5-2B, thinking on, sampled | Accuracy | 95% CI | Cut off before `</think>` |
+|---|---|---|---|
+| 4,096-token cap | 0.671 (161/240) | [0.608, 0.729] | 72 |
+| 8,192-token cap | **0.867** (208/240) | [0.821, 0.908] | 14 |
+
+8,192 vs thinking off: +0.350 [+0.287, +0.412], 87 wins / 3 losses, sign p 2e-22.
+
+The two capped runs do not share random draws: once one reply in a batch decodes longer, every later problem gets different samples. So the plain paired difference (+0.196, 49 wins / 2 losses) mixes the cap with a new set of draws. Split by what happened at 4,096:
+
+| Problems | n | Correct at 4,096 | Correct at 8,192 | Reading |
+|---|---|---|---|---|
+| Finished at 4,096 | 168 | 161 | 161 (2 lost, 2 gained) | new draws alone: 4 of 168 answers flip, net 0 |
+| Cut off at 4,096 | 72 | 0 | 47 | 16 of the 47 finished within 4,096 tokens this time (new draws), 31 needed more than 4,096 (cap) |
+
+- **Cap effect inside the 8,192 run:** 160 replies finished within 4,096 tokens (155 correct) and 66 needed more (53 correct). Stopping this same run at 4,096 would have scored 155/240 = 0.646, so the larger cap adds 53 correct answers, +0.221. That counterfactual uses this run's own draws.
+- **Seed noise is about 2.5 points here:** 0.646 against the 0.671 the separate 4,096 run scored. Reply length varies more than correctness does: 25 of the 168 problems that finished at 4,096 needed more than 4,096 tokens in this run.
+- **Long replies are less accurate:** 97% correct (155/160) within 4,096 tokens, 80% (53/66) beyond. 14 replies still hit the cap.
+- **0.867 is above every Qwen2.5 row above** (3B: 0.729), but those ran greedy with a 256-token cap on other hardware, so this is not a like-for-like model comparison: the 2B used up to 32 times the token budget.
+- One sample per problem, one seed; 0.8B was not run at this cap.
+
 ## Do the statistics hold up? Monte Carlo check (`evalkit stats-check`)
 
 `evalkit stats-check` simulates paired per-example scores with a known true difference and runs the shipped functions in `aggregate.py` on them: `paired_comparison` (percentile bootstrap CI and exact sign test), `randomization_test_p`, `holm_bonferroni` (through `compare_pairs`), `minimum_detectable_effect` and `required_sample_size`. The simulator and the verdict rules live in `src/evalkit/statscheck.py`; numpy only, seeded, no models.
